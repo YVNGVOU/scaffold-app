@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "paths": {
+      "@lucid/schema": ["../schema/src/index.ts"]
+    }
+  },
+  "include": ["src", "../schema/src"]
+}
