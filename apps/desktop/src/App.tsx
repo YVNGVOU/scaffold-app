@@ -17,6 +17,7 @@ import { PipelineStepper } from './components/PipelineStepper';
 import { SettingsPanel, DEFAULT_MODE_KEY, MAX_ROUNDS_KEY, DEFAULT_MAX_ROUNDS, type CompileMode } from './components/SettingsPanel';
 import { VersionHistory } from './components/VersionHistory';
 import { BatchCompile } from './components/BatchCompile';
+import { CompareModes } from './components/CompareModes';
 import { OnboardingPanel, ONBOARDING_SEEN_KEY } from './components/OnboardingPanel';
 import { ErrorNote } from './components/ErrorNote';
 import { toFriendlyError, type FriendlyError } from './lib/friendlyError';
@@ -59,6 +60,11 @@ export default function App() {
   // uses. Own component owns its own run/progress state; App.tsx only owns
   // whether the modal is open and refreshes the prompt list when it's done.
   const [batchCompileOpen, setBatchCompileOpen] = useState(false);
+  // TASK-082: Compare Modes — runs the current raw input through QUICK/
+  // ARCHITECT/MASTER concurrently and shows a compact comparison. Own
+  // component owns its own per-column run/progress state; App.tsx only owns
+  // whether the modal is open, plus the "Use this" persistence handoff.
+  const [compareModesOpen, setCompareModesOpen] = useState(false);
   const [maxRounds, setMaxRounds] = useState(DEFAULT_MAX_ROUNDS);
   // TASK-026: one-time first-run onboarding panel, tracked via the existing
   // settings table. null = not yet determined (avoids a flash of the panel
@@ -354,6 +360,20 @@ export default function App() {
     }
   }
 
+  // TASK-082: "Use this" from the Compare Modes view. Reuses the exact same
+  // create-if-needed-then-persist sequence handleCompile already uses; the
+  // pipeline run itself already happened inside CompareModes, so this only
+  // lifts the chosen result into App.tsx's active state, switches the mode
+  // toggle to match, and refreshes the prompt list (parity with a normal
+  // compile / with BatchCompile's onDone).
+  async function handleUseComparisonResult(prompt: Prompt, resultMode: CompileMode, resultCompiled: CompiledPrompt) {
+    setActivePrompt(prompt);
+    setMode(resultMode);
+    setCompiled(resultCompiled);
+    setCompareModesOpen(false);
+    await refreshPrompts();
+  }
+
   // TASK-018 sub-feature D: keyboard shortcuts. Latest handlers/state are
   // read via refs inside a single stable window listener, so the listener
   // never goes stale without needing handleCompile/handleNewPrompt in a
@@ -441,6 +461,16 @@ export default function App() {
         />
       )}
 
+      {compareModesOpen && (
+        <CompareModes
+          rawInput={rawInput}
+          maxRounds={maxRounds}
+          activePrompt={activePrompt}
+          onUseResult={handleUseComparisonResult}
+          onClose={() => setCompareModesOpen(false)}
+        />
+      )}
+
       {historyOpen && activePrompt && (
         <VersionHistory promptId={activePrompt.id} onClose={() => setHistoryOpen(false)} />
       )}
@@ -510,6 +540,12 @@ export default function App() {
                   MASTER
                 </button>
               </div>
+              {/* TASK-082: runs the current raw input through all three modes and shows
+                  a compact side-by-side comparison. Disabled while a normal compile is
+                  in flight or the input is empty, same guard shape as the Compile button. */}
+              <button type="button" onClick={() => setCompareModesOpen(true)} disabled={running || rawInput.trim().length === 0}>
+                Compare Modes
+              </button>
             </div>
           </div>
           <textarea
