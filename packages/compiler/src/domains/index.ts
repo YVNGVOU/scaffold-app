@@ -4,11 +4,12 @@ import { gameDomain } from './game/index.js';
 import { brandingDomain } from './branding/index.js';
 import { softwareDevelopmentDomain } from './software-development/index.js';
 import { mobileDevelopmentDomain } from './mobile-development/index.js';
+import { desktopDevelopmentDomain } from './desktop-development/index.js';
 
-export const DOMAIN_MODULES: DomainModule[] = [webDomain, gameDomain, brandingDomain, softwareDevelopmentDomain, mobileDevelopmentDomain];
+export const DOMAIN_MODULES: DomainModule[] = [webDomain, gameDomain, brandingDomain, softwareDevelopmentDomain, mobileDevelopmentDomain, desktopDevelopmentDomain];
 
 /** Minimum score for a domain to be selected; below this, domain is 'unknown'. */
 export const DOMAIN_CONFIDENCE_FLOOR = 1;
 
-export { webDomain, gameDomain, brandingDomain, softwareDevelopmentDomain, mobileDevelopmentDomain };
+export { webDomain, gameDomain, brandingDomain, softwareDevelopmentDomain, mobileDevelopmentDomain, desktopDevelopmentDomain };
 export type { DomainModule } from './types.js';
