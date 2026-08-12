@@ -113,7 +113,19 @@ function PromptRow({
             style={{ width: '100%', fontSize: 14 }}
           />
         ) : (
-          <div style={{ fontFamily: 'var(--sv-font-head)', fontSize: 14, marginBottom: 2 }}>{p.title}</div>
+          <div
+            title={p.title}
+            style={{
+              fontFamily: 'var(--sv-font-head)',
+              fontSize: 14,
+              marginBottom: 2,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+          >
+            {p.title}
+          </div>
         )}
         <div style={{ fontSize: 11, color: 'var(--sv-ink-soft)' }}>{new Date(p.created_at).toLocaleString()}</div>
       </button>
