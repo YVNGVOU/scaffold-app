@@ -2,6 +2,7 @@
 
 | Task ID | Priority | Status | Classification | Summary |
 |---|---|---|---|---|
+| TASK-059 | P2 | DONE | feature, domain-knowledge | Added "Animation" domain (`animation`) — 2D/3D animation production requests distinct from Blender-specific 3D modeling (storyboard, frame rate/timing, character rigging, animation pipeline/software). Extended `DomainId` union additively; new `packages/compiler/src/domains/animation/index.ts` (word-boundary-safe keyword scoring, 5 default requirements, 6 ambiguity fields, 10-component architecture template, 8/6/5/7/6 technical/UX/security/creative/QA considerations, 3 constraint pairs); registered additively in `packages/compiler/src/domains/index.ts`; new `packages/compiler/test/domain-animation.test.ts` (6 tests). vitest 284/284 (278 prior + 6 new), `tsc --noEmit` clean on schema and compiler. |
 | TASK-001 | P1 | DONE | feature, architecture | Phase 1: lucid/SINVAUX compiler core + full desktop scaffold — verified 2026-08-11 |
 | TASK-002 | P1 | DONE | feature | Real English NLP layer for intent/requirement extraction (tokenization, grammar, negation, synonym normalization) — deterministic, offline, no AI API — verified 2026-08-11 |
 | TASK-003 | P1 | DONE | feature | Add TECHNICAL specialist as second real specialist, registered via SPECIALIST_REGISTRY, run alongside ARCHITECT in the pipeline — verified 2026-08-11 |
