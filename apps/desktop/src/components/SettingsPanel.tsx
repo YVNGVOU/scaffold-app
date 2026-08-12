@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { getVersion } from '@tauri-apps/api/app';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { setSetting } from '../lib/api';
+import { supabase } from '../lib/supabase';
+import { AUTH_LAST_VERIFIED_KEY } from './AuthGate';
 import { UpdateChecker } from './UpdateChecker';
 
 export type CompileMode = 'architect' | 'quick' | 'master';
@@ -56,6 +58,28 @@ export function SettingsPanel({ onClose, defaultMode, onDefaultModeChange, maxRo
     } catch {
       window.open(REPO_URL, '_blank');
     }
+  }
+
+  const [signingOut, setSigningOut] = useState(false);
+
+  // TASK-019 requirement 6: clears both the Supabase session and the
+  // locally-cached auth_last_verified_at (so the 7-day offline grace period
+  // can't be used to bypass an explicit sign-out) — AuthGate's
+  // onAuthStateChange listener picks up the SIGNED_OUT event and returns the
+  // user to LoginScreen.
+  async function handleSignOut() {
+    setSigningOut(true);
+    try {
+      await supabase.auth.signOut();
+    } catch {
+      // proceed regardless — still clear the local grace-period cache below
+    }
+    try {
+      await setSetting(AUTH_LAST_VERIFIED_KEY, '');
+    } catch {
+      // best-effort
+    }
+    setSigningOut(false);
   }
 
   return (
@@ -146,9 +170,14 @@ export function SettingsPanel({ onClose, defaultMode, onDefaultModeChange, maxRo
           <div style={{ fontFamily: 'var(--sv-font-head)', fontSize: 16, marginBottom: 4 }}>Scaffold</div>
           <div style={{ fontSize: 12, color: 'var(--sv-ink-soft)', marginBottom: 4 }}>Version {version || '…'}</div>
           <div style={{ fontSize: 12, color: 'var(--sv-ink-soft)', marginBottom: 8 }}>A SINVAUX product</div>
-          <button type="button" onClick={handleOpenRepo}>
-            View on GitHub
-          </button>
+          <div style={{ display: 'flex', gap: 4 }}>
+            <button type="button" onClick={handleOpenRepo}>
+              View on GitHub
+            </button>
+            <button type="button" onClick={handleSignOut} disabled={signingOut}>
+              {signingOut ? 'Signing Out…' : 'Sign Out'}
+            </button>
+          </div>
         </div>
       </div>
     </div>
