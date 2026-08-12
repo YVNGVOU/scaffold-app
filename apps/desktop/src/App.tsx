@@ -148,7 +148,25 @@ export default function App() {
   }
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr 320px', gridTemplateRows: '1fr 90px', height: '100vh' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr 320px', gridTemplateRows: '1fr 90px', height: '100vh', position: 'relative' }}>
+      {/* Persistent company-brand stamp (TASK-016) — visible from every pane, not just the left nav footer. */}
+      <div
+        style={{
+          position: 'fixed',
+          bottom: 'var(--sv-space-2)',
+          right: 'var(--sv-space-3)',
+          fontSize: 9,
+          letterSpacing: '0.08em',
+          textTransform: 'uppercase',
+          color: 'var(--sv-ink-soft)',
+          pointerEvents: 'none',
+          zIndex: 10,
+          userSelect: 'none',
+        }}
+      >
+        SINVAUX
+      </div>
+
       <div style={{ gridColumn: '1', gridRow: '1', borderRight: '1px solid var(--sv-hairline)', minHeight: 0, overflow: 'hidden' }}>
         <PromptList prompts={prompts} activeId={activePrompt?.id ?? null} onSelect={handleSelectPrompt} onNew={handleNewPrompt} />
       </div>
