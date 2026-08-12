@@ -4,6 +4,7 @@ import { mergeAnswer } from '@lucid/compiler';
 import { KindTag } from './KindTag';
 import { CollapsibleSection } from './CollapsibleSection';
 import { MetaDisclosure } from './MetaDisclosure';
+import { ProvenanceTip } from './ProvenanceTip';
 import { formatSource, groupBySource } from './format';
 
 /** True once a matching kind:'user' answer (source: 'user-answered-question',
@@ -40,7 +41,9 @@ function UnresolvedItemCard({
 
   return (
     <div style={{ padding: 'var(--sv-space-3) 0', borderBottom: '1px solid var(--sv-hairline)' }}>
-      <KindTag kind={item.kind} />
+      <ProvenanceTip item={item}>
+        <KindTag kind={item.kind} />
+      </ProvenanceTip>
       <div style={{ fontSize: 13, margin: '4px 0' }}>{item.text}</div>
       <MetaDisclosure item={item} />
       <div style={{ display: 'flex', gap: 6, marginTop: 'var(--sv-space-2)' }}>
@@ -72,7 +75,9 @@ function UnresolvedItemCard({
 function RequirementCard({ item }: { item: RequirementItem }) {
   return (
     <div style={{ padding: 'var(--sv-space-3) 0', borderBottom: '1px solid var(--sv-hairline)' }}>
-      <KindTag kind={item.kind} />
+      <ProvenanceTip item={item}>
+        <KindTag kind={item.kind} />
+      </ProvenanceTip>
       <div style={{ fontSize: 13, margin: '4px 0' }}>{item.text}</div>
       <MetaDisclosure item={item} />
     </div>

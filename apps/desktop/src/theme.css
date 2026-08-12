@@ -143,6 +143,38 @@ textarea:focus, input:focus {
 .sv-kind-unresolved { color: var(--sv-alert); }
 .sv-kind-rejected { color: #928c7a; text-decoration: line-through; }
 
+/* TASK-028: lightweight hover/focus tooltip showing a one-line
+   source + confidence summary, alongside (not replacing) the
+   click-to-expand MetaDisclosure. */
+.sv-tip {
+  position: relative;
+  display: inline-block;
+}
+
+.sv-tip-bubble {
+  position: absolute;
+  left: 0;
+  bottom: 100%;
+  margin-bottom: 4px;
+  background: var(--sv-ivory-dim);
+  color: var(--sv-ink);
+  border: 1px solid var(--sv-hairline-strong);
+  padding: 3px 8px;
+  font-family: var(--sv-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.1s ease;
+  z-index: 10;
+}
+
+.sv-tip:hover .sv-tip-bubble,
+.sv-tip:focus-within .sv-tip-bubble {
+  opacity: 1;
+}
+
 .sv-scrollpane {
   overflow-y: auto;
 }
