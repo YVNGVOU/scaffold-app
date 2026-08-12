@@ -13,6 +13,7 @@ import { CompiledOutput } from './components/CompiledOutput';
 import { DecisionsPanel } from './components/DecisionsPanel';
 import { PipelineStepper } from './components/PipelineStepper';
 import { SettingsPanel, DEFAULT_MODE_KEY, MAX_ROUNDS_KEY, DEFAULT_MAX_ROUNDS, type CompileMode } from './components/SettingsPanel';
+import { VersionHistory } from './components/VersionHistory';
 import './theme.css';
 
 const STAGE_DELAY_MS = 90;
@@ -31,6 +32,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<CompileMode>('architect');
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [maxRounds, setMaxRounds] = useState(DEFAULT_MAX_ROUNDS);
   // MASTER mode's stage sequence is dynamic (the deliberation loop can run a
   // variable number of rounds), unlike ARCHITECT/QUICK's static stage-name
@@ -272,6 +274,10 @@ export default function App() {
         />
       </div>
 
+      {historyOpen && activePrompt && (
+        <VersionHistory promptId={activePrompt.id} onClose={() => setHistoryOpen(false)} />
+      )}
+
       {settingsOpen && (
         <SettingsPanel
           onClose={() => setSettingsOpen(false)}
@@ -319,9 +325,12 @@ export default function App() {
             rows={5}
             placeholder="Describe what you want, plainly. e.g. &quot;build me a portfolio site for a photographer&quot;"
           />
-          <div>
+          <div style={{ display: 'flex', gap: 'var(--sv-space-2)' }}>
             <button className="sv-primary" onClick={handleCompile} disabled={running}>
               {running ? 'Compiling…' : 'Compile'}
+            </button>
+            <button type="button" onClick={() => setHistoryOpen(true)} disabled={!activePrompt}>
+              History
             </button>
           </div>
           {error && <div style={{ color: 'var(--sv-burgundy)', fontSize: 12 }}>{error}</div>}

@@ -3,6 +3,15 @@ import { runArchitectPipeline, runQuickPipeline, runMasterPipeline, type RunMast
 
 export { mergeAnswer } from './mergeAnswer.js';
 export { formatAsMarkdown } from './formatAsMarkdown.js';
+export { formatDiff } from './formatDiff.js';
+export type {
+  CompiledPromptDiff,
+  CategoryDiff,
+  ScalarFieldChange,
+  ArchitectureNoteChange,
+  RequirementCategoryKey,
+  ScalarFieldKey,
+} from './formatDiff.js';
 
 /** Public entry point: compiles raw user input into a CompiledPrompt via ARCHITECT mode. */
 export function compileArchitect(rawInput: string): CompiledPrompt {
