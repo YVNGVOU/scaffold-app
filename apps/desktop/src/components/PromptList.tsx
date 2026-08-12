@@ -127,7 +127,19 @@ function PromptRow({
             {p.title}
           </div>
         )}
-        <div style={{ fontSize: 11, color: 'var(--sv-ink-soft)' }}>{new Date(p.created_at).toLocaleString()}</div>
+        <div
+          style={{
+            fontSize: 10,
+            color: 'var(--sv-ink-soft)',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}
+        >
+          {new Date(p.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+          {' · '}
+          {new Date(p.created_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
+        </div>
       </button>
       {!editing && (
         <div style={{ display: 'flex', flexShrink: 0, paddingRight: 'var(--sv-space-2)' }}>
