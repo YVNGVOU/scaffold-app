@@ -132,7 +132,9 @@ export function PromptList({ prompts, activeId, onSelect, onNew, onPromptsChange
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return prompts;
-    return prompts.filter((p) => p.title.toLowerCase().includes(q));
+    return prompts.filter(
+      (p) => p.title.toLowerCase().includes(q) || p.raw_input.toLowerCase().includes(q),
+    );
   }, [prompts, query]);
 
   return (
@@ -150,7 +152,7 @@ export function PromptList({ prompts, activeId, onSelect, onNew, onPromptsChange
         </button>
         <input
           type="text"
-          placeholder="Search prompts…"
+          placeholder="Search prompts (title or content)…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           style={{ fontSize: 12 }}
