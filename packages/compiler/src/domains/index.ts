@@ -19,11 +19,12 @@ import { businessDomain } from './business/index.js';
 import { marketingDomain } from './marketing/index.js';
 import { productDesignDomain } from './product-design/index.js';
 import { educationDomain } from './education/index.js';
+import { dataAnalysisDomain } from './data-analysis/index.js';
 
-export const DOMAIN_MODULES: DomainModule[] = [webDomain, gameDomain, brandingDomain, softwareDevelopmentDomain, mobileDevelopmentDomain, desktopDevelopmentDomain, unityDomain, unrealDomain, robloxDomain, blenderDomain, graphicDesignDomain, imageGenerationDomain, videoGenerationDomain, musicDomain, writingDomain, researchDomain, businessDomain, marketingDomain, productDesignDomain, educationDomain];
+export const DOMAIN_MODULES: DomainModule[] = [webDomain, gameDomain, brandingDomain, softwareDevelopmentDomain, mobileDevelopmentDomain, desktopDevelopmentDomain, unityDomain, unrealDomain, robloxDomain, blenderDomain, graphicDesignDomain, imageGenerationDomain, videoGenerationDomain, musicDomain, writingDomain, researchDomain, businessDomain, marketingDomain, productDesignDomain, educationDomain, dataAnalysisDomain];
 
 /** Minimum score for a domain to be selected; below this, domain is 'unknown'. */
 export const DOMAIN_CONFIDENCE_FLOOR = 1;
 
-export { webDomain, gameDomain, brandingDomain, softwareDevelopmentDomain, mobileDevelopmentDomain, desktopDevelopmentDomain, unityDomain, unrealDomain, robloxDomain, blenderDomain, graphicDesignDomain, imageGenerationDomain, videoGenerationDomain, musicDomain, writingDomain, researchDomain, businessDomain, marketingDomain, productDesignDomain, educationDomain };
+export { webDomain, gameDomain, brandingDomain, softwareDevelopmentDomain, mobileDevelopmentDomain, desktopDevelopmentDomain, unityDomain, unrealDomain, robloxDomain, blenderDomain, graphicDesignDomain, imageGenerationDomain, videoGenerationDomain, musicDomain, writingDomain, researchDomain, businessDomain, marketingDomain, productDesignDomain, educationDomain, dataAnalysisDomain };
 export type { DomainModule } from './types.js';
