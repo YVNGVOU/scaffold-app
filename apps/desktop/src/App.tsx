@@ -7,7 +7,7 @@ import {
   QUICK_MODE_STAGE_NAMES,
   runMasterPipeline,
 } from '@lucid/compiler';
-import { createPrompt, listPrompts, saveCompile, listCompiles, getSetting, type Prompt } from './lib/api';
+import { createPrompt, listPrompts, saveCompile, listCompiles, getSetting, setSetting, type Prompt } from './lib/api';
 import { PromptList } from './components/PromptList';
 import { CompiledOutput } from './components/CompiledOutput';
 import { DecisionsPanel } from './components/DecisionsPanel';
@@ -18,6 +18,15 @@ import { STARTER_PROMPTS } from './starterPrompts';
 import './theme.css';
 
 const STAGE_DELAY_MS = 90;
+const DRAFT_DEBOUNCE_MS = 500;
+// TASK-023: draft input is persisted (debounced) via the existing
+// get_setting/set_setting settings table (TASK-018), keyed per-prompt-id so
+// each prompt's mid-typing raw input survives switching away and back. A
+// prompt not yet saved (no id) uses a single shared "new prompt" draft key.
+const NEW_DRAFT_KEY = 'draft_new_prompt';
+function draftKey(promptId: string | null): string {
+  return promptId ? `draft_prompt_${promptId}` : NEW_DRAFT_KEY;
+}
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -66,6 +75,18 @@ export default function App() {
       .catch(() => {});
   }, []);
 
+  // TASK-023: debounced draft auto-save. Fires DRAFT_DEBOUNCE_MS after the
+  // last keystroke (or active-prompt switch) so navigating away mid-typing
+  // doesn't lose the last few hundred ms of unsaved text under normal use.
+  // Keyed per activePrompt so switching prompts saves under the correct key.
+  useEffect(() => {
+    const key = draftKey(activePrompt?.id ?? null);
+    const timeout = setTimeout(() => {
+      setSetting(key, rawInput).catch(() => {});
+    }, DRAFT_DEBOUNCE_MS);
+    return () => clearTimeout(timeout);
+  }, [rawInput, activePrompt]);
+
   async function refreshPrompts() {
     try {
       const list = await listPrompts();
@@ -88,20 +109,37 @@ export default function App() {
     }
   }
 
-  function handleNewPrompt() {
+  async function handleNewPrompt() {
     setActivePrompt(null);
-    setRawInput('');
     setCompiled(null);
     setStageIndex(-1);
     setMasterStageNames([]);
     setError(null);
+    // Restore any previously-saved "new prompt" draft (TASK-023) rather than
+    // always clearing to empty, so switching to New Prompt and back doesn't
+    // lose in-progress text that was never attached to a saved prompt.
+    try {
+      const draft = await getSetting(NEW_DRAFT_KEY);
+      setRawInput(draft ?? '');
+    } catch {
+      setRawInput('');
+    }
   }
 
   async function handleSelectPrompt(p: Prompt) {
     setActivePrompt(p);
-    setRawInput(p.raw_input);
     setStageIndex(-1);
     setError(null);
+    // TASK-023: prefer a saved draft over the prompt's last-compiled
+    // raw_input, so mid-typing edits that were never compiled survive
+    // switching away and back. Falls back to raw_input if no draft exists
+    // (or the draft read fails) so existing behavior is unaffected.
+    try {
+      const draft = await getSetting(draftKey(p.id));
+      setRawInput(draft && draft.length > 0 ? draft : p.raw_input);
+    } catch {
+      setRawInput(p.raw_input);
+    }
     try {
       const compiles = await listCompiles(p.id);
       if (compiles.length > 0) {
@@ -186,6 +224,7 @@ export default function App() {
       setCompiled(finalCompiled);
 
       let prompt = activePrompt;
+      const wasNewPrompt = !prompt;
       if (!prompt) {
         const title = rawInput.trim().slice(0, 60) || 'Untitled prompt';
         prompt = await createPrompt(title, rawInput);
@@ -193,6 +232,12 @@ export default function App() {
       }
       await saveCompile(prompt.id, mode, JSON.stringify(finalCompiled));
       await refreshPrompts();
+      // TASK-023: the raw input is now durably saved as the prompt's
+      // raw_input (or a fresh prompt was just created from it), so the
+      // separate draft entry is redundant — clear it to avoid a stale draft
+      // shadowing future edits. Best-effort; a leftover draft is harmless.
+      setSetting(draftKey(prompt.id), '').catch(() => {});
+      if (wasNewPrompt) setSetting(NEW_DRAFT_KEY, '').catch(() => {});
     } catch (e) {
       setError(String(e));
     } finally {
