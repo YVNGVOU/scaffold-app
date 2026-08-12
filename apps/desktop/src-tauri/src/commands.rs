@@ -102,11 +102,13 @@ pub fn rename_prompt(state: State<DbState>, id: String, new_title: String) -> Re
 /// no `ON DELETE CASCADE` on the schema, so we clean up explicitly here).
 #[tauri::command]
 pub fn delete_prompt(state: State<DbState>, id: String) -> Result<(), String> {
-    let conn = state.0.lock().map_err(|e| e.to_string())?;
-    conn.execute("DELETE FROM compiles WHERE prompt_id = ?1", params![id])
+    let mut conn = state.0.lock().map_err(|e| e.to_string())?;
+    let tx = conn.transaction().map_err(|e| e.to_string())?;
+    tx.execute("DELETE FROM compiles WHERE prompt_id = ?1", params![id])
         .map_err(|e| e.to_string())?;
-    conn.execute("DELETE FROM prompts WHERE id = ?1", params![id])
+    tx.execute("DELETE FROM prompts WHERE id = ?1", params![id])
         .map_err(|e| e.to_string())?;
+    tx.commit().map_err(|e| e.to_string())?;
     Ok(())
 }
 
