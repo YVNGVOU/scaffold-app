@@ -6,6 +6,7 @@ export interface Prompt {
   title: string;
   raw_input: string;
   created_at: string;
+  is_favorite: boolean;
 }
 
 export interface Compile {
@@ -42,6 +43,13 @@ export function renamePrompt(id: string, newTitle: string): Promise<void> {
 
 export function deletePrompt(id: string): Promise<void> {
   return invoke('delete_prompt', { id });
+}
+
+/** TASK-080: pin/favorite a prompt so frequently-reused ones surface above
+ * the chronological list, distinct from STARTER_PROMPTS (fixed built-in
+ * examples) and from just scrolling. */
+export function setFavorite(id: string, isFavorite: boolean): Promise<void> {
+  return invoke('set_favorite', { id, isFavorite });
 }
 
 export function getSetting(key: string): Promise<string | null> {

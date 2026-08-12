@@ -15,6 +15,7 @@ pub struct Prompt {
     pub title: String,
     pub raw_input: String,
     pub created_at: String,
+    pub is_favorite: bool,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -55,5 +56,23 @@ pub fn init_db(db_path: PathBuf) -> Connection {
         ",
     )
     .expect("failed to run schema migration");
+
+    // TASK-080: additive migration — `prompts` predates the `is_favorite`
+    // column, so a fresh CREATE TABLE IF NOT EXISTS above won't add it to an
+    // existing database file. SQLite has no `ADD COLUMN IF NOT EXISTS`, so
+    // check pragma_table_info first (same additive-migration spirit as
+    // TASK-018's new `settings` table, but here it's a column on an existing
+    // table rather than a whole new table).
+    let has_is_favorite: bool = conn
+        .prepare("SELECT 1 FROM pragma_table_info('prompts') WHERE name = 'is_favorite'")
+        .and_then(|mut stmt| stmt.exists([]))
+        .unwrap_or(false);
+    if !has_is_favorite {
+        conn.execute_batch(
+            "ALTER TABLE prompts ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0;",
+        )
+        .expect("failed to run is_favorite migration");
+    }
+
     conn
 }

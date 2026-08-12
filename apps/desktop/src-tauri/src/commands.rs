@@ -14,14 +14,14 @@ pub fn create_prompt(state: State<DbState>, title: String, raw_input: String) ->
         params![id, title, raw_input, created_at],
     )
     .map_err(|e| e.to_string())?;
-    Ok(Prompt { id, title, raw_input, created_at })
+    Ok(Prompt { id, title, raw_input, created_at, is_favorite: false })
 }
 
 #[tauri::command]
 pub fn list_prompts(state: State<DbState>) -> Result<Vec<Prompt>, String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
     let mut stmt = conn
-        .prepare("SELECT id, title, raw_input, created_at FROM prompts ORDER BY created_at DESC")
+        .prepare("SELECT id, title, raw_input, created_at, is_favorite FROM prompts ORDER BY created_at DESC")
         .map_err(|e| e.to_string())?;
     let rows = stmt
         .query_map([], |row| {
@@ -30,6 +30,7 @@ pub fn list_prompts(state: State<DbState>) -> Result<Vec<Prompt>, String> {
                 title: row.get(1)?,
                 raw_input: row.get(2)?,
                 created_at: row.get(3)?,
+                is_favorite: row.get::<_, i64>(4)? != 0,
             })
         })
         .map_err(|e| e.to_string())?;
@@ -93,6 +94,22 @@ pub fn rename_prompt(state: State<DbState>, id: String, new_title: String) -> Re
     conn.execute(
         "UPDATE prompts SET title = ?1 WHERE id = ?2",
         params![new_title, id],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+/// TASK-080: flips a prompt's `is_favorite` flag directly to the caller-given
+/// value (not a read-then-toggle) so the frontend's optimistic state and the
+/// backend can never disagree about which direction the click meant. Like
+/// `rename_prompt`, `prompts` is not append-only/provenance-tracked, so an
+/// UPDATE here is correct.
+#[tauri::command]
+pub fn set_favorite(state: State<DbState>, id: String, is_favorite: bool) -> Result<(), String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    conn.execute(
+        "UPDATE prompts SET is_favorite = ?1 WHERE id = ?2",
+        params![is_favorite as i64, id],
     )
     .map_err(|e| e.to_string())?;
     Ok(())

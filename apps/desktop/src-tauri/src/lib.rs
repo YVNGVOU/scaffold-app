@@ -32,6 +32,7 @@ pub fn run() {
             commands::list_compiles,
             commands::get_compile,
             commands::rename_prompt,
+            commands::set_favorite,
             commands::delete_prompt,
             commands::get_setting,
             commands::set_setting,

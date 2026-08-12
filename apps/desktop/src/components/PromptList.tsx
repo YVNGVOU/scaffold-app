@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState, type MouseEvent } from 'react';
 import type { Prompt } from '../lib/api';
-import { renamePrompt, deletePrompt, createPrompt } from '../lib/api';
+import { renamePrompt, deletePrompt, createPrompt, setFavorite } from '../lib/api';
+import { CollapsibleSection } from './CollapsibleSection';
 
 interface Props {
   prompts: Prompt[];
@@ -32,6 +33,22 @@ function PromptRow({
   onChanged: () => void;
   onDeleteRequest: (p: Prompt) => void;
 }) {
+  const [favoriteBusy, setFavoriteBusy] = useState(false);
+
+  /** TASK-080: optimistic-then-confirmed toggle. `onChanged` re-fetches the
+   * prompt list from the backend, so a failed set_favorite call self-heals
+   * on the next refresh rather than leaving the row permanently wrong. */
+  async function handleToggleFavorite(e: MouseEvent) {
+    e.stopPropagation();
+    if (favoriteBusy) return;
+    setFavoriteBusy(true);
+    try {
+      await setFavorite(p.id, !p.is_favorite);
+      onChanged();
+    } finally {
+      setFavoriteBusy(false);
+    }
+  }
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState(p.title);
 
@@ -143,7 +160,22 @@ function PromptRow({
         </div>
       </button>
       {!editing && (
-        <div style={{ display: 'flex', flexShrink: 0, paddingRight: 'var(--sv-space-2)' }}>
+        <div style={{ display: 'flex', flexShrink: 0, alignItems: 'center', paddingRight: 'var(--sv-space-2)' }}>
+          <button
+            type="button"
+            title={p.is_favorite ? 'Remove from Favorites' : 'Add to Favorites'}
+            aria-pressed={p.is_favorite}
+            onClick={handleToggleFavorite}
+            disabled={favoriteBusy}
+            style={{
+              padding: '2px 6px',
+              fontSize: 12,
+              color: p.is_favorite ? 'var(--sv-alert)' : 'var(--sv-ink-soft)',
+              borderColor: p.is_favorite ? 'var(--sv-alert)' : undefined,
+            }}
+          >
+            {p.is_favorite ? '★' : '☆'}
+          </button>
           <button
             type="button"
             title="Rename"
@@ -234,6 +266,12 @@ export function PromptList({ prompts, activeId, onSelect, onNew, onPromptsChange
 
   const pendingList = Object.values(pending);
 
+  /** TASK-080: favorited prompts pulled out into their own section, above
+   * the regular chronological list, still respecting the active search
+   * query. The chronological list below keeps every prompt including
+   * favorites — favorites is a surfaced-to-the-top view, not a removal. */
+  const favorites = useMemo(() => filtered.filter((p) => p.is_favorite), [filtered]);
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div style={{ padding: 'var(--sv-space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--sv-space-3)' }}>
@@ -260,6 +298,24 @@ export function PromptList({ prompts, activeId, onSelect, onNew, onPromptsChange
       </div>
       <hr className="sv-hairline" />
       <div className="sv-scrollpane" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+        {favorites.length > 0 && (
+          <div style={{ padding: 'var(--sv-space-4) var(--sv-space-4) 0' }}>
+            <CollapsibleSection title="Favorites" count={favorites.length} accentColor="var(--sv-alert)">
+              <div>
+                {favorites.map((p) => (
+                  <PromptRow
+                    key={`fav-${p.id}`}
+                    p={p}
+                    active={p.id === activeId}
+                    onSelect={onSelect}
+                    onChanged={onPromptsChanged}
+                    onDeleteRequest={handleDeleteRequest}
+                  />
+                ))}
+              </div>
+            </CollapsibleSection>
+          </div>
+        )}
         <div style={{ flex: 1 }}>
           {filtered.length === 0 && (
             <div style={{ padding: 'var(--sv-space-4)', color: 'var(--sv-ink-soft)', fontSize: 12 }}>
