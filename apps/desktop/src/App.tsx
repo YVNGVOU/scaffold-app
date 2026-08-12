@@ -14,6 +14,7 @@ import { DecisionsPanel } from './components/DecisionsPanel';
 import { PipelineStepper } from './components/PipelineStepper';
 import { SettingsPanel, DEFAULT_MODE_KEY, MAX_ROUNDS_KEY, DEFAULT_MAX_ROUNDS, type CompileMode } from './components/SettingsPanel';
 import { VersionHistory } from './components/VersionHistory';
+import { STARTER_PROMPTS } from './starterPrompts';
 import './theme.css';
 
 const STAGE_DELAY_MS = 90;
@@ -325,6 +326,30 @@ export default function App() {
             rows={5}
             placeholder="Describe what you want, plainly. e.g. &quot;build me a portfolio site for a photographer&quot;"
           />
+          {rawInput.length === 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sv-space-2)' }}>
+              <div className="sv-label">Try an example</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--sv-space-2)' }}>
+                {STARTER_PROMPTS.map((starter) => (
+                  <button
+                    key={starter.label}
+                    type="button"
+                    title={starter.text}
+                    onClick={() => setRawInput(starter.text)}
+                    style={{
+                      fontSize: 11,
+                      padding: 'var(--sv-space-1) var(--sv-space-3)',
+                      background: 'var(--sv-ivory-dim)',
+                      color: 'var(--sv-ink-soft)',
+                      border: '1px solid var(--sv-hairline-strong)',
+                    }}
+                  >
+                    {starter.domain} · {starter.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <div style={{ display: 'flex', gap: 'var(--sv-space-2)' }}>
             <button className="sv-primary" onClick={handleCompile} disabled={running}>
               {running ? 'Compiling…' : 'Compile'}
