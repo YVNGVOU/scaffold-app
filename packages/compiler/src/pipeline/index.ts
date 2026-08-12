@@ -1,5 +1,6 @@
 import type { PipelineState } from './state.js';
 import { createInitialState } from './state.js';
+import type { DomainId } from '@lucid/schema';
 import { intentAnalysis } from './stages/intentAnalysis.js';
 import { domainDetection } from './stages/domainDetection.js';
 import { requirementExtraction } from './stages/requirementExtraction.js';
@@ -83,11 +84,18 @@ export const ARCHITECT_MODE_STAGE_NAMES = [
 export interface RunPipelineOptions {
   /** Optional callback invoked after each stage completes — additive, for UI stepper use. */
   onStage?: (stageName: string, index: number, state: PipelineState) => void;
+  /**
+   * TASK-078: manually force `domainDetection` to a specific domain instead
+   * of letting it auto-pick the highest scorer. `domainScores` is still
+   * populated with every module's real score for transparency (see
+   * `domainDetection.ts`). Omit (or leave undefined) for normal auto-detect.
+   */
+  forceDomain?: DomainId;
 }
 
 /** Runs the ARCHITECT-mode pipeline over raw input. Never throws. */
 export function runArchitectPipeline(rawInput: string, options?: RunPipelineOptions): PipelineState {
-  let state = createInitialState(rawInput ?? '');
+  let state = createInitialState(rawInput ?? '', options?.forceDomain);
   for (let i = 0; i < ARCHITECT_MODE_PIPELINE.length; i++) {
     state = ARCHITECT_MODE_PIPELINE[i](state);
     options?.onStage?.(ARCHITECT_MODE_STAGE_NAMES[i], i, state);
@@ -147,7 +155,7 @@ export const QUICK_MODE_STAGE_NAMES = [
 
 /** Runs the QUICK-mode pipeline over raw input. Never throws. Mirrors `runArchitectPipeline`'s signature/options. */
 export function runQuickPipeline(rawInput: string, options?: RunPipelineOptions): PipelineState {
-  let state = createInitialState(rawInput ?? '');
+  let state = createInitialState(rawInput ?? '', options?.forceDomain);
   for (let i = 0; i < QUICK_MODE_PIPELINE.length; i++) {
     state = QUICK_MODE_PIPELINE[i](state);
     options?.onStage?.(QUICK_MODE_STAGE_NAMES[i], i, state);
@@ -224,7 +232,7 @@ function findingIdentity(item: { source: string; text: string }): string {
  * counter itself is the only thing that can keep it running.
  */
 export function runMasterPipeline(rawInput: string, options?: RunMasterPipelineOptions): PipelineState {
-  let state = createInitialState(rawInput ?? '');
+  let state = createInitialState(rawInput ?? '', options?.forceDomain);
   let stageIndex = 0;
 
   const runStage = (stage: Stage, name: string) => {

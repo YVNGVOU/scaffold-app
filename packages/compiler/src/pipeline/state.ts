@@ -27,6 +27,18 @@ export interface PipelineState {
   domain: DomainId | 'unknown';
   domainConfidence: number;
   domainScores: Record<string, number>;
+  /**
+   * TASK-078: when set, `domainDetection` skips its own best-scorer pick and
+   * uses this domain directly instead — the user manually overriding a
+   * wrong auto-detected domain instead of rephrasing the prompt to nudge the
+   * scorer. `domainScores` is still populated from every module's real score
+   * against `rawInput` (what detection WOULD have picked) so the existing
+   * domain-reasoning tooltip (TASK-074) stays meaningful even when overridden.
+   * Not user-facing state that mutates during a run — set once at pipeline
+   * start via `createInitialState`/`RunPipelineOptions.forceDomain` and left
+   * untouched by every other stage.
+   */
+  forceDomain?: DomainId;
   /** Requirements collected so far (from extraction + specialists). Append-only. */
   requirements: RequirementItem[];
   /**
@@ -47,13 +59,14 @@ export interface PipelineState {
   stagesRun: string[];
 }
 
-export function createInitialState(rawInput: string): PipelineState {
+export function createInitialState(rawInput: string, forceDomain?: DomainId): PipelineState {
   return {
     rawInput,
     taskType: 'unknown',
     domain: 'unknown',
     domainConfidence: 0,
     domainScores: {},
+    forceDomain,
     requirements: [],
     requirementCategories: [],
     architectureNotes: [],

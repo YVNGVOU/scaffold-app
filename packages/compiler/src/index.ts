@@ -1,5 +1,5 @@
 import type { CompiledPrompt } from '@lucid/schema';
-import { runArchitectPipeline, runQuickPipeline, runMasterPipeline, type RunMasterPipelineOptions } from './pipeline/index.js';
+import { runArchitectPipeline, runQuickPipeline, runMasterPipeline, type RunMasterPipelineOptions, type RunPipelineOptions } from './pipeline/index.js';
 
 export { mergeAnswer } from './mergeAnswer.js';
 // TASK-031: `buildAugmentedInput` (TASK-030) was removed — its only caller,
@@ -20,14 +20,14 @@ export type {
 } from './formatDiff.js';
 
 /** Public entry point: compiles raw user input into a CompiledPrompt via ARCHITECT mode. */
-export function compileArchitect(rawInput: string): CompiledPrompt {
-  const state = runArchitectPipeline(rawInput);
+export function compileArchitect(rawInput: string, opts?: RunPipelineOptions): CompiledPrompt {
+  const state = runArchitectPipeline(rawInput, opts);
   return state.compiled;
 }
 
 /** Public entry point: compiles raw user input into a CompiledPrompt via QUICK mode (TASK-008). */
-export function compileQuick(rawInput: string): CompiledPrompt {
-  const state = runQuickPipeline(rawInput);
+export function compileQuick(rawInput: string, opts?: RunPipelineOptions): CompiledPrompt {
+  const state = runQuickPipeline(rawInput, opts);
   return state.compiled;
 }
 

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { CompiledPrompt } from '@lucid/schema';
+import type { CompiledPrompt, DomainId } from '@lucid/schema';
 import {
   runArchitectPipeline,
   ARCHITECT_MODE_STAGE_NAMES,
@@ -7,6 +7,7 @@ import {
   QUICK_MODE_STAGE_NAMES,
   runMasterPipeline,
   resumeAndRecompile,
+  DOMAIN_MODULES,
 } from '@lucid/compiler';
 import { createPrompt, listPrompts, saveCompile, listCompiles, getSetting, setSetting, type Prompt } from './lib/api';
 import { PromptList } from './components/PromptList';
@@ -45,6 +46,10 @@ export default function App() {
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<FriendlyError | null>(null);
   const [mode, setMode] = useState<CompileMode>('architect');
+  // TASK-078: manual domain override — 'auto' (default) leaves domainDetection's
+  // own scoring in charge; any specific DomainId forces that domain directly
+  // while domainScores stays populated for the existing reasoning tooltip.
+  const [forceDomain, setForceDomain] = useState<DomainId | 'auto'>('auto');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [maxRounds, setMaxRounds] = useState(DEFAULT_MAX_ROUNDS);
@@ -223,10 +228,13 @@ export default function App() {
       let stageNames: readonly string[] =
         mode === 'quick' ? QUICK_MODE_STAGE_NAMES : mode === 'master' ? [] : ARCHITECT_MODE_STAGE_NAMES;
 
+      const domainOverride = forceDomain === 'auto' ? undefined : forceDomain;
+
       let state;
       if (mode === 'master') {
         state = runMasterPipeline(inputToCompile, {
           maxRounds,
+          forceDomain: domainOverride,
           onStage: (_name, index) => {
             stageQueue.push(index);
           },
@@ -240,6 +248,7 @@ export default function App() {
       } else {
         const runPipeline = mode === 'quick' ? runQuickPipeline : runArchitectPipeline;
         state = runPipeline(inputToCompile, {
+          forceDomain: domainOverride,
           onStage: (_name, index) => {
             stageQueue.push(index);
           },
@@ -431,33 +440,59 @@ export default function App() {
 
       <div style={{ gridColumn: '2', gridRow: '1', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
         <div style={{ padding: 'var(--sv-space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--sv-space-2)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--sv-space-2)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--sv-space-2)', flexWrap: 'wrap' }}>
             <div className="sv-label">Raw Input · {mode.toUpperCase()} mode</div>
-            <div style={{ display: 'flex', gap: 4 }}>
-              <button
-                type="button"
-                className={mode === 'architect' ? 'sv-primary' : ''}
-                onClick={() => setMode('architect')}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sv-space-2)' }}>
+              {/* TASK-078: manual domain override, for when auto-detection guesses
+                  wrong and rephrasing the prompt isn't the fastest fix. */}
+              <select
+                value={forceDomain}
+                onChange={(e) => setForceDomain(e.target.value as DomainId | 'auto')}
                 disabled={running}
+                aria-label="Domain override"
+                title="Force a specific domain instead of auto-detecting"
+                style={{
+                  fontSize: 10,
+                  padding: 'var(--sv-space-1) var(--sv-space-2)',
+                  background: 'var(--sv-ivory)',
+                  color: 'var(--sv-ink)',
+                  border: '1px solid var(--sv-hairline-strong)',
+                  borderRadius: 0,
+                }}
               >
-                ARCHITECT
-              </button>
-              <button
-                type="button"
-                className={mode === 'quick' ? 'sv-primary' : ''}
-                onClick={() => setMode('quick')}
-                disabled={running}
-              >
-                QUICK
-              </button>
-              <button
-                type="button"
-                className={mode === 'master' ? 'sv-primary' : ''}
-                onClick={() => setMode('master')}
-                disabled={running}
-              >
-                MASTER
-              </button>
+                <option value="auto">Auto-detect domain</option>
+                {DOMAIN_MODULES.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+              <div style={{ display: 'flex', gap: 4 }}>
+                <button
+                  type="button"
+                  className={mode === 'architect' ? 'sv-primary' : ''}
+                  onClick={() => setMode('architect')}
+                  disabled={running}
+                >
+                  ARCHITECT
+                </button>
+                <button
+                  type="button"
+                  className={mode === 'quick' ? 'sv-primary' : ''}
+                  onClick={() => setMode('quick')}
+                  disabled={running}
+                >
+                  QUICK
+                </button>
+                <button
+                  type="button"
+                  className={mode === 'master' ? 'sv-primary' : ''}
+                  onClick={() => setMode('master')}
+                  disabled={running}
+                >
+                  MASTER
+                </button>
+              </div>
             </div>
           </div>
           <textarea
