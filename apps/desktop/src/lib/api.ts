@@ -7,6 +7,7 @@ export interface Prompt {
   raw_input: string;
   created_at: string;
   is_favorite: boolean;
+  project_id: string | null;
 }
 
 export interface Compile {
@@ -14,6 +15,22 @@ export interface Compile {
   prompt_id: string;
   mode: string;
   compiled_json: string;
+  created_at: string;
+}
+
+export interface Project {
+  id: string;
+  name: string;
+  description: string;
+  created_at: string;
+}
+
+export interface Template {
+  id: string;
+  title: string;
+  category: string;
+  body: string;
+  is_favorite: boolean;
   created_at: string;
 }
 
@@ -58,4 +75,40 @@ export function getSetting(key: string): Promise<string | null> {
 
 export function setSetting(key: string, value: string): Promise<void> {
   return invoke('set_setting', { key, value });
+}
+
+export function setPromptProject(id: string, projectId: string | null): Promise<void> {
+  return invoke('set_prompt_project', { id, projectId });
+}
+
+export function createProject(name: string, description: string): Promise<Project> {
+  return invoke('create_project', { name, description });
+}
+
+export function listProjects(): Promise<Project[]> {
+  return invoke('list_projects');
+}
+
+export function renameProject(id: string, name: string, description: string): Promise<void> {
+  return invoke('rename_project', { id, name, description });
+}
+
+export function deleteProject(id: string): Promise<void> {
+  return invoke('delete_project', { id });
+}
+
+export function createTemplate(title: string, category: string, body: string): Promise<Template> {
+  return invoke('create_template', { title, category, body });
+}
+
+export function listTemplates(): Promise<Template[]> {
+  return invoke('list_templates');
+}
+
+export function setTemplateFavorite(id: string, isFavorite: boolean): Promise<void> {
+  return invoke('set_template_favorite', { id, isFavorite });
+}
+
+export function deleteTemplate(id: string): Promise<void> {
+  return invoke('delete_template', { id });
 }

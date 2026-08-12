@@ -36,6 +36,15 @@ pub fn run() {
             commands::delete_prompt,
             commands::get_setting,
             commands::set_setting,
+            commands::set_prompt_project,
+            commands::create_project,
+            commands::list_projects,
+            commands::rename_project,
+            commands::delete_project,
+            commands::create_template,
+            commands::list_templates,
+            commands::set_template_favorite,
+            commands::delete_template,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

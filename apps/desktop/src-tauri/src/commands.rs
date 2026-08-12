@@ -1,4 +1,4 @@
-use crate::db::{Compile, DbState, Prompt};
+use crate::db::{Compile, DbState, Project, Prompt, Template};
 use chrono::Utc;
 use rusqlite::params;
 use tauri::State;
@@ -14,14 +14,14 @@ pub fn create_prompt(state: State<DbState>, title: String, raw_input: String) ->
         params![id, title, raw_input, created_at],
     )
     .map_err(|e| e.to_string())?;
-    Ok(Prompt { id, title, raw_input, created_at, is_favorite: false })
+    Ok(Prompt { id, title, raw_input, created_at, is_favorite: false, project_id: None })
 }
 
 #[tauri::command]
 pub fn list_prompts(state: State<DbState>) -> Result<Vec<Prompt>, String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
     let mut stmt = conn
-        .prepare("SELECT id, title, raw_input, created_at, is_favorite FROM prompts ORDER BY created_at DESC")
+        .prepare("SELECT id, title, raw_input, created_at, is_favorite, project_id FROM prompts ORDER BY created_at DESC")
         .map_err(|e| e.to_string())?;
     let rows = stmt
         .query_map([], |row| {
@@ -31,6 +31,7 @@ pub fn list_prompts(state: State<DbState>) -> Result<Vec<Prompt>, String> {
                 raw_input: row.get(2)?,
                 created_at: row.get(3)?,
                 is_favorite: row.get::<_, i64>(4)? != 0,
+                project_id: row.get(5)?,
             })
         })
         .map_err(|e| e.to_string())?;
@@ -39,6 +40,142 @@ pub fn list_prompts(state: State<DbState>) -> Result<Vec<Prompt>, String> {
         out.push(r.map_err(|e| e.to_string())?);
     }
     Ok(out)
+}
+
+/// Assigns (or clears, when `project_id` is None) a prompt's project. Like
+/// `rename_prompt`/`set_favorite`, `prompts` is not append-only, so an UPDATE
+/// here is correct.
+#[tauri::command]
+pub fn set_prompt_project(state: State<DbState>, id: String, project_id: Option<String>) -> Result<(), String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    conn.execute(
+        "UPDATE prompts SET project_id = ?1 WHERE id = ?2",
+        params![project_id, id],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn create_project(state: State<DbState>, name: String, description: String) -> Result<Project, String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    let id = Uuid::new_v4().to_string();
+    let created_at = Utc::now().to_rfc3339();
+    conn.execute(
+        "INSERT INTO projects (id, name, description, created_at) VALUES (?1, ?2, ?3, ?4)",
+        params![id, name, description, created_at],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(Project { id, name, description, created_at })
+}
+
+#[tauri::command]
+pub fn list_projects(state: State<DbState>) -> Result<Vec<Project>, String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    let mut stmt = conn
+        .prepare("SELECT id, name, description, created_at FROM projects ORDER BY created_at DESC")
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map([], |row| {
+            Ok(Project {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                description: row.get(2)?,
+                created_at: row.get(3)?,
+            })
+        })
+        .map_err(|e| e.to_string())?;
+    let mut out = Vec::new();
+    for r in rows {
+        out.push(r.map_err(|e| e.to_string())?);
+    }
+    Ok(out)
+}
+
+#[tauri::command]
+pub fn rename_project(state: State<DbState>, id: String, name: String, description: String) -> Result<(), String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    conn.execute(
+        "UPDATE projects SET name = ?1, description = ?2 WHERE id = ?3",
+        params![name, description, id],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+/// Deletes a project. Prompts that belonged to it are NOT deleted — their
+/// `project_id` is cleared back to unassigned, same "detach, don't cascade"
+/// choice as leaving a folder without deleting its contents.
+#[tauri::command]
+pub fn delete_project(state: State<DbState>, id: String) -> Result<(), String> {
+    let mut conn = state.0.lock().map_err(|e| e.to_string())?;
+    let tx = conn.transaction().map_err(|e| e.to_string())?;
+    tx.execute(
+        "UPDATE prompts SET project_id = NULL WHERE project_id = ?1",
+        params![id],
+    )
+    .map_err(|e| e.to_string())?;
+    tx.execute("DELETE FROM projects WHERE id = ?1", params![id])
+        .map_err(|e| e.to_string())?;
+    tx.commit().map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn create_template(state: State<DbState>, title: String, category: String, body: String) -> Result<Template, String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    let id = Uuid::new_v4().to_string();
+    let created_at = Utc::now().to_rfc3339();
+    conn.execute(
+        "INSERT INTO templates (id, title, category, body, created_at) VALUES (?1, ?2, ?3, ?4, ?5)",
+        params![id, title, category, body, created_at],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(Template { id, title, category, body, is_favorite: false, created_at })
+}
+
+#[tauri::command]
+pub fn list_templates(state: State<DbState>) -> Result<Vec<Template>, String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    let mut stmt = conn
+        .prepare("SELECT id, title, category, body, is_favorite, created_at FROM templates ORDER BY created_at DESC")
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map([], |row| {
+            Ok(Template {
+                id: row.get(0)?,
+                title: row.get(1)?,
+                category: row.get(2)?,
+                body: row.get(3)?,
+                is_favorite: row.get::<_, i64>(4)? != 0,
+                created_at: row.get(5)?,
+            })
+        })
+        .map_err(|e| e.to_string())?;
+    let mut out = Vec::new();
+    for r in rows {
+        out.push(r.map_err(|e| e.to_string())?);
+    }
+    Ok(out)
+}
+
+#[tauri::command]
+pub fn set_template_favorite(state: State<DbState>, id: String, is_favorite: bool) -> Result<(), String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    conn.execute(
+        "UPDATE templates SET is_favorite = ?1 WHERE id = ?2",
+        params![is_favorite as i64, id],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn delete_template(state: State<DbState>, id: String) -> Result<(), String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    conn.execute("DELETE FROM templates WHERE id = ?1", params![id])
+        .map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 /// Append-only: always INSERTs a new row, never UPDATEs/REPLACEs an existing compile.

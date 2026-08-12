@@ -9,7 +9,7 @@ import {
   resumeAndRecompile,
   DOMAIN_MODULES,
 } from '@lucid/compiler';
-import { createPrompt, listPrompts, saveCompile, listCompiles, getSetting, setSetting, type Prompt } from './lib/api';
+import { createPrompt, listPrompts, saveCompile, listCompiles, getSetting, setSetting, createTemplate, listTemplates, type Prompt, type Template } from './lib/api';
 import { PromptList } from './components/PromptList';
 import { CompiledOutput } from './components/CompiledOutput';
 import { DecisionsPanel } from './components/DecisionsPanel';
@@ -22,6 +22,13 @@ import { OnboardingPanel, ONBOARDING_SEEN_KEY } from './components/OnboardingPan
 import { ErrorNote } from './components/ErrorNote';
 import { toFriendlyError, type FriendlyError } from './lib/friendlyError';
 import { STARTER_PROMPTS } from './starterPrompts';
+import { WorkspaceShell, type WorkspaceId } from './components/workspace/WorkspaceShell';
+import { CommandPalette } from './components/workspace/CommandPalette';
+import { HomeWorkspace } from './components/workspace/HomeWorkspace';
+import { ProjectsWorkspace } from './components/workspace/ProjectsWorkspace';
+import { TemplatesWorkspace } from './components/workspace/TemplatesWorkspace';
+import { LibraryWorkspace } from './components/workspace/LibraryWorkspace';
+import { HistoryWorkspace } from './components/workspace/HistoryWorkspace';
 import './theme.css';
 
 const STAGE_DELAY_MS = 90;
@@ -91,8 +98,49 @@ export default function App() {
   const [recompileStageNames, setRecompileStageNames] = useState<string[]>([]);
   const cancelRef = useRef(false);
 
+  const [workspace, setWorkspace] = useState<WorkspaceId>('home');
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [templates, setTemplates] = useState<Template[]>([]);
+  const [templatesRefreshKey, setTemplatesRefreshKey] = useState(0);
+
+  async function refreshTemplates() {
+    try {
+      setTemplates(await listTemplates());
+    } catch (e) {
+      setError(toFriendlyError(e));
+    }
+  }
+
+  function handleOpenPromptFromNav(p: Prompt) {
+    handleSelectPrompt(p);
+    setWorkspace('studio');
+  }
+
+  async function handleSaveAsTemplate() {
+    if (!compiled) return;
+    const title = (activePrompt?.title || rawInput.trim().slice(0, 60) || 'Untitled template').trim();
+    try {
+      await createTemplate(title, compiled.domain ?? 'general', rawInput);
+      await refreshTemplates();
+      setTemplatesRefreshKey((k) => k + 1);
+    } catch (e) {
+      setError(toFriendlyError(e));
+    }
+  }
+
+  function handleUseTemplate(body: string) {
+    setActivePrompt(null);
+    setCompiled(null);
+    setStageIndex(-1);
+    setMasterStageNames([]);
+    setError(null);
+    setRawInput(body);
+    setWorkspace('studio');
+  }
+
   useEffect(() => {
     refreshPrompts();
+    refreshTemplates();
     // Load persisted settings (TASK-018 sub-feature A): default compile mode
     // and MASTER mode's maxRounds. Best-effort — if the settings row doesn't
     // exist yet (first run) or the read fails, the existing hardcoded
@@ -390,6 +438,13 @@ export default function App() {
     function onKeyDown(e: KeyboardEvent) {
       const mod = e.ctrlKey || e.metaKey;
 
+      // Ctrl/Cmd+K: command palette, available from any workspace.
+      if (mod && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault();
+        setPaletteOpen((v) => !v);
+        return;
+      }
+
       // Ctrl/Cmd+Enter: compile — respects the existing disabled={running}
       // guard so a second compile can never fire while one is in flight.
       if (mod && e.key === 'Enter') {
@@ -418,26 +473,8 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 
-  return (
-    <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr 320px', gridTemplateRows: '1fr 90px', height: '100vh', position: 'relative' }}>
-      {/* Persistent company-brand stamp (TASK-016) — visible from every pane, not just the left nav footer. */}
-      <div
-        style={{
-          position: 'fixed',
-          bottom: 'var(--sv-space-2)',
-          right: 'var(--sv-space-3)',
-          fontSize: 9,
-          letterSpacing: '0.08em',
-          textTransform: 'uppercase',
-          color: 'var(--sv-ink-soft)',
-          pointerEvents: 'none',
-          zIndex: 10,
-          userSelect: 'none',
-        }}
-      >
-        SINVAUX
-      </div>
-
+  const studioView = (
+    <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr 320px', gridTemplateRows: '1fr 90px', height: '100%', minHeight: 0, position: 'relative' }}>
       <div style={{ gridColumn: '1', gridRow: '1', borderRight: '1px solid var(--sv-hairline)', minHeight: 0, overflow: 'hidden' }}>
         <PromptList
           prompts={prompts}
@@ -449,8 +486,6 @@ export default function App() {
           onOpenBatchCompile={() => setBatchCompileOpen(true)}
         />
       </div>
-
-      {showOnboarding && <OnboardingPanel onDismiss={handleDismissOnboarding} />}
 
       {batchCompileOpen && (
         <BatchCompile
@@ -585,6 +620,9 @@ export default function App() {
             <button type="button" onClick={() => setHistoryOpen(true)} disabled={!activePrompt}>
               History
             </button>
+            <button type="button" onClick={handleSaveAsTemplate} disabled={!compiled}>
+              Save as Template
+            </button>
           </div>
           {error && <ErrorNote error={error} />}
           <div style={{ fontSize: 10, color: 'var(--sv-ink-soft)', letterSpacing: '0.04em' }}>
@@ -631,5 +669,100 @@ export default function App() {
         />
       </div>
     </div>
+  );
+
+  return (
+    <>
+      {/* Persistent company-brand stamp (TASK-016) — visible from every pane, not just the left nav footer. */}
+      <div
+        style={{
+          position: 'fixed',
+          bottom: 'var(--sv-space-2)',
+          right: 'var(--sv-space-3)',
+          fontSize: 9,
+          letterSpacing: '0.08em',
+          textTransform: 'uppercase',
+          color: 'var(--sv-ink-soft)',
+          pointerEvents: 'none',
+          zIndex: 10,
+          userSelect: 'none',
+        }}
+      >
+        SINVAUX
+      </div>
+
+      {showOnboarding && <OnboardingPanel onDismiss={handleDismissOnboarding} />}
+
+      {batchCompileOpen && (
+        <BatchCompile mode={mode} maxRounds={maxRounds} onClose={() => setBatchCompileOpen(false)} onDone={refreshPrompts} />
+      )}
+
+      {compareModesOpen && (
+        <CompareModes
+          rawInput={rawInput}
+          maxRounds={maxRounds}
+          activePrompt={activePrompt}
+          onUseResult={handleUseComparisonResult}
+          onClose={() => setCompareModesOpen(false)}
+        />
+      )}
+
+      {historyOpen && activePrompt && <VersionHistory promptId={activePrompt.id} onClose={() => setHistoryOpen(false)} />}
+
+      {settingsOpen && (
+        <SettingsPanel
+          onClose={() => setSettingsOpen(false)}
+          defaultMode={mode}
+          onDefaultModeChange={setMode}
+          maxRounds={maxRounds}
+          onMaxRoundsChange={setMaxRounds}
+        />
+      )}
+
+      {paletteOpen && (
+        <CommandPalette
+          prompts={prompts}
+          onClose={() => setPaletteOpen(false)}
+          onNavigate={setWorkspace}
+          onNewPrompt={() => {
+            handleNewPrompt();
+            setWorkspace('studio');
+          }}
+          onCompile={() => {
+            setWorkspace('studio');
+            handleCompile();
+          }}
+          onOpenPrompt={handleOpenPromptFromNav}
+          onOpenSettings={() => setSettingsOpen(true)}
+        />
+      )}
+
+      <WorkspaceShell
+        active={workspace}
+        onNavigate={setWorkspace}
+        onOpenPalette={() => setPaletteOpen(true)}
+        onOpenSettings={() => setSettingsOpen(true)}
+      >
+        {workspace === 'home' && (
+          <HomeWorkspace
+            prompts={prompts}
+            onOpenPrompt={handleOpenPromptFromNav}
+            onNewPrompt={() => {
+              handleNewPrompt();
+              setWorkspace('studio');
+            }}
+            onNavigate={setWorkspace}
+            onOpenPalette={() => setPaletteOpen(true)}
+          />
+        )}
+        {workspace === 'studio' && studioView}
+        {workspace === 'projects' && (
+          <ProjectsWorkspace prompts={prompts} onOpenPrompt={handleOpenPromptFromNav} onPromptsChanged={refreshPrompts} />
+        )}
+        {workspace === 'templates' && <TemplatesWorkspace onUseTemplate={handleUseTemplate} refreshKey={templatesRefreshKey} />}
+        {workspace === 'library' && <LibraryWorkspace prompts={prompts} templates={templates} onOpenPrompt={handleOpenPromptFromNav} />}
+        {workspace === 'history' && <HistoryWorkspace prompts={prompts} onOpenPrompt={handleOpenPromptFromNav} />}
+      </WorkspaceShell>
+    </>
   );
 }
