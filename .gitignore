@@ -3,3 +3,7 @@ dist/
 *.log
 .DS_Store
 src-tauri/target/
+
+# Tauri updater signing key (NEVER commit) — see docs/RELEASING.md
+apps/desktop/src-tauri/scaffold-updater.key
+apps/desktop/src-tauri/*.key

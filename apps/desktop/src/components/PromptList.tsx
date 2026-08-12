@@ -1,4 +1,5 @@
 import type { Prompt } from '../lib/api';
+import { UpdateChecker } from './UpdateChecker';
 
 interface Props {
   prompts: Prompt[];
@@ -49,6 +50,10 @@ export function PromptList({ prompts, activeId, onSelect, onNew }: Props) {
             </button>
           ))}
         </div>
+      </div>
+      <hr className="sv-hairline" />
+      <div style={{ padding: 'var(--sv-space-3) var(--sv-space-4)' }}>
+        <UpdateChecker />
       </div>
       <hr className="sv-hairline" />
       <div
