@@ -15,6 +15,8 @@ import { PipelineStepper } from './components/PipelineStepper';
 import { SettingsPanel, DEFAULT_MODE_KEY, MAX_ROUNDS_KEY, DEFAULT_MAX_ROUNDS, type CompileMode } from './components/SettingsPanel';
 import { VersionHistory } from './components/VersionHistory';
 import { OnboardingPanel, ONBOARDING_SEEN_KEY } from './components/OnboardingPanel';
+import { ErrorNote } from './components/ErrorNote';
+import { toFriendlyError, type FriendlyError } from './lib/friendlyError';
 import { STARTER_PROMPTS } from './starterPrompts';
 import './theme.css';
 
@@ -40,7 +42,7 @@ export default function App() {
   const [compiled, setCompiled] = useState<CompiledPrompt | null>(null);
   const [stageIndex, setStageIndex] = useState(-1);
   const [running, setRunning] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<FriendlyError | null>(null);
   const [mode, setMode] = useState<CompileMode>('architect');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -123,7 +125,7 @@ export default function App() {
         return fresh;
       });
     } catch (e) {
-      setError(String(e));
+      setError(toFriendlyError(e));
     }
   }
 
@@ -166,7 +168,7 @@ export default function App() {
         setCompiled(null);
       }
     } catch (e) {
-      setError(String(e));
+      setError(toFriendlyError(e));
     }
   }
 
@@ -182,7 +184,7 @@ export default function App() {
       await saveCompile(activePrompt.id, mode, JSON.stringify(updated));
       await refreshPrompts();
     } catch (e) {
-      setError(String(e));
+      setError(toFriendlyError(e));
     }
   }
 
@@ -257,7 +259,7 @@ export default function App() {
       setSetting(draftKey(prompt.id), '').catch(() => {});
       if (wasNewPrompt) setSetting(NEW_DRAFT_KEY, '').catch(() => {});
     } catch (e) {
-      setError(String(e));
+      setError(toFriendlyError(e));
     } finally {
       setRunning(false);
     }
@@ -423,7 +425,7 @@ export default function App() {
               History
             </button>
           </div>
-          {error && <div style={{ color: 'var(--sv-burgundy)', fontSize: 12 }}>{error}</div>}
+          {error && <ErrorNote error={error} />}
           <div style={{ fontSize: 10, color: 'var(--sv-ink-soft)', letterSpacing: '0.04em' }}>
             ⌘/Ctrl+Enter to compile · ⌘/Ctrl+Shift+N for a new prompt · Esc to cancel
           </div>

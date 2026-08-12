@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { ErrorNote } from './ErrorNote';
+import type { FriendlyError } from '../lib/friendlyError';
 
 type Mode = 'sign-in' | 'sign-up';
 type ViewState = { kind: 'form' } | { kind: 'check-email'; email: string } | { kind: 'magic-link-sent'; email: string };
@@ -16,25 +18,31 @@ export function LoginScreen({ onAuthenticated }: Props) {
   const [mode, setMode] = useState<Mode>('sign-in');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<FriendlyError | null>(null);
   const [busy, setBusy] = useState(false);
   const [view, setView] = useState<ViewState>({ kind: 'form' });
 
-  function friendlyError(err: unknown): string {
-    if (err && typeof err === 'object' && 'message' in err) {
-      const msg = String((err as { message?: string }).message ?? '');
-      if (/invalid login credentials/i.test(msg)) return 'Wrong email or password.';
-      if (/email not confirmed/i.test(msg)) return 'Please confirm your email before signing in — check your inbox.';
-      if (/network|fetch|failed to fetch/i.test(msg)) return "Couldn't reach the server. Check your connection and try again.";
-      if (msg) return msg;
-    }
-    return 'Something went wrong. Please try again.';
+  // TASK-027: known cases still map to a short friendly sentence; anything
+  // unrecognized falls back to a generic sentence with the raw SDK message
+  // preserved for the "Details" expand, rather than showing the raw SDK
+  // message directly as the primary error line.
+  function friendlyError(err: unknown): FriendlyError {
+    const raw =
+      err && typeof err === 'object' && 'message' in err
+        ? String((err as { message?: string }).message ?? String(err))
+        : String(err);
+    if (/invalid login credentials/i.test(raw)) return { summary: 'Wrong email or password.', raw };
+    if (/email not confirmed/i.test(raw))
+      return { summary: 'Please confirm your email before signing in — check your inbox.', raw };
+    if (/network|fetch|failed to fetch/i.test(raw))
+      return { summary: "Couldn't reach the server. Check your connection and try again.", raw };
+    return { summary: 'Something went wrong. Please try again.', raw };
   }
 
   async function handleSignIn() {
     setError(null);
     if (!email.trim() || !password) {
-      setError('Enter your email and password.');
+      setError({ summary: 'Enter your email and password.', raw: 'Enter your email and password.' });
       return;
     }
     setBusy(true);
@@ -52,11 +60,11 @@ export function LoginScreen({ onAuthenticated }: Props) {
   async function handleSignUp() {
     setError(null);
     if (!email.trim() || !password) {
-      setError('Enter your email and password.');
+      setError({ summary: 'Enter your email and password.', raw: 'Enter your email and password.' });
       return;
     }
     if (password.length < 6) {
-      setError('Password must be at least 6 characters.');
+      setError({ summary: 'Password must be at least 6 characters.', raw: 'Password must be at least 6 characters.' });
       return;
     }
     setBusy(true);
@@ -83,7 +91,7 @@ export function LoginScreen({ onAuthenticated }: Props) {
   async function handleMagicLink() {
     setError(null);
     if (!email.trim()) {
-      setError('Enter your email first.');
+      setError({ summary: 'Enter your email first.', raw: 'Enter your email first.' });
       return;
     }
     setBusy(true);
@@ -224,7 +232,9 @@ export function LoginScreen({ onAuthenticated }: Props) {
         </div>
 
         {error && (
-          <div style={{ color: 'var(--sv-burgundy)', fontSize: 12, marginTop: 'var(--sv-space-3)' }}>{error}</div>
+          <div style={{ marginTop: 'var(--sv-space-3)' }}>
+            <ErrorNote error={error} />
+          </div>
         )}
 
         <button type="submit" className="sv-primary" style={{ width: '100%', marginTop: 'var(--sv-space-4)' }} disabled={busy}>
