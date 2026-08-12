@@ -20,7 +20,15 @@ export function sanitizeFolderName(title: string): string {
     .replace(/[<>:"/\\|?*\x00-\x1f]/g, '')
     .replace(/\s+/g, '-')
     .replace(/^-+|-+$/g, '');
-  return cleaned.length > 0 ? cleaned.slice(0, 80) : 'untitled-prompt';
+  // A result consisting solely of dots (".", "..", "...", etc.) is a
+  // filesystem path-traversal segment ("..") once slashes are stripped
+  // (e.g. a title of exactly ".." previously survived sanitization
+  // untouched and, appended as `${dirPath}/${folderName}`, resolved to the
+  // PARENT of the user-chosen directory — files would be written outside
+  // the folder the user picked). Reject any dot-only result the same way
+  // an empty result is rejected.
+  if (cleaned.length === 0 || /^\.+$/.test(cleaned)) return 'untitled-prompt';
+  return cleaned.slice(0, 80);
 }
 
 /** Export toolbar (TASK-018 sub-feature C): copy the compiled prompt as
