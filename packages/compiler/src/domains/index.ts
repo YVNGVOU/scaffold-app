@@ -23,11 +23,12 @@ import { dataAnalysisDomain } from './data-analysis/index.js';
 import { automationDomain } from './automation/index.js';
 import { legalDomain } from './legal/index.js';
 import { healthcareDomain } from './healthcare/index.js';
+import { financeDomain } from './finance/index.js';
 
-export const DOMAIN_MODULES: DomainModule[] = [webDomain, gameDomain, brandingDomain, softwareDevelopmentDomain, mobileDevelopmentDomain, desktopDevelopmentDomain, unityDomain, unrealDomain, robloxDomain, blenderDomain, graphicDesignDomain, imageGenerationDomain, videoGenerationDomain, musicDomain, writingDomain, researchDomain, businessDomain, marketingDomain, productDesignDomain, educationDomain, dataAnalysisDomain, automationDomain, legalDomain, healthcareDomain];
+export const DOMAIN_MODULES: DomainModule[] = [webDomain, gameDomain, brandingDomain, softwareDevelopmentDomain, mobileDevelopmentDomain, desktopDevelopmentDomain, unityDomain, unrealDomain, robloxDomain, blenderDomain, graphicDesignDomain, imageGenerationDomain, videoGenerationDomain, musicDomain, writingDomain, researchDomain, businessDomain, marketingDomain, productDesignDomain, educationDomain, dataAnalysisDomain, automationDomain, legalDomain, healthcareDomain, financeDomain];
 
 /** Minimum score for a domain to be selected; below this, domain is 'unknown'. */
 export const DOMAIN_CONFIDENCE_FLOOR = 1;
 
-export { webDomain, gameDomain, brandingDomain, softwareDevelopmentDomain, mobileDevelopmentDomain, desktopDevelopmentDomain, unityDomain, unrealDomain, robloxDomain, blenderDomain, graphicDesignDomain, imageGenerationDomain, videoGenerationDomain, musicDomain, writingDomain, researchDomain, businessDomain, marketingDomain, productDesignDomain, educationDomain, dataAnalysisDomain, automationDomain, legalDomain, healthcareDomain };
+export { webDomain, gameDomain, brandingDomain, softwareDevelopmentDomain, mobileDevelopmentDomain, desktopDevelopmentDomain, unityDomain, unrealDomain, robloxDomain, blenderDomain, graphicDesignDomain, imageGenerationDomain, videoGenerationDomain, musicDomain, writingDomain, researchDomain, businessDomain, marketingDomain, productDesignDomain, educationDomain, dataAnalysisDomain, automationDomain, legalDomain, healthcareDomain, financeDomain };
 export type { DomainModule } from './types.js';
