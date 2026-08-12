@@ -295,6 +295,20 @@ export function CompiledOutput({
       <div style={{ display: 'flex', gap: 'var(--sv-space-4)', alignItems: 'baseline', marginBottom: 'var(--sv-space-4)' }}>
         <h2 style={{ fontSize: 18 }}>Compiled Prompt</h2>
         <span className="sv-label">domain: {compiled.domain}</span>
+        {compiled.domainScores && Object.keys(compiled.domainScores).length > 0 && (
+          <span className="sv-tip" tabIndex={0}>
+            <span className="sv-label" style={{ borderBottom: '1px dotted var(--sv-ink-soft)', cursor: 'help' }}>
+              {compiled.domainConfidence !== undefined ? `${(compiled.domainConfidence * 100).toFixed(0)}%` : 'why?'}
+            </span>
+            <span className="sv-tip-bubble" style={{ whiteSpace: 'pre-line', textAlign: 'left' }}>
+              {Object.entries(compiled.domainScores)
+                .sort(([, a], [, b]) => b - a)
+                .slice(0, 6)
+                .map(([id, score]) => `${id === compiled.domain ? '→ ' : '   '}${id}: ${score}`)
+                .join('\n')}
+            </span>
+          </span>
+        )}
       </div>
 
       <ExportToolbar compiled={compiled} promptTitle={promptTitle ?? 'Untitled prompt'} mode={mode ?? 'architect'} />

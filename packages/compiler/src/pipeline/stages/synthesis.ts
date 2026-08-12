@@ -10,6 +10,16 @@ import { createEmptyCompiledPrompt } from '@lucid/schema';
 export function synthesis(state: PipelineState): PipelineState {
   const compiled = createEmptyCompiledPrompt(state.domain);
 
+  // Carry domain-detection reasoning through to the final output (additive
+  // schema fields) so the UI can show *why* this domain was chosen instead
+  // of it being a pipeline-internal-only fact. Only set when detection
+  // actually produced scores (domainScores is populated by domainDetection
+  // in every mode that runs it — QUICK's stage list includes it too).
+  if (Object.keys(state.domainScores).length > 0) {
+    compiled.domainConfidence = state.domainConfidence;
+    compiled.domainScores = { ...state.domainScores };
+  }
+
   for (let i = 0; i < state.requirements.length; i++) {
     const item = state.requirements[i];
     const category = state.requirementCategories[i];
