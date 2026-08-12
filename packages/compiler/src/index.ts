@@ -11,6 +11,8 @@ export { formatAsMarkdown } from './formatAsMarkdown.js';
 export type { PromptProfile } from './formatAsMarkdown.js';
 export { formatDiff } from './formatDiff.js';
 export { splitBatchLines } from './batchCompile.js';
+export { getExportWarnings, EXPORT_LOW_CONFIDENCE_THRESHOLD } from './exportWarnings.js';
+export type { ExportWarnings } from './exportWarnings.js';
 export type {
   CompiledPromptDiff,
   CategoryDiff,

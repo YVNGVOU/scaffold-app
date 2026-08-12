@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { CompiledPrompt, RequirementItem } from '@lucid/schema';
-import { formatAsMarkdown, type PromptProfile } from '@lucid/compiler';
+import { formatAsMarkdown, getExportWarnings, type PromptProfile } from '@lucid/compiler';
 import { writeText } from '@tauri-apps/plugin-clipboard-manager';
 import { open, save } from '@tauri-apps/plugin-dialog';
 import { writeTextFile, mkdir } from '@tauri-apps/plugin-fs';
@@ -55,6 +55,10 @@ function ExportToolbar({
   const [profile, setProfile] = useState<PromptProfile>('generic');
   const [folderError, setFolderError] = useState<FriendlyError | null>(null);
   const [exportingFolder, setExportingFolder] = useState(false);
+  // TASK-081: non-blocking risk flags shown right where the user is about to
+  // hand the compiled prompt off — never disables the export buttons below,
+  // just makes the risk visible.
+  const warnings = getExportWarnings(compiled);
 
   async function handleCopy() {
     const md = formatAsMarkdown(compiled, profile);
@@ -144,6 +148,25 @@ function ExportToolbar({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sv-space-2)', marginBottom: 'var(--sv-space-4)' }}>
+    {warnings.hasWarnings && (
+      <div
+        role="status"
+        style={{
+          display: 'flex',
+          gap: 'var(--sv-space-3)',
+          flexWrap: 'wrap',
+          fontSize: 11,
+          color: 'var(--sv-alert)',
+          border: '1px solid var(--sv-alert)',
+          padding: 'var(--sv-space-2) var(--sv-space-3)',
+        }}
+      >
+        {warnings.unresolvedCount > 0 && (
+          <span>⚠ {warnings.unresolvedCount} unresolved item{warnings.unresolvedCount === 1 ? '' : 's'}</span>
+        )}
+        {warnings.lowDomainConfidence && <span>⚠ Low domain-classification confidence</span>}
+      </div>
+    )}
     <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sv-space-2)', flexWrap: 'wrap' }}>
       <select
         value={profile}

@@ -641,3 +641,38 @@ Independent, from-scratch verification of the third domain-expansion batch, whic
 
 **Verdict: "make a cafe menu" now genuinely works end-to-end — confirmed only after a real bug was found and fixed by this verification pass, not on the first attempt.** The batch's 10 domains are structurally sound and additive, but this pass is a concrete example of why holistic re-verification with independently-authored test phrasing (not the implementer's own fixtures) matters: 417/417 tests passed and every implementer self-reported success, while the batch's actual purpose was unmet until this pass. **Final combined domain count: 50.**
 
+## 2026-08-12 — TASK-081: Confidence-based export warnings
+
+Briefed as "TASK-078" (item 4 of a 5-item UI-quality batch); renumbered to
+TASK-081 since TASK-078 was already claimed twice (domain-override task
+`be030f7`, and the domain-expansion batch's personal-website-portfolio task
+`ebad112`/`bab3eef`) and TASK-079/080 were also already taken (Batch
+Compile, prompt library/favorites) — TASK-081 confirmed free against both
+the local tree and `origin/master` at the time of this task.
+
+`ExportToolbar` (`apps/desktop/src/components/CompiledOutput.tsx`) now shows
+a non-blocking `--sv-alert` banner above the Copy/Export/Export Project
+Folder buttons when the compiled prompt has `kind:'unresolved'` items in
+`compiled.assumptions` (the same field `CompiledOutput.tsx`'s own
+"Unresolved" section reads) and/or `domainConfidence` below a new
+`EXPORT_LOW_CONFIDENCE_THRESHOLD = 0.5` (deliberately distinct from
+`DOMAIN_CONFIDENCE_FLOOR`, which is a raw score-point detection floor, not
+a 0-1 confidence fraction). New pure helper `getExportWarnings(compiled)` in
+`packages/compiler/src/exportWarnings.ts`, exported from the package root,
+unit-tested directly (`packages/compiler/test/exportWarnings.test.ts`, 6
+tests) since `apps/desktop` has no component-test infra. Purely
+informational — no export button is ever disabled or hidden.
+
+Verification: `packages/compiler` vitest **423/423 passing** (417 prior + 6
+new). One pre-existing perf-timing test (`50k+ character input completes
+sub-second end to end`) flaked once under full-suite parallel machine load
+(1009ms vs. its 1000ms budget); confirmed not a regression from this task
+by rerunning it in isolation (1308ms suite time, passed) and rerunning the
+full suite clean immediately after (423/423) — nothing in this task touches
+the pipeline hot path. `tsc --noEmit` clean on `packages/schema`,
+`packages/compiler`, `apps/desktop`. `vite build` clean on `apps/desktop`
+(657 modules, only the pre-existing >500kB chunk-size advisory). No Rust
+files touched, `cargo build` not run per the process's own conditional.
+Grepped every new/changed file for `&amp;amp;` entity artifacts and
+hardcoded hex colors outside `--sv-*` tokens: zero matches.
+
