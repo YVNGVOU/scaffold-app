@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { CompiledPrompt, RequirementItem } from '@lucid/schema';
-import { formatAsMarkdown } from '@lucid/compiler';
+import { formatAsMarkdown, type PromptProfile } from '@lucid/compiler';
 import { writeText } from '@tauri-apps/plugin-clipboard-manager';
 import { save } from '@tauri-apps/plugin-dialog';
 import { writeTextFile } from '@tauri-apps/plugin-fs';
@@ -11,11 +11,20 @@ import { formatSource, groupBySource } from './format';
 /** Export toolbar (TASK-018 sub-feature C): copy the compiled prompt as
  * Markdown to the clipboard, or save it to a file. Only rendered when
  * `compiled` is non-null — nothing to export before a compile exists. */
+const PROFILE_OPTIONS: { value: PromptProfile; label: string }[] = [
+  { value: 'generic', label: 'Generic AI' },
+  { value: 'claude', label: 'Claude' },
+  { value: 'chatgpt', label: 'ChatGPT' },
+  { value: 'coding-agent', label: 'Coding Agent' },
+  { value: 'image-model', label: 'Image Model' },
+];
+
 function ExportToolbar({ compiled }: { compiled: CompiledPrompt }) {
   const [status, setStatus] = useState<string | null>(null);
+  const [profile, setProfile] = useState<PromptProfile>('generic');
 
   async function handleCopy() {
-    const md = formatAsMarkdown(compiled);
+    const md = formatAsMarkdown(compiled, profile);
     try {
       await writeText(md);
       setStatus('Copied to clipboard.');
@@ -47,7 +56,7 @@ function ExportToolbar({ compiled }: { compiled: CompiledPrompt }) {
         filters: [{ name: format === 'md' ? 'Markdown' : 'JSON', extensions: [format] }],
       });
       if (!path) return;
-      const content = format === 'md' ? formatAsMarkdown(compiled) : JSON.stringify(compiled, null, 2);
+      const content = format === 'md' ? formatAsMarkdown(compiled, profile) : JSON.stringify(compiled, null, 2);
       await writeTextFile(path, content);
       setStatus('Exported.');
     } catch {
@@ -58,6 +67,25 @@ function ExportToolbar({ compiled }: { compiled: CompiledPrompt }) {
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sv-space-2)', marginBottom: 'var(--sv-space-4)' }}>
+      <select
+        value={profile}
+        onChange={(e) => setProfile(e.target.value as PromptProfile)}
+        aria-label="Output target profile"
+        style={{
+          fontSize: 10,
+          padding: 'var(--sv-space-1) var(--sv-space-2)',
+          background: 'var(--sv-ivory)',
+          color: 'var(--sv-ink)',
+          border: '1px solid var(--sv-hairline-strong)',
+          borderRadius: 0,
+        }}
+      >
+        {PROFILE_OPTIONS.map((opt) => (
+          <option key={opt.value} value={opt.value}>
+            {opt.label}
+          </option>
+        ))}
+      </select>
       <button type="button" onClick={handleCopy} style={{ fontSize: 10, padding: 'var(--sv-space-1) var(--sv-space-3)' }}>
         Copy Markdown
       </button>

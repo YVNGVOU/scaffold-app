@@ -3,6 +3,7 @@ import { runArchitectPipeline, runQuickPipeline, runMasterPipeline, type RunMast
 
 export { mergeAnswer } from './mergeAnswer.js';
 export { formatAsMarkdown } from './formatAsMarkdown.js';
+export type { PromptProfile } from './formatAsMarkdown.js';
 export { formatDiff } from './formatDiff.js';
 export type {
   CompiledPromptDiff,
