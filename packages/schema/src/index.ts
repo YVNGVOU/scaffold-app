@@ -2,7 +2,7 @@
 // Pure TypeScript, zero runtime dependencies, zero Tauri/AI-API dependency.
 // See docs/superpowers/specs/2026-08-11-lucid-compiler-phase1-design.md
 
-export type DomainId = 'web' | 'game' | 'branding' | 'software-development' | 'mobile-development' | 'desktop-development' | 'unity' | 'unreal' | 'roblox' | 'blender' | 'graphic-design' | 'image-generation' | 'video-generation' | 'music' | 'writing' | 'research' | 'business' | 'marketing' | 'product-design' | 'education' | 'data-analysis' | 'automation' | 'legal' | 'healthcare' | 'finance' | 'real-estate' | 'devops-infrastructure' | 'cybersecurity' | 'e-commerce' | 'hardware-iot' | 'animation' | 'podcast-audio' | 'fashion' | 'architecture-interior' | 'agriculture' | 'hospitality-travel' | 'sports-fitness' | 'nonprofit-civic' | 'localization-translation' | 'accessibility' | 'menu-design' | 'print-collateral' | 'resume-cv' | 'event-invitations';
+export type DomainId = 'web' | 'game' | 'branding' | 'software-development' | 'mobile-development' | 'desktop-development' | 'unity' | 'unreal' | 'roblox' | 'blender' | 'graphic-design' | 'image-generation' | 'video-generation' | 'music' | 'writing' | 'research' | 'business' | 'marketing' | 'product-design' | 'education' | 'data-analysis' | 'automation' | 'legal' | 'healthcare' | 'finance' | 'real-estate' | 'devops-infrastructure' | 'cybersecurity' | 'e-commerce' | 'hardware-iot' | 'animation' | 'podcast-audio' | 'fashion' | 'architecture-interior' | 'agriculture' | 'hospitality-travel' | 'sports-fitness' | 'nonprofit-civic' | 'localization-translation' | 'accessibility' | 'menu-design' | 'print-collateral' | 'resume-cv' | 'event-invitations' | 'presentation-deck';
 
 export type RequirementKind =
   | 'user'
@@ -50,6 +50,10 @@ export interface CompiledPrompt {
   objective?: string;
   role?: string;
   domain: DomainId | 'unknown';
+  /** 0-1, how strongly the winning domain scored vs. the confidence floor. Optional — only set when domain detection genuinely ran (ARCHITECT/MASTER modes). */
+  domainConfidence?: number;
+  /** Raw per-domain scores from detection, for transparency into why this domain won over others. Optional, same conditions as domainConfidence. */
+  domainScores?: Record<string, number>;
   userRequirements: RequirementItem[];
   nonNegotiables: RequirementItem[];
   preferences: RequirementItem[];
