@@ -9,6 +9,8 @@ export { resumeAndRecompile, reconstructStateFromCompiled } from './resumeAndRec
 export type { ResumeMode, ResumePipelineOptions } from './resumeAndRecompile.js';
 export { formatAsMarkdown } from './formatAsMarkdown.js';
 export type { PromptProfile } from './formatAsMarkdown.js';
+export { SECTION_GROUPS, DEFAULT_SECTION_GROUP_ORDER, normalizeSectionGroupOrder } from './sectionGroups.js';
+export type { SectionGroupKey, SectionGroupMeta } from './sectionGroups.js';
 export { formatDiff } from './formatDiff.js';
 export { splitBatchLines } from './batchCompile.js';
 export { getExportWarnings, EXPORT_LOW_CONFIDENCE_THRESHOLD } from './exportWarnings.js';

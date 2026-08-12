@@ -1,4 +1,5 @@
 import type { CompiledPrompt, RequirementItem } from '@lucid/schema';
+import { DEFAULT_SECTION_GROUP_ORDER, type SectionGroupKey } from './sectionGroups.js';
 
 /**
  * TASK-021 (output-target profiles): which formatting convention
@@ -53,7 +54,11 @@ function framingLine(profile: PromptProfile): string | null {
  * presentation/DOM concerns, so it is generically useful/testable headless
  * alongside `mergeAnswer`.
  */
-export function formatAsMarkdown(compiled: CompiledPrompt, profile: PromptProfile = 'generic'): string {
+export function formatAsMarkdown(
+  compiled: CompiledPrompt,
+  profile: PromptProfile = 'generic',
+  groupOrder: SectionGroupKey[] = DEFAULT_SECTION_GROUP_ORDER,
+): string {
   const lines: string[] = [];
 
   const isCodingAgent = profile === 'coding-agent';
@@ -76,19 +81,6 @@ export function formatAsMarkdown(compiled: CompiledPrompt, profile: PromptProfil
   lines.push(`- Domain: ${compiled.domain}`);
   lines.push('');
 
-  if (compiled.mission) {
-    lines.push(isCodingAgent ? '## Objective (Mission)' : '## Mission', '', compiled.mission, '');
-  }
-  if (compiled.context) {
-    lines.push('## Context', '', compiled.context, '');
-  }
-  if (compiled.objective) {
-    lines.push('## Objective', '', compiled.objective, '');
-  }
-  if (compiled.role) {
-    lines.push(isImageModel ? '## Style / Role' : '## Role', '', compiled.role, '');
-  }
-
   const section = (title: string, items: RequirementItem[]) => {
     if (!items || items.length === 0) return;
     lines.push(`## ${title}`, '');
@@ -98,34 +90,54 @@ export function formatAsMarkdown(compiled: CompiledPrompt, profile: PromptProfil
     lines.push('');
   };
 
-  // Coding-agent profile surfaces hard requirements first, since they're
-  // the ones an autonomous agent must never violate.
-  if (isCodingAgent) {
-    section('Non-Negotiables (must satisfy)', compiled.nonNegotiables);
-    section('User Requirements', compiled.userRequirements);
-    section('Constraints', compiled.constraints);
-    section('Functional Requirements', compiled.functionalRequirements);
-    section('Preferences', compiled.preferences);
-    section('Assumptions', compiled.assumptions);
-  } else {
-    section('User Requirements', compiled.userRequirements);
-    section('Non-Negotiables', compiled.nonNegotiables);
-    section('Constraints', compiled.constraints);
-    section('Functional Requirements', compiled.functionalRequirements);
-    section('Preferences', compiled.preferences);
-    section('Assumptions', compiled.assumptions);
-  }
+  // Each group renders its backing CompiledPrompt field(s) in a fixed
+  // internal sub-order — only the order of GROUPS themselves varies with
+  // `groupOrder`, so e.g. dragging "Constraints" above "Objective" in the
+  // Architecture Panel moves the whole Constraints block earlier in the
+  // exported text, exactly as shown on screen.
+  const renderGroup: Record<SectionGroupKey, () => void> = {
+    objective: () => {
+      if (compiled.objective) lines.push('## Objective', '', compiled.objective, '');
+    },
+    role: () => {
+      if (compiled.role) lines.push(isImageModel ? '## Style / Role' : '## Role', '', compiled.role, '');
+    },
+    context: () => {
+      if (compiled.mission) lines.push(isCodingAgent ? '## Objective (Mission)' : '## Mission', '', compiled.mission, '');
+      if (compiled.context) lines.push('## Context', '', compiled.context, '');
+    },
+    constraints: () => {
+      // Coding-agent profile surfaces hard requirements first within this
+      // group, since they're the ones an autonomous agent must never violate.
+      if (isCodingAgent) section('Non-Negotiables (must satisfy)', compiled.nonNegotiables);
+      else section('Non-Negotiables', compiled.nonNegotiables);
+      section('Constraints', compiled.constraints);
+    },
+    process: () => {
+      if (compiled.architecture && compiled.architecture.length > 0) {
+        lines.push('## Architecture', '');
+        for (const a of compiled.architecture) {
+          lines.push(`- **${a.component}**: ${a.note}${a.dependsOn.length > 0 ? ` (depends on: ${a.dependsOn.join(', ')})` : ''}`);
+        }
+        lines.push('');
+      }
+    },
+    requirements: () => {
+      section('User Requirements', compiled.userRequirements);
+      section('Functional Requirements', compiled.functionalRequirements);
+      section('Preferences', compiled.preferences);
+      section('Assumptions', compiled.assumptions);
+    },
+    // No CompiledPrompt field backs these yet — nothing to render, honestly.
+    examples: () => {},
+    outputFormat: () => {
+      if (compiled.outputFormat) lines.push('## Output Format', '', compiled.outputFormat, '');
+    },
+    evaluation: () => {},
+  };
 
-  if (compiled.architecture && compiled.architecture.length > 0) {
-    lines.push('## Architecture', '');
-    for (const a of compiled.architecture) {
-      lines.push(`- **${a.component}**: ${a.note}${a.dependsOn.length > 0 ? ` (depends on: ${a.dependsOn.join(', ')})` : ''}`);
-    }
-    lines.push('');
-  }
-
-  if (compiled.outputFormat) {
-    lines.push('## Output Format', '', compiled.outputFormat, '');
+  for (const key of groupOrder) {
+    renderGroup[key]?.();
   }
 
   return lines.join('\n').trim() + '\n';

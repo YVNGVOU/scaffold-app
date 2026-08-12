@@ -8,6 +8,10 @@ import {
   runMasterPipeline,
   resumeAndRecompile,
   DOMAIN_MODULES,
+  DEFAULT_SECTION_GROUP_ORDER,
+  normalizeSectionGroupOrder,
+  type PipelineState,
+  type SectionGroupKey,
 } from '@lucid/compiler';
 import { createPrompt, listPrompts, saveCompile, listCompiles, getSetting, setSetting, createTemplate, listTemplates, type Prompt, type Template } from './lib/api';
 import { PromptList } from './components/PromptList';
@@ -29,7 +33,13 @@ import { ProjectsWorkspace } from './components/workspace/ProjectsWorkspace';
 import { TemplatesWorkspace } from './components/workspace/TemplatesWorkspace';
 import { LibraryWorkspace } from './components/workspace/LibraryWorkspace';
 import { HistoryWorkspace } from './components/workspace/HistoryWorkspace';
+import { ArchitecturePanel } from './components/ArchitecturePanel';
+import { MultiPassView } from './components/compiler/MultiPassView';
+import { StageInspector } from './components/compiler/StageInspector';
+import type { BucketKey } from './components/compiler/stageBuckets';
 import './theme.css';
+
+const GROUP_ORDER_KEY = 'architecture_group_order';
 
 const STAGE_DELAY_MS = 90;
 const DRAFT_DEBOUNCE_MS = 500;
@@ -103,6 +113,24 @@ export default function App() {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [templatesRefreshKey, setTemplatesRefreshKey] = useState(0);
 
+  // Architecture Panel: real section order, persisted globally (not
+  // per-prompt — a user's preferred structure is a workflow habit, not a
+  // one-off per document). Feeds directly into CompiledOutput's render AND
+  // formatAsMarkdown's export.
+  const [groupOrder, setGroupOrder] = useState<SectionGroupKey[]>(DEFAULT_SECTION_GROUP_ORDER);
+  const [rightPanelTab, setRightPanelTab] = useState<'decisions' | 'architecture'>('decisions');
+
+  // Multi-pass compiler visualization: real per-stage snapshots captured via
+  // each pipeline run's onStage callback (not synthesized), so the
+  // inspector shows what the compiler actually did at each stage.
+  const [stageSnapshots, setStageSnapshots] = useState<(PipelineState | null)[]>([]);
+  const [selectedBucket, setSelectedBucket] = useState<BucketKey | null>(null);
+
+  async function handleReorderGroups(next: SectionGroupKey[]) {
+    setGroupOrder(next);
+    setSetting(GROUP_ORDER_KEY, JSON.stringify(next)).catch(() => {});
+  }
+
   async function refreshTemplates() {
     try {
       setTemplates(await listTemplates());
@@ -165,6 +193,16 @@ export default function App() {
     getSetting(ONBOARDING_SEEN_KEY)
       .then((v) => setShowOnboarding(v !== '1'))
       .catch(() => setShowOnboarding(false));
+    getSetting(GROUP_ORDER_KEY)
+      .then((v) => {
+        if (!v) return;
+        try {
+          setGroupOrder(normalizeSectionGroupOrder(JSON.parse(v)));
+        } catch {
+          // malformed persisted value — keep the default order rather than crash
+        }
+      })
+      .catch(() => {});
   }, []);
 
   function handleDismissOnboarding() {
@@ -286,6 +324,7 @@ export default function App() {
       // array generically, so QUICK's shorter sequence "just works" here.
       let finalCompiled: CompiledPrompt | null = null;
       const stageQueue: number[] = [];
+      const snapshots: (PipelineState | null)[] = [];
       let stageNames: readonly string[] =
         mode === 'quick' ? QUICK_MODE_STAGE_NAMES : mode === 'master' ? [] : ARCHITECT_MODE_STAGE_NAMES;
 
@@ -296,8 +335,9 @@ export default function App() {
         state = runMasterPipeline(inputToCompile, {
           maxRounds,
           forceDomain: domainOverride,
-          onStage: (_name, index) => {
+          onStage: (_name, index, s) => {
             stageQueue.push(index);
+            snapshots[index] = s;
           },
         });
         // MASTER's real, possibly-looped stage sequence is only known after
@@ -310,12 +350,15 @@ export default function App() {
         const runPipeline = mode === 'quick' ? runQuickPipeline : runArchitectPipeline;
         state = runPipeline(inputToCompile, {
           forceDomain: domainOverride,
-          onStage: (_name, index) => {
+          onStage: (_name, index, s) => {
             stageQueue.push(index);
+            snapshots[index] = s;
           },
         });
       }
       finalCompiled = state.compiled;
+      setStageSnapshots(snapshots);
+      setSelectedBucket(null);
 
       for (const idx of stageQueue) {
         if (cancelRef.current) break;
@@ -376,16 +419,20 @@ export default function App() {
     try {
       const stageQueue: number[] = [];
       const stageNamesRun: string[] = [];
+      const snapshots: (PipelineState | null)[] = [];
 
       const state = resumeAndRecompile(compiled, rawInput, mode, {
         maxRounds,
-        onStage: (name, index) => {
+        onStage: (name, index, s) => {
           stageQueue.push(index);
           stageNamesRun.push(name);
+          snapshots[index] = s;
         },
       });
       setRecompileStageNames(stageNamesRun);
       const finalCompiled = state.compiled;
+      setStageSnapshots(snapshots);
+      setSelectedBucket(null);
 
       for (const idx of stageQueue) {
         if (cancelRef.current) break;
@@ -474,7 +521,7 @@ export default function App() {
   }, []);
 
   const studioView = (
-    <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr 320px', gridTemplateRows: '1fr 90px', height: '100%', minHeight: 0, position: 'relative' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr 320px', gridTemplateRows: '1fr auto', height: '100%', minHeight: 0, position: 'relative' }}>
       <div style={{ gridColumn: '1', gridRow: '1', borderRight: '1px solid var(--sv-hairline)', minHeight: 0, overflow: 'hidden' }}>
         <PromptList
           prompts={prompts}
@@ -631,7 +678,7 @@ export default function App() {
         </div>
         <hr className="sv-hairline" />
         <div className="sv-scrollpane" style={{ flex: 1, minHeight: 0 }}>
-          <CompiledOutput compiled={compiled} promptTitle={activePrompt?.title} mode={mode} />
+          <CompiledOutput compiled={compiled} promptTitle={activePrompt?.title} mode={mode} groupOrder={groupOrder} />
         </div>
       </div>
 
@@ -641,32 +688,73 @@ export default function App() {
           gridRow: '1',
           borderLeft: '1px solid var(--sv-hairline)',
           minHeight: 0,
-          overflowY: 'auto',
+          display: 'flex',
+          flexDirection: 'column',
         }}
-        className="sv-scrollpane"
       >
-        <DecisionsPanel
-          compiled={compiled}
-          onAnswered={handleAnswered}
-          onConfirmRecompile={handleConfirmRecompile}
-          recompiling={running}
-        />
+        <div style={{ display: 'flex', borderBottom: '1px solid var(--sv-hairline)' }}>
+          <button
+            type="button"
+            className={rightPanelTab === 'decisions' ? 'sv-primary' : ''}
+            onClick={() => setRightPanelTab('decisions')}
+            style={{ flex: 1, fontSize: 10, padding: 'var(--sv-space-2)', border: 'none' }}
+          >
+            Decisions
+          </button>
+          <button
+            type="button"
+            className={rightPanelTab === 'architecture' ? 'sv-primary' : ''}
+            onClick={() => setRightPanelTab('architecture')}
+            style={{ flex: 1, fontSize: 10, padding: 'var(--sv-space-2)', border: 'none' }}
+          >
+            Architecture
+          </button>
+        </div>
+        <div className="sv-scrollpane" style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
+          {rightPanelTab === 'decisions' ? (
+            <DecisionsPanel
+              compiled={compiled}
+              onAnswered={handleAnswered}
+              onConfirmRecompile={handleConfirmRecompile}
+              recompiling={running}
+            />
+          ) : (
+            <ArchitecturePanel compiled={compiled} order={groupOrder} onReorder={handleReorderGroups} />
+          )}
+        </div>
       </div>
 
-      <div style={{ gridColumn: '1 / 4', gridRow: '2', borderTop: '1px solid var(--sv-hairline)', background: 'var(--sv-ivory-dim)' }}>
-        <PipelineStepper
-          stageNames={
-            isRecompiling
-              ? recompileStageNames
-              : mode === 'quick'
-                ? QUICK_MODE_STAGE_NAMES
-                : mode === 'master'
-                  ? masterStageNames
-                  : ARCHITECT_MODE_STAGE_NAMES
-          }
-          activeIndex={stageIndex}
-          running={running}
-        />
+      <div style={{ gridColumn: '1 / 4', gridRow: '2', borderTop: '1px solid var(--sv-hairline)', background: 'var(--sv-ivory-dim)', display: 'flex', flexDirection: 'column' }}>
+        {(() => {
+          const activeStageNames = isRecompiling
+            ? recompileStageNames
+            : mode === 'quick'
+              ? QUICK_MODE_STAGE_NAMES
+              : mode === 'master'
+                ? masterStageNames
+                : ARCHITECT_MODE_STAGE_NAMES;
+          return (
+            <>
+              <MultiPassView
+                stageNames={activeStageNames}
+                activeIndex={stageIndex}
+                running={running}
+                hasCompiled={compiled !== null}
+                selectedBucket={selectedBucket}
+                onSelectBucket={(b) => setSelectedBucket((prev) => (prev === b ? null : b))}
+              />
+              {selectedBucket && (
+                <StageInspector
+                  bucket={selectedBucket}
+                  stageNames={activeStageNames}
+                  snapshots={stageSnapshots}
+                  onClose={() => setSelectedBucket(null)}
+                />
+              )}
+              <PipelineStepper stageNames={activeStageNames} activeIndex={stageIndex} running={running} />
+            </>
+          );
+        })()}
       </div>
     </div>
   );

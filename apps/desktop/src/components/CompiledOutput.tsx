@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import type { CompiledPrompt, RequirementItem } from '@lucid/schema';
-import { formatAsMarkdown, getExportWarnings, type PromptProfile } from '@lucid/compiler';
+import { formatAsMarkdown, getExportWarnings, DEFAULT_SECTION_GROUP_ORDER, type PromptProfile, type SectionGroupKey } from '@lucid/compiler';
 import { writeText } from '@tauri-apps/plugin-clipboard-manager';
 import { open, save } from '@tauri-apps/plugin-dialog';
 import { writeTextFile, mkdir } from '@tauri-apps/plugin-fs';
@@ -46,10 +46,12 @@ function ExportToolbar({
   compiled,
   promptTitle,
   mode,
+  groupOrder,
 }: {
   compiled: CompiledPrompt;
   promptTitle: string;
   mode: string;
+  groupOrder: SectionGroupKey[];
 }) {
   const [status, setStatus] = useState<string | null>(null);
   const [profile, setProfile] = useState<PromptProfile>('generic');
@@ -61,7 +63,7 @@ function ExportToolbar({
   const warnings = getExportWarnings(compiled);
 
   async function handleCopy() {
-    const md = formatAsMarkdown(compiled, profile);
+    const md = formatAsMarkdown(compiled, profile, groupOrder);
     try {
       await writeText(md);
       setStatus('Copied to clipboard.');
@@ -93,7 +95,7 @@ function ExportToolbar({
         filters: [{ name: format === 'md' ? 'Markdown' : 'JSON', extensions: [format] }],
       });
       if (!path) return;
-      const content = format === 'md' ? formatAsMarkdown(compiled, profile) : JSON.stringify(compiled, null, 2);
+      const content = format === 'md' ? formatAsMarkdown(compiled, profile, groupOrder) : JSON.stringify(compiled, null, 2);
       await writeTextFile(path, content);
       setStatus('Exported.');
     } catch {
@@ -121,7 +123,7 @@ function ExportToolbar({
 
       await mkdir(projectPath, { recursive: true });
 
-      const md = formatAsMarkdown(compiled, profile);
+      const md = formatAsMarkdown(compiled, profile, groupOrder);
       const json = JSON.stringify(compiled, null, 2);
       const readme = [
         `# ${promptTitle || 'Untitled prompt'}`,
@@ -289,6 +291,7 @@ export function CompiledOutput({
   compiled,
   promptTitle,
   mode,
+  groupOrder = DEFAULT_SECTION_GROUP_ORDER,
 }: {
   compiled: CompiledPrompt | null;
   /** TASK-030 Part B: current prompt's title, used to sanitize a folder
@@ -298,6 +301,10 @@ export function CompiledOutput({
   /** TASK-030 Part B: current compile mode (ARCHITECT/QUICK/MASTER), noted
    * in the handoff README. */
   mode?: string;
+  /** Architecture Panel's section order — drives both this render AND the
+   * export toolbar's formatAsMarkdown calls below, so reordering there is a
+   * real structural change, not cosmetic. Defaults to the canonical order. */
+  groupOrder?: SectionGroupKey[];
 }) {
   if (!compiled) {
     return (
@@ -312,6 +319,83 @@ export function CompiledOutput({
   // so they stay visible/expanded while the rest of Assumptions collapses.
   const unresolved = compiled.assumptions.filter((it) => it.kind === 'unresolved');
   const restAssumptions = compiled.assumptions.filter((it) => it.kind !== 'unresolved');
+
+  // Mirrors formatAsMarkdown's renderGroup mapping exactly — same groups,
+  // same fields, just JSX instead of markdown lines.
+  const renderGroup: Record<SectionGroupKey, () => ReactNode> = {
+    objective: () =>
+      compiled.objective && (
+        <div key="objective" style={{ marginBottom: 'var(--sv-space-4)' }}>
+          <div className="sv-label">Objective</div>
+          <div>{compiled.objective}</div>
+        </div>
+      ),
+    role: () =>
+      compiled.role && (
+        <div key="role" style={{ marginBottom: 'var(--sv-space-4)' }}>
+          <div className="sv-label">Role</div>
+          <div>{compiled.role}</div>
+        </div>
+      ),
+    context: () => (
+      <div key="context">
+        {compiled.mission && (
+          <div style={{ marginBottom: 'var(--sv-space-4)' }}>
+            <div className="sv-label">Mission</div>
+            <div>{compiled.mission}</div>
+          </div>
+        )}
+        {compiled.context && (
+          <div style={{ marginBottom: 'var(--sv-space-4)' }}>
+            <div className="sv-label">Context</div>
+            <div>{compiled.context}</div>
+          </div>
+        )}
+      </div>
+    ),
+    constraints: () => (
+      <div key="constraints">
+        <Section title="Non-Negotiables" items={compiled.nonNegotiables} />
+        <Section title="Constraints" items={compiled.constraints} />
+      </div>
+    ),
+    process: () =>
+      compiled.architecture &&
+      compiled.architecture.length > 0 && (
+        <div key="process" style={{ marginBottom: 'var(--sv-space-5)' }}>
+          <div className="sv-label" style={{ marginBottom: 'var(--sv-space-2)' }}>
+            Architecture
+          </div>
+          {compiled.architecture.map((a, i) => (
+            <div key={i} style={{ marginBottom: 'var(--sv-space-3)', borderLeft: '2px solid var(--sv-burgundy)', paddingLeft: 'var(--sv-space-3)' }}>
+              <div style={{ fontFamily: 'var(--sv-font-mono)', fontSize: 12 }}>{a.component}</div>
+              <div style={{ fontSize: 13, color: 'var(--sv-ink-soft)' }}>{a.note}</div>
+              {a.dependsOn.length > 0 && (
+                <div style={{ fontSize: 11, color: 'var(--sv-ink-soft)' }}>depends on: {a.dependsOn.join(', ')}</div>
+              )}
+            </div>
+          ))}
+        </div>
+      ),
+    requirements: () => (
+      <div key="requirements">
+        <Section title="User Requirements" items={compiled.userRequirements} />
+        <Section title="Unresolved — needs your input" items={unresolved} accentColor="var(--sv-burgundy)" />
+        <Section title="Functional Requirements" items={compiled.functionalRequirements} />
+        <Section title="Preferences" items={compiled.preferences} collapsible defaultOpen={false} />
+        <Section title="Assumptions" items={restAssumptions} collapsible defaultOpen={false} />
+      </div>
+    ),
+    examples: () => null,
+    outputFormat: () =>
+      compiled.outputFormat && (
+        <div key="outputFormat">
+          <div className="sv-label">Output Format</div>
+          <div>{compiled.outputFormat}</div>
+        </div>
+      ),
+    evaluation: () => null,
+  };
 
   return (
     <div style={{ padding: 'var(--sv-space-4)' }}>
@@ -334,65 +418,9 @@ export function CompiledOutput({
         )}
       </div>
 
-      <ExportToolbar compiled={compiled} promptTitle={promptTitle ?? 'Untitled prompt'} mode={mode ?? 'architect'} />
+      <ExportToolbar compiled={compiled} promptTitle={promptTitle ?? 'Untitled prompt'} mode={mode ?? 'architect'} groupOrder={groupOrder} />
 
-      {compiled.mission && (
-        <div style={{ marginBottom: 'var(--sv-space-4)' }}>
-          <div className="sv-label">Mission</div>
-          <div>{compiled.mission}</div>
-        </div>
-      )}
-      {compiled.context && (
-        <div style={{ marginBottom: 'var(--sv-space-4)' }}>
-          <div className="sv-label">Context</div>
-          <div>{compiled.context}</div>
-        </div>
-      )}
-      {compiled.objective && (
-        <div style={{ marginBottom: 'var(--sv-space-4)' }}>
-          <div className="sv-label">Objective</div>
-          <div>{compiled.objective}</div>
-        </div>
-      )}
-      {compiled.role && (
-        <div style={{ marginBottom: 'var(--sv-space-4)' }}>
-          <div className="sv-label">Role</div>
-          <div>{compiled.role}</div>
-        </div>
-      )}
-
-      {/* High-signal categories: expanded by default, per TASK-012 req 2. */}
-      <Section title="User Requirements" items={compiled.userRequirements} />
-      <Section title="Non-Negotiables" items={compiled.nonNegotiables} />
-      <Section title="Unresolved — needs your input" items={unresolved} accentColor="var(--sv-burgundy)" />
-      <Section title="Constraints" items={compiled.constraints} />
-      <Section title="Functional Requirements" items={compiled.functionalRequirements} />
-
-      {/* Secondary/long categories: collapsible, collapsed by default, count shown. */}
-      <Section title="Preferences" items={compiled.preferences} collapsible defaultOpen={false} />
-      <Section title="Assumptions" items={restAssumptions} collapsible defaultOpen={false} />
-
-      {compiled.architecture && compiled.architecture.length > 0 && (
-        <div style={{ marginBottom: 'var(--sv-space-5)' }}>
-          <div className="sv-label" style={{ marginBottom: 'var(--sv-space-2)' }}>Architecture</div>
-          {compiled.architecture.map((a, i) => (
-            <div key={i} style={{ marginBottom: 'var(--sv-space-3)', borderLeft: '2px solid var(--sv-burgundy)', paddingLeft: 'var(--sv-space-3)' }}>
-              <div style={{ fontFamily: 'var(--sv-font-mono)', fontSize: 12 }}>{a.component}</div>
-              <div style={{ fontSize: 13, color: 'var(--sv-ink-soft)' }}>{a.note}</div>
-              {a.dependsOn.length > 0 && (
-                <div style={{ fontSize: 11, color: 'var(--sv-ink-soft)' }}>depends on: {a.dependsOn.join(', ')}</div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {compiled.outputFormat && (
-        <div>
-          <div className="sv-label">Output Format</div>
-          <div>{compiled.outputFormat}</div>
-        </div>
-      )}
+      {groupOrder.map((key) => renderGroup[key]())}
     </div>
   );
 }
