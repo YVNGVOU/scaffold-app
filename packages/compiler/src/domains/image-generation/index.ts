@@ -1,0 +1,118 @@
+import type { DomainModule } from '../types.js';
+
+// NOTE: word-boundary matching (not plain substring `includes`) is required
+// here, for the same reason documented in domains/game/index.ts (TASK-006)
+// and domains/web/index.ts. Bare substring matching previously let keywords
+// like 'player' or 'api' match inside unrelated words ("multiplayer",
+// "rapid"), silently inflating scores on inputs unrelated to the domain.
+const KEYWORDS = [
+  'image generation', 'image generator', 'ai image', 'ai art', 'ai-generated image',
+  'text-to-image', 'text to image', 'midjourney', 'dall-e', 'dalle', 'stable diffusion',
+  'diffusion model', 'image prompt', 'img2img', 'inpainting', 'outpainting', 'upscale',
+  'upscaling', 'aspect ratio', 'illustration prompt', 'concept art', 'render style',
+  'generate an image', 'generate images', 'image variations', 'seed value', 'negative prompt',
+];
+
+function wordBoundaryRegex(keyword: string): RegExp {
+  const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`\\b${escaped}\\b`, 'i');
+}
+
+const KEYWORD_PATTERNS = KEYWORDS.map((kw) => wordBoundaryRegex(kw));
+
+export const imageGenerationDomain: DomainModule = {
+  id: 'image-generation',
+  label: 'Image Generation',
+  score(input: string): number {
+    let score = 0;
+    for (const pattern of KEYWORD_PATTERNS) {
+      if (pattern.test(input)) score += 1;
+    }
+    return score;
+  },
+  defaultRequirements: [
+    { text: 'Define target aspect ratio and output resolution', category: 'functional' },
+    { text: 'Specify visual style/reference (photorealistic, illustration, painterly, etc.)', category: 'preference' },
+    { text: 'Define number of variations/iterations to generate per prompt', category: 'functional' },
+    { text: 'State intended use (print, web, social, concept exploration) to inform resolution needs', category: 'constraint' },
+  ],
+  ambiguityChecklist: [
+    {
+      field: 'style',
+      description: 'Visual/art style (photorealistic, illustration, anime, 3D render, etc.) is unspecified',
+      isResolved: (input) => /(photorealistic|illustration|anime|3d render|watercolor|oil painting|cartoon|pixel art|concept art|art style|painterly|line art)/i.test(input),
+    },
+    {
+      field: 'aspect ratio / resolution',
+      description: 'Target aspect ratio or output resolution is unspecified',
+      isResolved: (input) => /(aspect ratio|\d+:\d+|\d+x\d+|square|portrait|landscape|widescreen|4k|8k|hi-?res|high resolution)/i.test(input),
+    },
+    {
+      field: 'subject / composition',
+      description: 'Subject matter or composition (framing, focal point, background) is unspecified',
+      isResolved: (input) => /(composition|foreground|background|close-?up|wide shot|framing|subject|centered|rule of thirds)/i.test(input),
+    },
+    {
+      field: 'iteration strategy',
+      description: 'How many variations to generate and how to select/refine among them is unspecified',
+      isResolved: (input) => /(variations?|iterations?|refine|reroll|batch of|number of images|pick the best)/i.test(input),
+    },
+  ],
+  architectureTemplate: [
+    { component: 'prompt specification', dependsOn: [], note: 'Core subject, style, composition, and mood direction the image prompt must convey' },
+    { component: 'style reference', dependsOn: ['prompt specification'], note: 'Reference images, style tags, or artist/medium descriptors to anchor visual consistency' },
+    { component: 'generation parameters', dependsOn: ['prompt specification'], note: 'Aspect ratio, resolution, seed, negative prompt, and model/tool-specific settings' },
+    { component: 'iteration loop', dependsOn: ['generation parameters'], note: 'Batch generation, variation review, and refinement cycle (reroll, inpaint, upscale)' },
+    { component: 'output pipeline', dependsOn: ['iteration loop'], note: 'Final selection, upscaling, and delivery in the required format/resolution' },
+  ],
+  technicalConsiderations: [
+    { aspect: 'model/tool choice', note: 'Identify which image-generation tool or model family the user has in mind (or leave open), since prompt syntax and capabilities differ significantly', category: 'functionalRequirements' },
+    { aspect: 'resolution ceiling', note: 'Confirm the maximum native output resolution of the target tool and whether upscaling is needed to hit the final deliverable size', category: 'constraints' },
+    { aspect: 'aspect ratio support', note: 'Verify the target tool supports the requested aspect ratio natively rather than requiring post-crop', category: 'constraints' },
+    { aspect: 'seed/reproducibility', note: 'Decide whether a fixed seed is needed for reproducible variations or comparison across prompt edits', category: 'preferences' },
+    { aspect: 'negative prompting', note: 'Define negative-prompt terms to exclude unwanted artifacts (extra limbs, watermarks, text) where the tool supports it', category: 'functionalRequirements' },
+    { aspect: 'batch/rate limits', note: 'Account for per-request or per-session generation limits when planning the number of variations to request', category: 'constraints' },
+  ],
+  uxConsiderations: [
+    { aspect: 'prompt clarity', note: 'Write the prompt as an unambiguous, front-loaded description (subject, style, composition) so the model prioritizes the most important elements', category: 'functionalRequirements' },
+    { aspect: 'iteration workflow', note: 'Define how the user reviews and selects among generated variations before committing to a final image', category: 'preferences' },
+    { aspect: 'feedback loop', note: 'Plan how prompt adjustments will be made between iterations (what changed, what to keep constant)', category: 'preferences' },
+    { aspect: 'delivery format', note: 'Confirm the file format and color profile expected by the downstream use (web-optimized vs. print-ready)', category: 'functionalRequirements' },
+  ],
+  securityConsiderations: [
+    { aspect: 'likeness/consent', note: 'Flag requests that generate images of real, identifiable people without clear consent or legitimate purpose', category: 'constraints' },
+    { aspect: 'copyright/trademark', note: 'Flag requests to closely imitate a specific living artist\'s style, copyrighted characters, or trademarked brand imagery', category: 'constraints' },
+    { aspect: 'content policy', note: 'Confirm the requested subject matter complies with the target tool\'s content policy (no violent, sexual, or otherwise disallowed content)', category: 'constraints' },
+    { aspect: 'provenance disclosure', note: 'Consider whether AI-generated origin needs to be disclosed for the intended use (advertising, journalism, stock imagery)', category: 'preferences' },
+  ],
+  creativeConsiderations: [
+    { aspect: 'visual style', note: 'Establish a clear, specific style direction (medium, lighting, color palette, era/influence) rather than leaving the model to default to generic outputs', category: 'preferences' },
+    { aspect: 'composition', note: 'Specify framing, focal point, and depth (foreground/midground/background) so the generated image has deliberate visual hierarchy', category: 'functionalRequirements' },
+    { aspect: 'mood and lighting', note: 'Define the intended mood and lighting scheme (soft/dramatic, warm/cool, time of day) to guide tone consistently across variations', category: 'preferences' },
+    { aspect: 'originality', note: 'Push beyond generic "trending on artstation"-style prompts toward a distinctive combination of references so output does not read as boilerplate AI art', category: 'preferences' },
+    { aspect: 'consistency across a set', note: 'When generating multiple related images (e.g. a series), define shared style anchors so the set reads as cohesive rather than disjointed', category: 'constraints' },
+  ],
+  qaConsiderations: [
+    { aspect: 'artifact check', note: 'Review generated images for common AI artifacts: malformed hands/faces, nonsensical text, inconsistent lighting or anatomy', category: 'constraints' },
+    { aspect: 'prompt adherence', note: 'Verify the output actually reflects the requested subject, composition, and style rather than a plausible-but-different substitute', category: 'functionalRequirements' },
+    { aspect: 'resolution/format check', note: 'Confirm final exported images meet the required resolution, aspect ratio, and file format before delivery', category: 'functionalRequirements' },
+    { aspect: 'missing requirement', note: 'Identify unstated but implied requirements, e.g. a "product photo" request implying a clean/transparent background', category: 'functionalRequirements' },
+    { aspect: 'contradiction check', note: 'Check for contradictory style directives in the same prompt (e.g. "photorealistic" combined with "cartoon style")', category: 'constraints' },
+  ],
+  constraintConsiderations: [
+    {
+      aspect: 'style vs subject contradiction',
+      note: 'Requesting mutually exclusive style directives (e.g. photorealistic alongside cartoon/anime styling) in the same prompt is a self-contradicting specification that will produce inconsistent results.',
+      category: 'constraints',
+      triggerA: /\b(photorealistic|photo-?real)\b/i,
+      triggerB: /\b(cartoon|anime|pixel art)\b/i,
+    },
+    {
+      aspect: 'print resolution vs low-res source',
+      note: 'Requesting large-format print output while implying a low native resolution (e.g. small thumbnail-sized generation) is high-risk without an explicit upscaling step.',
+      category: 'constraints',
+      triggerA: /\b(billboard|poster print|large[- ]format print|print[- ]ready)\b/i,
+      triggerB: /\b(thumbnail|low[- ]res(?:olution)?|small (?:image|preview))\b/i,
+    },
+  ],
+};
