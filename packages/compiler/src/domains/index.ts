@@ -30,11 +30,12 @@ import { cybersecurityDomain } from './cybersecurity/index.js';
 import { eCommerceDomain } from './e-commerce/index.js';
 import { hardwareIotDomain } from './hardware-iot/index.js';
 import { animationDomain } from './animation/index.js';
+import { podcastAudioDomain } from './podcast-audio/index.js';
 
-export const DOMAIN_MODULES: DomainModule[] = [webDomain, gameDomain, brandingDomain, softwareDevelopmentDomain, mobileDevelopmentDomain, desktopDevelopmentDomain, unityDomain, unrealDomain, robloxDomain, blenderDomain, graphicDesignDomain, imageGenerationDomain, videoGenerationDomain, musicDomain, writingDomain, researchDomain, businessDomain, marketingDomain, productDesignDomain, educationDomain, dataAnalysisDomain, automationDomain, legalDomain, healthcareDomain, financeDomain, realEstateDomain, devopsInfrastructureDomain, cybersecurityDomain, eCommerceDomain, hardwareIotDomain, animationDomain];
+export const DOMAIN_MODULES: DomainModule[] = [webDomain, gameDomain, brandingDomain, softwareDevelopmentDomain, mobileDevelopmentDomain, desktopDevelopmentDomain, unityDomain, unrealDomain, robloxDomain, blenderDomain, graphicDesignDomain, imageGenerationDomain, videoGenerationDomain, musicDomain, writingDomain, researchDomain, businessDomain, marketingDomain, productDesignDomain, educationDomain, dataAnalysisDomain, automationDomain, legalDomain, healthcareDomain, financeDomain, realEstateDomain, devopsInfrastructureDomain, cybersecurityDomain, eCommerceDomain, hardwareIotDomain, animationDomain, podcastAudioDomain];
 
 /** Minimum score for a domain to be selected; below this, domain is 'unknown'. */
 export const DOMAIN_CONFIDENCE_FLOOR = 1;
 
-export { webDomain, gameDomain, brandingDomain, softwareDevelopmentDomain, mobileDevelopmentDomain, desktopDevelopmentDomain, unityDomain, unrealDomain, robloxDomain, blenderDomain, graphicDesignDomain, imageGenerationDomain, videoGenerationDomain, musicDomain, writingDomain, researchDomain, businessDomain, marketingDomain, productDesignDomain, educationDomain, dataAnalysisDomain, automationDomain, legalDomain, healthcareDomain, financeDomain, realEstateDomain, devopsInfrastructureDomain, cybersecurityDomain, eCommerceDomain, hardwareIotDomain, animationDomain };
+export { webDomain, gameDomain, brandingDomain, softwareDevelopmentDomain, mobileDevelopmentDomain, desktopDevelopmentDomain, unityDomain, unrealDomain, robloxDomain, blenderDomain, graphicDesignDomain, imageGenerationDomain, videoGenerationDomain, musicDomain, writingDomain, researchDomain, businessDomain, marketingDomain, productDesignDomain, educationDomain, dataAnalysisDomain, automationDomain, legalDomain, healthcareDomain, financeDomain, realEstateDomain, devopsInfrastructureDomain, cybersecurityDomain, eCommerceDomain, hardwareIotDomain, animationDomain, podcastAudioDomain };
 export type { DomainModule } from './types.js';
