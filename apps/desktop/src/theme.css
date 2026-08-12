@@ -2,15 +2,19 @@
 @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
 
 :root {
-  --sv-ivory: #f4efe6;
-  --sv-ivory-dim: #ece5d8;
-  --sv-ink: #1c1a17;
-  --sv-ink-soft: #4a453e;
-  --sv-burgundy: #7a1f2b;
-  --sv-burgundy-dim: #9a3a45;
-  --sv-hairline: #c9beac;
-  --sv-hairline-strong: #a89c86;
-  --sv-alert: #b5461f;
+  /* Dark palette. Token names (ivory/ink) are kept stable for every consumer
+     across the codebase — --sv-ivory is the surface/background color and
+     --sv-ink is the foreground/text color regardless of which theme is
+     loaded, so no other file needs to change when the palette flips. */
+  --sv-ivory: #16140f;
+  --sv-ivory-dim: #201d17;
+  --sv-ink: #ece6d8;
+  --sv-ink-soft: #a89f8d;
+  --sv-burgundy: #b23c48;
+  --sv-burgundy-dim: #c8555f;
+  --sv-hairline: #322d24;
+  --sv-hairline-strong: #4a4436;
+  --sv-alert: #dd7a42;
 
   --sv-font-head: 'Fraunces', Georgia, 'Times New Roman', serif;
   --sv-font-body: 'IBM Plex Sans', -apple-system, Segoe UI, sans-serif;
@@ -135,9 +139,9 @@ textarea:focus, input:focus {
 .sv-kind-inferred { color: var(--sv-burgundy); }
 .sv-kind-default { color: var(--sv-ink-soft); }
 .sv-kind-assumption { color: var(--sv-burgundy-dim); }
-.sv-kind-recommendation { color: #5a6b4e; }
+.sv-kind-recommendation { color: #8ba374; }
 .sv-kind-unresolved { color: var(--sv-alert); }
-.sv-kind-rejected { color: #8a8578; text-decoration: line-through; }
+.sv-kind-rejected { color: #928c7a; text-decoration: line-through; }
 
 .sv-scrollpane {
   overflow-y: auto;
