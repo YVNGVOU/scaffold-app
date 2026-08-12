@@ -30,6 +30,20 @@ function wordBoundaryRegex(keyword: string): RegExp {
 
 const KEYWORD_PATTERNS = KEYWORDS.map((kw) => wordBoundaryRegex(kw));
 
+// BUGFIX (holistic verification pass, TASK-069 batch): a short, high-signal
+// request like "polish my CV for a marketing role" only scores +1 here (on
+// 'cv'), but the marketing domain's bare 'marketing' keyword also scores +1
+// on the same input, and marketing wins the tie by registry order — an
+// input that is unambiguously a resume/CV request loses to an unrelated
+// domain because it happens to mention a target industry/role by name. This
+// pattern gives a strong bonus when a resume/CV core term appears together
+// with job-application context, since that combination is essentially never
+// a false positive for this domain.
+const CORE_TERM_WITH_JOB_CONTEXT =
+  /\b(resume|résumé|cv|curriculum vitae|cover letter)\b[^.!?]{0,40}\b(role|job|position|applying|career|hire|hiring)\b/i;
+const JOB_CONTEXT_WITH_CORE_TERM =
+  /\b(role|job|position|applying|career|hire|hiring)\b[^.!?]{0,40}\b(resume|résumé|cv|curriculum vitae|cover letter)\b/i;
+
 export const resumeCvDomain: DomainModule = {
   id: 'resume-cv',
   label: 'Resume / CV',
@@ -37,6 +51,9 @@ export const resumeCvDomain: DomainModule = {
     let score = 0;
     for (const pattern of KEYWORD_PATTERNS) {
       if (pattern.test(input)) score += 1;
+    }
+    if (CORE_TERM_WITH_JOB_CONTEXT.test(input) || JOB_CONTEXT_WITH_CORE_TERM.test(input)) {
+      score += 2;
     }
     return score;
   },

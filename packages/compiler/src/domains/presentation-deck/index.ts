@@ -27,6 +27,20 @@ function wordBoundaryRegex(keyword: string): RegExp {
 
 const KEYWORD_PATTERNS = KEYWORDS.map((kw) => wordBoundaryRegex(kw));
 
+// BUGFIX (holistic verification pass, TASK-069 batch): the compound-phrase
+// list above requires "deck"/"slide" to be present, but real requests very
+// commonly say just "presentation" ("a presentation for our board meeting",
+// "slides for our quarterly update") without ever saying "deck" or "slide
+// deck" verbatim. This proximity pattern requires the bare word
+// "presentation" or "slides" near business/meeting-context vocabulary, which
+// stays safely distinct from generic uses of "presentation" (e.g. "present
+// the findings") since it requires the noun form paired with an audience/
+// purpose word.
+const PROXIMITY_PATTERNS = [
+  /\b(presentation|slides)\b[^.!?]{0,30}\b(board meeting|investor|pitch|quarterly|stakeholder|conference|keynote|team meeting|all-hands|town hall)\b/i,
+  /\b(board meeting|investor|pitch|quarterly|stakeholder|conference|keynote|team meeting|all-hands|town hall)\b[^.!?]{0,30}\b(presentation|slides)\b/i,
+];
+
 export const presentationDeckDomain: DomainModule = {
   id: 'presentation-deck',
   label: 'Presentation / Slide Deck',
@@ -34,6 +48,9 @@ export const presentationDeckDomain: DomainModule = {
     let score = 0;
     for (const pattern of KEYWORD_PATTERNS) {
       if (pattern.test(input)) score += 1;
+    }
+    for (const pattern of PROXIMITY_PATTERNS) {
+      if (pattern.test(input)) score += 2;
     }
     return score;
   },

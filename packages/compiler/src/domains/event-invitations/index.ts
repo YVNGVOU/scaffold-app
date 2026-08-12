@@ -25,6 +25,17 @@ function wordBoundaryRegex(keyword: string): RegExp {
 
 const KEYWORD_PATTERNS = KEYWORDS.map((kw) => wordBoundaryRegex(kw));
 
+// BUGFIX (holistic verification pass, TASK-069 batch): casual real-world
+// phrasing ("invites for my daughter's birthday party") uses the bare word
+// "invite(s)" rather than any of the compound phrases above, and has no
+// matching keyword at all. This proximity pattern requires "invite(s)" or
+// "invitation(s)" near an event-occasion word, which stays distinct from
+// unrelated senses of "invite" (e.g. "invite users to collaborate").
+const PROXIMITY_PATTERNS = [
+  /\b(invite|invites|invitation|invitations)\b[^.!?]{0,30}\b(birthday|party|wedding|shower|anniversary|graduation|quinceanera|mitzvah|engagement)\b/i,
+  /\b(birthday|party|wedding|shower|anniversary|graduation|quinceanera|mitzvah|engagement)\b[^.!?]{0,30}\b(invite|invites|invitation|invitations)\b/i,
+];
+
 export const eventInvitationsDomain: DomainModule = {
   id: 'event-invitations',
   label: 'Event Invitations / Stationery',
@@ -32,6 +43,9 @@ export const eventInvitationsDomain: DomainModule = {
     let score = 0;
     for (const pattern of KEYWORD_PATTERNS) {
       if (pattern.test(input)) score += 1;
+    }
+    for (const pattern of PROXIMITY_PATTERNS) {
+      if (pattern.test(input)) score += 2;
     }
     return score;
   },

@@ -10,7 +10,7 @@ const KEYWORDS = [
   'business plan', 'business model', 'target market', 'go-to-market',
   'go to market', 'competitive landscape', 'competitor analysis', 'startup',
   'revenue model', 'pricing strategy', 'market research', 'value proposition',
-  'financial projections', 'pitch deck', 'investors', 'monetization',
+  'financial projections', 'investors', 'monetization',
   'customer acquisition', 'market fit', 'swot analysis', 'roi',
 ];
 

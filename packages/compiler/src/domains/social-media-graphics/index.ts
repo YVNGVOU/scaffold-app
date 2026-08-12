@@ -32,6 +32,18 @@ function wordBoundaryRegex(keyword: string): RegExp {
 
 const KEYWORD_PATTERNS = KEYWORDS.map((kw) => wordBoundaryRegex(kw));
 
+// BUGFIX (holistic verification pass, TASK-069 batch): compound phrases like
+// 'tiktok cover' require exact adjacency, but real requests routinely
+// separate the platform name from the asset word ("a TikTok video cover and
+// story graphic for my brand"). This proximity pattern requires a named
+// platform near a graphics-production word, which stays distinct from
+// generic platform mentions (e.g. "manage our TikTok account") since it
+// requires the asset/production noun too.
+const PROXIMITY_PATTERNS = [
+  /\b(instagram|tiktok|facebook|linkedin|twitter|pinterest|snapchat)\b[^.!?]{0,30}\b(graphic|graphics|cover|banner|post|story|stories|reel|carousel|template|thumbnail)\b/i,
+  /\b(graphic|graphics|cover|banner|post|story|stories|reel|carousel|template|thumbnail)\b[^.!?]{0,30}\b(instagram|tiktok|facebook|linkedin|twitter|pinterest|snapchat)\b/i,
+];
+
 export const socialMediaGraphicsDomain: DomainModule = {
   id: 'social-media-graphics',
   label: 'Social Media Graphics',
@@ -39,6 +51,9 @@ export const socialMediaGraphicsDomain: DomainModule = {
     let score = 0;
     for (const pattern of KEYWORD_PATTERNS) {
       if (pattern.test(input)) score += 1;
+    }
+    for (const pattern of PROXIMITY_PATTERNS) {
+      if (pattern.test(input)) score += 2;
     }
     return score;
   },

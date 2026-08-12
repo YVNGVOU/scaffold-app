@@ -28,6 +28,27 @@ function wordBoundaryRegex(keyword: string): RegExp {
 
 const KEYWORD_PATTERNS = KEYWORDS.map((kw) => wordBoundaryRegex(kw));
 
+// BUGFIX (holistic verification pass, TASK-069 batch): the compound-phrase-only
+// keyword list above requires the venue word to sit immediately adjacent to
+// "menu" (e.g. "cafe menu", "coffee shop menu"). Real user phrasing very
+// commonly separates them — "make me a menu for my cafe", "design a menu for
+// a coffee shop", "a menu for my new restaurant" — none of which contain any
+// of the KEYWORDS phrases verbatim, so the domain never scored above 0 for
+// the exact scenario this batch was built to fix. These proximity patterns
+// require the bare word "menu" to appear near (within ~30 chars, either
+// order) a food-service venue word, which is safe against the same false
+// positives the compound-phrase design was guarding against ("dropdown
+// menu", "navigation menu", "menu bar" never appear near a venue word).
+// NOTE: 'bar' is deliberately excluded from this venue list — "menu bar" is
+// the canonical software/UI term this domain must NOT trigger on, and it
+// would immediately satisfy a naive "menu near bar" proximity check. Bar
+// venues are still covered via the explicit 'bar menu'/'drink menu' compound
+// phrases in KEYWORDS above.
+const PROXIMITY_PATTERNS = [
+  /\bmenu\b[^.!?]{0,30}\b(cafe|caf[eé]|coffee\s*shop|restaurant|bistro|diner|food\s*truck|bakery|brewery|pub|eatery|deli|catering)\b/i,
+  /\b(cafe|caf[eé]|coffee\s*shop|restaurant|bistro|diner|food\s*truck|bakery|brewery|pub|eatery|deli|catering)\b[^.!?]{0,30}\bmenu\b/i,
+];
+
 export const menuDesignDomain: DomainModule = {
   id: 'menu-design',
   label: 'Menu Design',
@@ -35,6 +56,9 @@ export const menuDesignDomain: DomainModule = {
     let score = 0;
     for (const pattern of KEYWORD_PATTERNS) {
       if (pattern.test(input)) score += 1;
+    }
+    for (const pattern of PROXIMITY_PATTERNS) {
+      if (pattern.test(input)) score += 2;
     }
     return score;
   },
