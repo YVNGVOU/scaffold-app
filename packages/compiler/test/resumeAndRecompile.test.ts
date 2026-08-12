@@ -33,13 +33,62 @@ describe('resumeAndRecompile', () => {
     expect(preservedAnswer!.text).toBe('iOS and Android via a React Native shell');
     expect(preservedAnswer!.status).toBe('accepted');
 
-    // Answering an item does not remove the original unresolved flag from
-    // `assumptions` (DecisionsPanel's `isAnswered()` classifies it as
-    // "answered" purely by matching evidence, without deleting it) — but the
-    // resumed compile must still carry it through untouched, not duplicate
-    // or drop it.
+    // TASK-083: an answered item's unresolved entry must NOT be carried
+    // forward into the recompiled ambiguities/assumptions pool — it's
+    // superseded by the answer now in userRequirements. (Previously this was
+    // asserted to always resurface with length 1 — that was the TASK-083 bug:
+    // the "second recompile still doesn't work" report.)
     const stillPresent = resumed.compiled.assumptions.filter((a) => a.kind === 'unresolved' && a.source === unresolved!.source);
-    expect(stillPresent).toHaveLength(1);
+    expect(stillPresent).toHaveLength(0);
+  });
+
+  it('TASK-083: excludes an answered unresolved item from the recompiled ambiguities pool', () => {
+    const rawInput = 'Build a web app for tracking expenses.';
+    const initial = runArchitectPipeline(rawInput);
+    const compiled = initial.compiled;
+
+    const unresolved = compiled.assumptions.find((a) => a.kind === 'unresolved');
+    expect(unresolved).toBeDefined();
+    const beforeCount = compiled.assumptions.filter((a) => a.kind === 'unresolved').length;
+
+    const answered = mergeAnswer(compiled, unresolved!, 'iOS and Android via a React Native shell');
+    const resumed = resumeAndRecompile(answered, rawInput, 'architect');
+
+    const afterCount = resumed.compiled.assumptions.filter((a) => a.kind === 'unresolved').length;
+    // The answered item is genuinely gone from the unresolved pool, and the
+    // recompiled unresolved-count strictly decreases.
+    expect(resumed.compiled.assumptions.some((a) => a.kind === 'unresolved' && a.source === unresolved!.source)).toBe(false);
+    expect(afterCount).toBeLessThan(beforeCount);
+  });
+
+  it('TASK-083: a second recompile (answering another item) does not reintroduce or duplicate stale unresolved entries', () => {
+    const rawInput = 'Build a web app for tracking expenses.';
+    const initial = runArchitectPipeline(rawInput);
+    let compiled = initial.compiled;
+
+    const allUnresolved = compiled.assumptions.filter((a) => a.kind === 'unresolved');
+    expect(allUnresolved.length).toBeGreaterThanOrEqual(2);
+    const [first, second] = allUnresolved;
+
+    // First round: answer + recompile.
+    compiled = mergeAnswer(compiled, first, 'iOS and Android via a React Native shell');
+    let resumed = resumeAndRecompile(compiled, rawInput, 'architect');
+    expect(resumed.compiled.assumptions.some((a) => a.kind === 'unresolved' && a.source === first.source)).toBe(false);
+
+    // Second round: answer the second item against the recompiled output,
+    // then recompile again.
+    compiled = mergeAnswer(resumed.compiled, second, 'Roughly 500 concurrent users at launch.');
+    resumed = resumeAndRecompile(compiled, rawInput, 'architect');
+
+    // Neither the first nor the second answered item's unresolved entry
+    // reappears, and there's no duplication of either.
+    const firstMatches = resumed.compiled.assumptions.filter((a) => a.kind === 'unresolved' && a.source === first.source);
+    const secondMatches = resumed.compiled.assumptions.filter((a) => a.kind === 'unresolved' && a.source === second.source);
+    expect(firstMatches).toHaveLength(0);
+    expect(secondMatches).toHaveLength(0);
+
+    // Both answers are still preserved in userRequirements (never dropped).
+    expect(resumed.compiled.userRequirements.filter((r) => r.source === 'user-answered-question')).toHaveLength(2);
   });
 
   it('reconstructStateFromCompiled routes kind:"unresolved" items to ambiguities, not requirements', () => {
