@@ -2,7 +2,7 @@
 // Pure TypeScript, zero runtime dependencies, zero Tauri/AI-API dependency.
 // See docs/superpowers/specs/2026-08-11-lucid-compiler-phase1-design.md
 
-export type DomainId = 'web' | 'game' | 'branding' | 'software-development' | 'mobile-development' | 'desktop-development' | 'unity' | 'unreal';
+export type DomainId = 'web' | 'game' | 'branding' | 'software-development' | 'mobile-development' | 'desktop-development' | 'unity' | 'unreal' | 'roblox';
 
 export type RequirementKind =
   | 'user'
