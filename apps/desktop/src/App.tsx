@@ -16,6 +16,7 @@ import { DecisionsPanel } from './components/DecisionsPanel';
 import { PipelineStepper } from './components/PipelineStepper';
 import { SettingsPanel, DEFAULT_MODE_KEY, MAX_ROUNDS_KEY, DEFAULT_MAX_ROUNDS, type CompileMode } from './components/SettingsPanel';
 import { VersionHistory } from './components/VersionHistory';
+import { BatchCompile } from './components/BatchCompile';
 import { OnboardingPanel, ONBOARDING_SEEN_KEY } from './components/OnboardingPanel';
 import { ErrorNote } from './components/ErrorNote';
 import { toFriendlyError, type FriendlyError } from './lib/friendlyError';
@@ -52,6 +53,12 @@ export default function App() {
   const [forceDomain, setForceDomain] = useState<DomainId | 'auto'>('auto');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  // TASK-079: Batch Compile modal — compiles a newline-delimited list of
+  // prompts in one pass, one createPrompt+saveCompile row per line, reusing
+  // the current mode/maxRounds and the exact same pipeline calls handleCompile
+  // uses. Own component owns its own run/progress state; App.tsx only owns
+  // whether the modal is open and refreshes the prompt list when it's done.
+  const [batchCompileOpen, setBatchCompileOpen] = useState(false);
   const [maxRounds, setMaxRounds] = useState(DEFAULT_MAX_ROUNDS);
   // TASK-026: one-time first-run onboarding panel, tracked via the existing
   // settings table. null = not yet determined (avoids a flash of the panel
@@ -419,10 +426,20 @@ export default function App() {
           onNew={handleNewPrompt}
           onPromptsChanged={refreshPrompts}
           onOpenSettings={() => setSettingsOpen(true)}
+          onOpenBatchCompile={() => setBatchCompileOpen(true)}
         />
       </div>
 
       {showOnboarding && <OnboardingPanel onDismiss={handleDismissOnboarding} />}
+
+      {batchCompileOpen && (
+        <BatchCompile
+          mode={mode}
+          maxRounds={maxRounds}
+          onClose={() => setBatchCompileOpen(false)}
+          onDone={refreshPrompts}
+        />
+      )}
 
       {historyOpen && activePrompt && (
         <VersionHistory promptId={activePrompt.id} onClose={() => setHistoryOpen(false)} />

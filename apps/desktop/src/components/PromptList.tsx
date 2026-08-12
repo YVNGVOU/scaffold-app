@@ -9,6 +9,7 @@ interface Props {
   onNew: () => void;
   onPromptsChanged: () => void;
   onOpenSettings: () => void;
+  onOpenBatchCompile: () => void;
 }
 
 /** TASK-029: how long a delete is held client-side before the real
@@ -176,7 +177,7 @@ function PromptRow({
   );
 }
 
-export function PromptList({ prompts, activeId, onSelect, onNew, onPromptsChanged, onOpenSettings }: Props) {
+export function PromptList({ prompts, activeId, onSelect, onNew, onPromptsChanged, onOpenSettings, onOpenBatchCompile }: Props) {
   const [query, setQuery] = useState('');
   /** TASK-029: prompts currently hidden pending an undoable delete, keyed by
    * id. The real delete_prompt call is deferred to a setTimeout held in
@@ -245,6 +246,9 @@ export function PromptList({ prompts, activeId, onSelect, onNew, onPromptsChange
         <div className="sv-label">Prompt Compiler</div>
         <button className="sv-primary" onClick={onNew} style={{ marginTop: 'var(--sv-space-2)' }}>
           + New Prompt
+        </button>
+        <button type="button" onClick={onOpenBatchCompile} style={{ fontSize: 11 }}>
+          Batch Compile…
         </button>
         <input
           type="text"

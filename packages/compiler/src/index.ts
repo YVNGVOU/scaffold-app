@@ -10,6 +10,7 @@ export type { ResumeMode, ResumePipelineOptions } from './resumeAndRecompile.js'
 export { formatAsMarkdown } from './formatAsMarkdown.js';
 export type { PromptProfile } from './formatAsMarkdown.js';
 export { formatDiff } from './formatDiff.js';
+export { splitBatchLines } from './batchCompile.js';
 export type {
   CompiledPromptDiff,
   CategoryDiff,
