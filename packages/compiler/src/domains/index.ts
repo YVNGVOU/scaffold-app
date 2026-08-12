@@ -12,11 +12,12 @@ import { blenderDomain } from './blender/index.js';
 import { graphicDesignDomain } from './graphic-design/index.js';
 import { imageGenerationDomain } from './image-generation/index.js';
 import { videoGenerationDomain } from './video-generation/index.js';
+import { musicDomain } from './music/index.js';
 
-export const DOMAIN_MODULES: DomainModule[] = [webDomain, gameDomain, brandingDomain, softwareDevelopmentDomain, mobileDevelopmentDomain, desktopDevelopmentDomain, unityDomain, unrealDomain, robloxDomain, blenderDomain, graphicDesignDomain, imageGenerationDomain, videoGenerationDomain];
+export const DOMAIN_MODULES: DomainModule[] = [webDomain, gameDomain, brandingDomain, softwareDevelopmentDomain, mobileDevelopmentDomain, desktopDevelopmentDomain, unityDomain, unrealDomain, robloxDomain, blenderDomain, graphicDesignDomain, imageGenerationDomain, videoGenerationDomain, musicDomain];
 
 /** Minimum score for a domain to be selected; below this, domain is 'unknown'. */
 export const DOMAIN_CONFIDENCE_FLOOR = 1;
 
-export { webDomain, gameDomain, brandingDomain, softwareDevelopmentDomain, mobileDevelopmentDomain, desktopDevelopmentDomain, unityDomain, unrealDomain, robloxDomain, blenderDomain, graphicDesignDomain, imageGenerationDomain, videoGenerationDomain };
+export { webDomain, gameDomain, brandingDomain, softwareDevelopmentDomain, mobileDevelopmentDomain, desktopDevelopmentDomain, unityDomain, unrealDomain, robloxDomain, blenderDomain, graphicDesignDomain, imageGenerationDomain, videoGenerationDomain, musicDomain };
 export type { DomainModule } from './types.js';
