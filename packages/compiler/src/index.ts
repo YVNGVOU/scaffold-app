@@ -2,7 +2,11 @@ import type { CompiledPrompt } from '@lucid/schema';
 import { runArchitectPipeline, runQuickPipeline, runMasterPipeline, type RunMasterPipelineOptions } from './pipeline/index.js';
 
 export { mergeAnswer } from './mergeAnswer.js';
-export { buildAugmentedInput } from './buildAugmentedInput.js';
+// TASK-031: `buildAugmentedInput` (TASK-030) was removed — its only caller,
+// `App.tsx`'s `handleConfirmRecompile`, was the buggy augmented-text-into-a-
+// fresh-pipeline-run path this task replaces with `resumeAndRecompile`.
+export { resumeAndRecompile, reconstructStateFromCompiled } from './resumeAndRecompile.js';
+export type { ResumeMode, ResumePipelineOptions } from './resumeAndRecompile.js';
 export { formatAsMarkdown } from './formatAsMarkdown.js';
 export type { PromptProfile } from './formatAsMarkdown.js';
 export { formatDiff } from './formatDiff.js';

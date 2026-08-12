@@ -6,7 +6,7 @@ import {
   runQuickPipeline,
   QUICK_MODE_STAGE_NAMES,
   runMasterPipeline,
-  buildAugmentedInput,
+  resumeAndRecompile,
 } from '@lucid/compiler';
 import { createPrompt, listPrompts, saveCompile, listCompiles, getSetting, setSetting, type Prompt } from './lib/api';
 import { PromptList } from './components/PromptList';
@@ -61,6 +61,16 @@ export default function App() {
   // for ARCHITECT/QUICK (the pipeline runs synchronously to completion, then
   // the stepper visually replays the recorded stage sequence).
   const [masterStageNames, setMasterStageNames] = useState<string[]>([]);
+  // TASK-031: "Confirm & Recompile" resumes from the existing compiled state
+  // rather than re-running the full pipeline, so its real executed stage
+  // sequence (specialists + critique/conflict [+ MASTER's loop] + synthesis +
+  // outputValidation, no intentAnalysis/domainDetection/requirementExtraction/
+  // ambiguityDetection) never matches ARCHITECT_MODE_STAGE_NAMES/
+  // QUICK_MODE_STAGE_NAMES/masterStageNames. Tracked separately so the
+  // stepper can render the genuine resume sequence, same "compute first,
+  // animate the reveal after" pattern used for MASTER mode above.
+  const [isRecompiling, setIsRecompiling] = useState(false);
+  const [recompileStageNames, setRecompileStageNames] = useState<string[]>([]);
   const cancelRef = useRef(false);
 
   useEffect(() => {
@@ -268,20 +278,64 @@ export default function App() {
     }
   }
 
-  // TASK-030 Part A: "Confirm & Recompile" — builds an augmented raw input
-  // (original rawInput + each answered item's original question + answer as
-  // a plain-English sentence, via the pure `buildAugmentedInput` helper) and
-  // runs it through the exact same `handleCompile` path as a normal compile
-  // — full pipeline re-run, same stepper animation, same saveCompile
-  // persistence (a new `compiles` row, so it shows up in TASK-020's version
-  // history) — never a merge-only shortcut. Deliberately only ever fired by
-  // an explicit user click, never automatically.
+  // TASK-031: "Confirm & Recompile" — fixes TASK-030's buggy implementation,
+  // which fed a synthetic augmented-text string through a completely fresh
+  // pipeline run (discarding the prior compile's answered items and
+  // re-running domain/ambiguity detection against phrasing it didn't
+  // recognize, so the recompile could look like a no-op or silently lose
+  // answers). Instead this resumes from the EXISTING `compiled` result via
+  // `resumeAndRecompile` — reusing the prior domain/architecture notes and
+  // preserving every already-answered item — and genuinely re-runs the
+  // specialists + critique/conflict (or MASTER's full loop) + synthesis +
+  // outputValidation fresh so they can react to the answered content. Same
+  // stepper animation / `saveCompile` persistence (a new `compiles` row, so
+  // it shows up in TASK-020's version history) as a normal compile.
+  // Deliberately only ever fired by an explicit user click, never
+  // automatically.
   async function handleConfirmRecompile() {
     if (!compiled) return;
     const answeredItems = compiled.userRequirements.filter((r) => r.source === 'user-answered-question');
     if (answeredItems.length === 0) return;
-    const augmented = buildAugmentedInput(rawInput, answeredItems);
-    await handleCompile(augmented);
+
+    setError(null);
+    setRunning(true);
+    setIsRecompiling(true);
+    setStageIndex(-1);
+    cancelRef.current = false;
+
+    try {
+      const stageQueue: number[] = [];
+      const stageNamesRun: string[] = [];
+
+      const state = resumeAndRecompile(compiled, rawInput, mode, {
+        maxRounds,
+        onStage: (name, index) => {
+          stageQueue.push(index);
+          stageNamesRun.push(name);
+        },
+      });
+      setRecompileStageNames(stageNamesRun);
+      const finalCompiled = state.compiled;
+
+      for (const idx of stageQueue) {
+        if (cancelRef.current) break;
+        setStageIndex(idx);
+        await sleep(STAGE_DELAY_MS);
+      }
+      setStageIndex(stageNamesRun.length);
+
+      setCompiled(finalCompiled);
+
+      if (activePrompt) {
+        await saveCompile(activePrompt.id, mode, JSON.stringify(finalCompiled));
+        await refreshPrompts();
+      }
+    } catch (e) {
+      setError(toFriendlyError(e));
+    } finally {
+      setRunning(false);
+      setIsRecompiling(false);
+    }
   }
 
   // TASK-018 sub-feature D: keyboard shortcuts. Latest handlers/state are
@@ -476,7 +530,13 @@ export default function App() {
       <div style={{ gridColumn: '1 / 4', gridRow: '2', borderTop: '1px solid var(--sv-hairline)', background: 'var(--sv-ivory-dim)' }}>
         <PipelineStepper
           stageNames={
-            mode === 'quick' ? QUICK_MODE_STAGE_NAMES : mode === 'master' ? masterStageNames : ARCHITECT_MODE_STAGE_NAMES
+            isRecompiling
+              ? recompileStageNames
+              : mode === 'quick'
+                ? QUICK_MODE_STAGE_NAMES
+                : mode === 'master'
+                  ? masterStageNames
+                  : ARCHITECT_MODE_STAGE_NAMES
           }
           activeIndex={stageIndex}
           running={running}
