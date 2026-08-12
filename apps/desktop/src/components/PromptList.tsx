@@ -1,4 +1,4 @@
-import { useMemo, useState, type MouseEvent } from 'react';
+import { useMemo, useRef, useState, type MouseEvent } from 'react';
 import type { Prompt } from '../lib/api';
 import { renamePrompt, deletePrompt, createPrompt } from '../lib/api';
 
@@ -11,18 +11,25 @@ interface Props {
   onOpenSettings: () => void;
 }
 
+/** TASK-029: how long a delete is held client-side before the real
+ * delete_prompt Tauri command actually fires. */
+const UNDO_DELAY_MS = 5000;
+
 /** A single prompt row with inline rename (click-to-edit) and delete
- * (confirm via window.confirm, TASK-018 sub-feature B). */
+ * (confirm via window.confirm, TASK-018 sub-feature B). Deletion itself is
+ * requested up to the parent (TASK-029 undo window lives in PromptList). */
 function PromptRow({
   p,
   active,
   onSelect,
   onChanged,
+  onDeleteRequest,
 }: {
   p: Prompt;
   active: boolean;
   onSelect: (p: Prompt) => void;
   onChanged: () => void;
+  onDeleteRequest: (p: Prompt) => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState(p.title);
@@ -42,16 +49,11 @@ function PromptRow({
     }
   }
 
-  async function handleDelete(e: MouseEvent) {
+  function handleDelete(e: MouseEvent) {
     e.stopPropagation();
     const ok = window.confirm(`Delete "${p.title}"? This also removes its compile history. This cannot be undone.`);
     if (!ok) return;
-    try {
-      await deletePrompt(p.id);
-      onChanged();
-    } catch {
-      // leave list as-is; user can retry
-    }
+    onDeleteRequest(p);
   }
 
   /** TASK-025: fork this prompt into a new, independent row with the same
@@ -152,14 +154,60 @@ function PromptRow({
 
 export function PromptList({ prompts, activeId, onSelect, onNew, onPromptsChanged, onOpenSettings }: Props) {
   const [query, setQuery] = useState('');
+  /** TASK-029: prompts currently hidden pending an undoable delete, keyed by
+   * id. The real delete_prompt call is deferred to a setTimeout held in
+   * timersRef; if the user clicks Undo before it fires, the timer is
+   * cleared and the entry removed here — delete_prompt is never called. */
+  const [pending, setPending] = useState<Record<string, Prompt>>({});
+  const timersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
+  function handleDeleteRequest(p: Prompt) {
+    setPending((prev) => ({ ...prev, [p.id]: p }));
+    const timer = setTimeout(async () => {
+      delete timersRef.current[p.id];
+      setPending((prev) => {
+        const next = { ...prev };
+        delete next[p.id];
+        return next;
+      });
+      try {
+        await deletePrompt(p.id);
+      } catch {
+        // best-effort; if it fails the row already looks gone locally, but
+        // onPromptsChanged() below will re-sync from the backend.
+      }
+      onPromptsChanged();
+    }, UNDO_DELAY_MS);
+    timersRef.current[p.id] = timer;
+  }
+
+  function handleUndo(id: string) {
+    const timer = timersRef.current[id];
+    if (timer) {
+      clearTimeout(timer);
+      delete timersRef.current[id];
+    }
+    setPending((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+  }
+
+  const visiblePrompts = useMemo(
+    () => prompts.filter((p) => !pending[p.id]),
+    [prompts, pending],
+  );
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return prompts;
-    return prompts.filter(
+    if (!q) return visiblePrompts;
+    return visiblePrompts.filter(
       (p) => p.title.toLowerCase().includes(q) || p.raw_input.toLowerCase().includes(q),
     );
-  }, [prompts, query]);
+  }, [visiblePrompts, query]);
+
+  const pendingList = Object.values(pending);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -191,10 +239,29 @@ export function PromptList({ prompts, activeId, onSelect, onNew, onPromptsChange
             </div>
           )}
           {filtered.map((p) => (
-            <PromptRow key={p.id} p={p} active={p.id === activeId} onSelect={onSelect} onChanged={onPromptsChanged} />
+            <PromptRow
+              key={p.id}
+              p={p}
+              active={p.id === activeId}
+              onSelect={onSelect}
+              onChanged={onPromptsChanged}
+              onDeleteRequest={handleDeleteRequest}
+            />
           ))}
         </div>
       </div>
+      {pendingList.length > 0 && (
+        <div className="sv-undo-stack">
+          {pendingList.map((p) => (
+            <div key={p.id} className="sv-undo-toast">
+              <span>Deleted "{p.title}"</span>
+              <button type="button" className="sv-undo-button" onClick={() => handleUndo(p.id)}>
+                Undo
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
       <hr className="sv-hairline" />
       <div
         style={{

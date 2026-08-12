@@ -137,6 +137,35 @@ textarea:focus, input:focus {
 
 .sv-kind-user { color: var(--sv-ink); }
 .sv-kind-inferred { color: var(--sv-burgundy); }
+
+/* TASK-029: undo-delete toast stack, shown while a prompt delete is held
+   client-side before the real delete_prompt command commits. */
+.sv-undo-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sv-space-2);
+  padding: var(--sv-space-3) var(--sv-space-4);
+}
+
+.sv-undo-toast {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sv-space-3);
+  padding: var(--sv-space-2) var(--sv-space-3);
+  background: var(--sv-ivory-dim);
+  border: 1px solid var(--sv-hairline-strong);
+  font-size: 12px;
+  color: var(--sv-ink);
+}
+
+.sv-undo-button {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  font-size: 11px;
+  color: var(--sv-burgundy);
+  border-color: var(--sv-burgundy);
+}
 .sv-kind-default { color: var(--sv-ink-soft); }
 .sv-kind-assumption { color: var(--sv-burgundy-dim); }
 .sv-kind-recommendation { color: #8ba374; }
