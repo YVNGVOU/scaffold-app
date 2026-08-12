@@ -1,0 +1,33 @@
+# TASK-017
+
+- Timestamp: 2026-08-11
+- Original request: "much better where is the qa all that it should ask user questions that are gray area and fill in to complete a promt to handoff" — user, after seeing the running app. Interpreted as: the current "Unresolved — needs your input" section in DecisionsPanel.tsx is read-only (flags ambiguous/gray-area fields but the user has no way to actually answer them), so the compiled output can never become genuinely complete. This task makes unresolved items answerable, and merges answers into the compiled prompt so the final handoff output is actually complete rather than perpetually flagging gaps.
+- Priority: P1
+- Dependencies: TASK-001 through TASK-016 (all done). Builds on the existing `kind: 'unresolved'` mechanism from `ambiguityDetection.ts` (TASK-001) and the reorganized DecisionsPanel UI (TASK-012).
+- Status: ACTIVE
+- Classification: feature
+
+## Current-state findings (for the implementer to verify, not assume)
+- `ambiguityDetection.ts` already produces `RequirementItem`s with `kind: 'unresolved'` for domain-checklist fields the user didn't address — these are the "gray area" items in question, already surfaced (read-only) in `DecisionsPanel.tsx`'s "Unresolved — needs your input" section.
+- There is currently no UI mechanism to answer an unresolved item, and no compiler-side mechanism to merge an answer back into a `CompiledPrompt`.
+- `RequirementItem`'s provenance discipline (established since Phase 1, reinforced through TASK-005/014) is append-only: an answer must be added as a NEW item, never by mutating the original unresolved item in place.
+
+## Normalized requirements
+1. **UI: answerable unresolved items.** In `DecisionsPanel.tsx`'s "Unresolved — needs your input" section, each unresolved item gets an inline answer input (a short text field, since these are open-ended domain-checklist questions like "what platform?" not multiple choice) and a small submit action per item (or a single "Submit Answers" action for the whole section — implementer's judgment on UX, but per-item submission is likely simpler and gives more immediate feedback).
+2. **Answer merging.** When the user submits an answer, a new `RequirementItem` is created with: `text` = the answer (or a formatted "the [field] is: [answer]" if that reads better), `kind: 'user'` (this is now a genuine directly-stated user answer, not an inference — correct per the provenance discipline: real user input gets `kind: 'user'`), `source: 'user-answered-question'`, `confidence: 1.0`, `evidence: [the original unresolved item's text]`, `status: 'accepted'`. This gets added to the appropriate `CompiledPrompt` category (likely `userRequirements`, since it's now a directly-stated requirement — check the original unresolved item's implied category and route sensibly).
+3. **The original unresolved item is not deleted or mutated** — it stays in the historical record (append-only, same as everywhere else), but once answered, the UI should visually move it out of the "needs your input" section (e.g. into a "Answered" sub-list, or simply hide it from the unresolved count/section once a matching answer exists) so the user sees their progress and the unresolved count actually goes down as they answer.
+4. **Persistence.** Once one or more answers are merged, the updated `CompiledPrompt` must be re-saved via the existing `saveCompile` SQLite flow (same append-only `compiles` table pattern already established) so answers aren't lost — this likely means a new compile row is saved after answering, or the in-memory `compiled` state in `App.tsx` is updated and a fresh save triggered. Check `App.tsx`'s existing `handleCompile`/persistence flow before deciding the exact mechanism; don't reinvent parallel state.
+5. **This must work without re-running the full pipeline** — answering a question should not require the user to re-type their whole prompt and re-compile from scratch (that would lose their partially-answered progress and potentially get non-deterministic-feeling different results). Merge the answer into the EXISTING `CompiledPrompt` object client-side (or via a small new compiler-package helper function if that's cleaner — see requirement 6), not by re-running `runArchitectPipeline`/`runMasterPipeline` from the raw input again.
+6. **Where does the merge logic live?** Prefer putting the actual merge function (`mergeAnswer(compiled: CompiledPrompt, unresolvedItem: RequirementItem, answerText: string): CompiledPrompt` or similar) in `packages/compiler` (e.g. a new small exported helper, NOT a new pipeline stage since this isn't part of the deterministic compile-from-scratch flow — it's a post-hoc merge triggered by direct user interaction) so it's testable headless and reusable, rather than hand-rolling the merge logic directly in React state code. Export it from `packages/compiler/src/index.ts` alongside `compileArchitect`/`compileQuick`/`compileMaster`.
+7. **Completion signal.** When all unresolved items have been answered (unresolved count reaches 0), give some positive visual confirmation (e.g. the SummaryStrip's "Unresolved" stat naturally goes green/neutral instead of burgundy when 0 — check if this already happens via existing conditional styling, likely yes) so the user knows the handoff output is now complete.
+8. **No AI API calls** — answer merging is pure data transformation (append a user-provided string as a new correctly-typed item), no inference/generation involved.
+9. New tests in `packages/compiler/test/`: the merge helper correctly adds a `kind:'user'` item without mutating the original unresolved item; the merge helper handles being called multiple times for different unresolved items without collision; a test confirming the merged item's evidence references the original question.
+10. Must not break any of the existing 114 tests.
+11. Visual language: no new colors outside `--sv-*` tokens, no rounded cards, consistent with the existing dark SINVAUX/Scaffold theme.
+12. `tsc --noEmit`, `vite build`, `cargo build` (if Rust-side persistence changes) must stay clean.
+13. Update `state/CANONICAL_STATE.md` and task/queue status on completion.
+
+## Explicitly out of scope
+- Multiple-choice/structured answer inputs (free-text only for this task — the domain checklists' unresolved fields are open-ended questions, not enum choices).
+- Re-running specialists/critique/conflict against the newly-answered information (that would be a much larger "re-compile with new context" feature — this task only merges the raw answer as a new user-stated requirement, it does not trigger the pipeline to re-analyze).
+- Automatic/AI-generated follow-up questions beyond what `ambiguityDetection.ts` already flags.

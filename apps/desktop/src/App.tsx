@@ -78,6 +78,22 @@ export default function App() {
     }
   }
 
+  // TASK-017: an unresolved item was answered inline in DecisionsPanel.
+  // mergeAnswer() already produced the updated CompiledPrompt (pure,
+  // headless, no pipeline re-run) — just lift it into state and persist it
+  // via the same saveCompile flow used after a normal compile, so answers
+  // survive prompt switches / app restarts. Does NOT re-run any pipeline.
+  async function handleAnswered(updated: CompiledPrompt) {
+    setCompiled(updated);
+    if (!activePrompt) return;
+    try {
+      await saveCompile(activePrompt.id, mode, JSON.stringify(updated));
+      await refreshPrompts();
+    } catch (e) {
+      setError(String(e));
+    }
+  }
+
   async function handleCompile() {
     if (!rawInput.trim() && rawInput.length === 0) {
       // allow whitespace/symbol-only input through to the compiler (it must not throw),
@@ -231,7 +247,7 @@ export default function App() {
         }}
         className="sv-scrollpane"
       >
-        <DecisionsPanel compiled={compiled} />
+        <DecisionsPanel compiled={compiled} onAnswered={handleAnswered} />
       </div>
 
       <div style={{ gridColumn: '1 / 4', gridRow: '2', borderTop: '1px solid var(--sv-hairline)', background: 'var(--sv-ivory-dim)' }}>

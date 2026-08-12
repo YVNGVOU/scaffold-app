@@ -1,8 +1,73 @@
+import { useState } from 'react';
 import type { CompiledPrompt, RequirementItem, ArchitectureNote } from '@lucid/schema';
+import { mergeAnswer } from '@lucid/compiler';
 import { KindTag } from './KindTag';
 import { CollapsibleSection } from './CollapsibleSection';
 import { MetaDisclosure } from './MetaDisclosure';
 import { formatSource, groupBySource } from './format';
+
+/** True once a matching kind:'user' answer (source: 'user-answered-question',
+ * evidence referencing this unresolved item's text) exists in the compiled
+ * prompt's userRequirements — i.e. the item has already been answered
+ * (TASK-017 req 3). */
+function isAnswered(item: RequirementItem, compiled: CompiledPrompt): boolean {
+  return compiled.userRequirements.some(
+    (r) => r.source === 'user-answered-question' && r.evidence.includes(item.text)
+  );
+}
+
+/** Inline free-text answer input + submit action for a single unresolved
+ * item (TASK-017 req 1/2). Calls mergeAnswer (pure, headless-testable) and
+ * lifts the resulting CompiledPrompt up via onAnswered. */
+function UnresolvedItemCard({
+  item,
+  compiled,
+  onAnswered,
+}: {
+  item: RequirementItem;
+  compiled: CompiledPrompt;
+  onAnswered: (updated: CompiledPrompt) => void;
+}) {
+  const [answer, setAnswer] = useState('');
+
+  function submit() {
+    const trimmed = answer.trim();
+    if (!trimmed) return;
+    const updated = mergeAnswer(compiled, item, trimmed);
+    onAnswered(updated);
+    setAnswer('');
+  }
+
+  return (
+    <div style={{ padding: 'var(--sv-space-3) 0', borderBottom: '1px solid var(--sv-hairline)' }}>
+      <KindTag kind={item.kind} />
+      <div style={{ fontSize: 13, margin: '4px 0' }}>{item.text}</div>
+      <MetaDisclosure item={item} />
+      <div style={{ display: 'flex', gap: 6, marginTop: 'var(--sv-space-2)' }}>
+        <input
+          type="text"
+          value={answer}
+          onChange={(e) => setAnswer(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') submit();
+          }}
+          placeholder="Your answer…"
+          style={{
+            flex: 1,
+            fontSize: 12,
+            background: 'var(--sv-ivory-dim)',
+            border: '1px solid var(--sv-hairline)',
+            color: 'inherit',
+            padding: '4px 6px',
+          }}
+        />
+        <button type="button" onClick={submit} disabled={!answer.trim()} style={{ fontSize: 11 }}>
+          Answer
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function RequirementCard({ item }: { item: RequirementItem }) {
   return (
@@ -114,7 +179,13 @@ function SummaryStrip({
   );
 }
 
-export function DecisionsPanel({ compiled }: { compiled: CompiledPrompt | null }) {
+export function DecisionsPanel({
+  compiled,
+  onAnswered,
+}: {
+  compiled: CompiledPrompt | null;
+  onAnswered?: (updated: CompiledPrompt) => void;
+}) {
   if (!compiled) {
     return (
       <div style={{ padding: 'var(--sv-space-4)', color: 'var(--sv-ink-soft)', fontSize: 13 }}>
@@ -132,7 +203,13 @@ export function DecisionsPanel({ compiled }: { compiled: CompiledPrompt | null }
     ...compiled.functionalRequirements,
   ].filter((it) => it.kind !== 'user');
 
-  const unresolved = allRequirements.filter((it) => it.kind === 'unresolved');
+  // Once an item is answered (a matching kind:'user' answer exists), it
+  // leaves the unresolved section/count (TASK-017 req 3) — the original
+  // unresolved item stays in the historical record untouched, it's just no
+  // longer rendered/counted as needing input.
+  const unresolvedAll = allRequirements.filter((it) => it.kind === 'unresolved');
+  const unresolved = unresolvedAll.filter((it) => !isAnswered(it, compiled));
+  const answered = unresolvedAll.filter((it) => isAnswered(it, compiled));
   // Conflict findings (source: 'conflict-engine') get their own distinct
   // section (TASK-012 req 3), separate from routine recommendations, so a
   // genuine two-sided disagreement doesn't blend into the general bucket.
@@ -159,8 +236,23 @@ export function DecisionsPanel({ compiled }: { compiled: CompiledPrompt | null }
           <div className="sv-label" style={{ color: 'var(--sv-burgundy)', marginBottom: 'var(--sv-space-2)' }}>
             Unresolved — needs your input ({unresolved.length})
           </div>
-          <GroupedCards items={unresolved} />
+          {unresolved.map((it, i) => (
+            <UnresolvedItemCard
+              key={i}
+              item={it}
+              compiled={compiled}
+              onAnswered={(updated) => onAnswered?.(updated)}
+            />
+          ))}
         </div>
+      )}
+
+      {answered.length > 0 && (
+        <CollapsibleSection title="Answered" count={answered.length} defaultOpen={false}>
+          {answered.map((it, i) => (
+            <RequirementCard key={i} item={it} />
+          ))}
+        </CollapsibleSection>
       )}
 
       {conflicts.length > 0 && (
