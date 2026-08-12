@@ -1,6 +1,6 @@
 import { useMemo, useState, type MouseEvent } from 'react';
 import type { Prompt } from '../lib/api';
-import { renamePrompt, deletePrompt } from '../lib/api';
+import { renamePrompt, deletePrompt, createPrompt } from '../lib/api';
 
 interface Props {
   prompts: Prompt[];
@@ -49,6 +49,22 @@ function PromptRow({
     try {
       await deletePrompt(p.id);
       onChanged();
+    } catch {
+      // leave list as-is; user can retry
+    }
+  }
+
+  /** TASK-025: fork this prompt into a new, independent row with the same
+   * raw_input, titled "<original> (copy)". Reuses the existing createPrompt
+   * command — no new backend command needed. The compile history is
+   * deliberately NOT copied (a duplicate starts fresh, ready to edit and
+   * recompile on its own). Selects the new prompt afterward via onSelect. */
+  async function handleDuplicate(e: MouseEvent) {
+    e.stopPropagation();
+    try {
+      const copy = await createPrompt(`${p.title} (copy)`, p.raw_input);
+      onChanged();
+      onSelect(copy);
     } catch {
       // leave list as-is; user can retry
     }
@@ -111,6 +127,14 @@ function PromptRow({
             style={{ padding: '2px 6px', fontSize: 10 }}
           >
             Rename
+          </button>
+          <button
+            type="button"
+            title="Duplicate"
+            onClick={handleDuplicate}
+            style={{ padding: '2px 6px', fontSize: 10, marginLeft: 4 }}
+          >
+            Duplicate
           </button>
           <button
             type="button"
