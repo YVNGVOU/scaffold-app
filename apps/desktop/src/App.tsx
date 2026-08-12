@@ -14,6 +14,7 @@ import { DecisionsPanel } from './components/DecisionsPanel';
 import { PipelineStepper } from './components/PipelineStepper';
 import { SettingsPanel, DEFAULT_MODE_KEY, MAX_ROUNDS_KEY, DEFAULT_MAX_ROUNDS, type CompileMode } from './components/SettingsPanel';
 import { VersionHistory } from './components/VersionHistory';
+import { OnboardingPanel, ONBOARDING_SEEN_KEY } from './components/OnboardingPanel';
 import { STARTER_PROMPTS } from './starterPrompts';
 import './theme.css';
 
@@ -44,6 +45,11 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [maxRounds, setMaxRounds] = useState(DEFAULT_MAX_ROUNDS);
+  // TASK-026: one-time first-run onboarding panel, tracked via the existing
+  // settings table. null = not yet determined (avoids a flash of the panel
+  // before the persisted flag has been read), false = already seen or write
+  // pending, true = should show now.
+  const [showOnboarding, setShowOnboarding] = useState<boolean | null>(null);
   // MASTER mode's stage sequence is dynamic (the deliberation loop can run a
   // variable number of rounds), unlike ARCHITECT/QUICK's static stage-name
   // arrays — so the stepper's name list is captured from the real
@@ -73,7 +79,19 @@ export default function App() {
         }
       })
       .catch(() => {});
+    // TASK-026: show the first-run onboarding panel unless it's already been
+    // dismissed. Best-effort — if the read fails, default to not showing it
+    // rather than risk showing it on every launch for a user with a flaky
+    // settings read.
+    getSetting(ONBOARDING_SEEN_KEY)
+      .then((v) => setShowOnboarding(v !== '1'))
+      .catch(() => setShowOnboarding(false));
   }, []);
+
+  function handleDismissOnboarding() {
+    setShowOnboarding(false);
+    setSetting(ONBOARDING_SEEN_KEY, '1').catch(() => {});
+  }
 
   // TASK-023: debounced draft auto-save. Fires DRAFT_DEBOUNCE_MS after the
   // last keystroke (or active-prompt switch) so navigating away mid-typing
@@ -319,6 +337,8 @@ export default function App() {
           onOpenSettings={() => setSettingsOpen(true)}
         />
       </div>
+
+      {showOnboarding && <OnboardingPanel onDismiss={handleDismissOnboarding} />}
 
       {historyOpen && activePrompt && (
         <VersionHistory promptId={activePrompt.id} onClose={() => setHistoryOpen(false)} />
