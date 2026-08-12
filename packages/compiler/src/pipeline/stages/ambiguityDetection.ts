@@ -1,6 +1,24 @@
 import type { PipelineState } from '../state.js';
 import type { RequirementItem } from '@lucid/schema';
 import { DOMAIN_MODULES } from '../../domains/index.js';
+import { PLATFORM_LEXICON, matchesConcept, type Lexicon } from '../../nlp/lexicon.js';
+
+/**
+ * Maps an ambiguity-checklist field key to a lexicon whose synonyms also
+ * count as resolving that field, even when none of the domain module's own
+ * literal-string checklist regex matches. E.g. "for iPhone" resolves the
+ * "platform" field via PLATFORM_LEXICON's "mobile" synonym list, even though
+ * no domain's `isResolved` regex contains the literal string "iphone".
+ */
+const FIELD_LEXICON_MAP: Record<string, Lexicon> = {
+  platform: PLATFORM_LEXICON,
+};
+
+function synonymResolvesField(fieldKey: string, input: string): boolean {
+  const lexicon = FIELD_LEXICON_MAP[fieldKey];
+  if (!lexicon) return false;
+  return Object.keys(lexicon).some((canonical) => matchesConcept(input, canonical, lexicon));
+}
 
 /**
  * Stage 4: for the detected domain, check the required-fields checklist.
@@ -15,7 +33,8 @@ export function ambiguityDetection(state: PipelineState): PipelineState {
 
   const ambiguities: RequirementItem[] = [];
   for (const field of domainModule.ambiguityChecklist) {
-    if (!field.isResolved(state.rawInput)) {
+    const resolved = field.isResolved(state.rawInput) || synonymResolvesField(field.field, state.rawInput);
+    if (!resolved) {
       ambiguities.push({
         text: field.description,
         kind: 'unresolved',

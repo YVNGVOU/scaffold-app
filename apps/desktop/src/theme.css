@@ -1,0 +1,154 @@
+/* SINVAUX visual language — editorial instrument panel, not a chatbot. */
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+:root {
+  --sv-ivory: #f4efe6;
+  --sv-ivory-dim: #ece5d8;
+  --sv-ink: #1c1a17;
+  --sv-ink-soft: #4a453e;
+  --sv-burgundy: #7a1f2b;
+  --sv-burgundy-dim: #9a3a45;
+  --sv-hairline: #c9beac;
+  --sv-hairline-strong: #a89c86;
+  --sv-alert: #b5461f;
+
+  --sv-font-head: 'Fraunces', Georgia, 'Times New Roman', serif;
+  --sv-font-body: 'IBM Plex Sans', -apple-system, Segoe UI, sans-serif;
+  --sv-font-mono: 'IBM Plex Mono', 'Courier New', monospace;
+
+  --sv-space-1: 4px;
+  --sv-space-2: 8px;
+  --sv-space-3: 12px;
+  --sv-space-4: 16px;
+  --sv-space-5: 24px;
+  --sv-space-6: 32px;
+  --sv-space-7: 48px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--sv-ivory);
+  color: var(--sv-ink);
+  font-family: var(--sv-font-body);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--sv-font-head);
+  font-weight: 500;
+  margin: 0;
+  letter-spacing: 0.01em;
+}
+
+button {
+  font-family: var(--sv-font-body);
+  background: transparent;
+  border: 1px solid var(--sv-ink);
+  color: var(--sv-ink);
+  padding: var(--sv-space-2) var(--sv-space-4);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  border-radius: 0;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+button:hover:not(:disabled) {
+  background: var(--sv-ink);
+  color: var(--sv-ivory);
+}
+
+button.sv-primary {
+  background: var(--sv-burgundy);
+  border-color: var(--sv-burgundy);
+  color: var(--sv-ivory);
+}
+
+button.sv-primary:hover:not(:disabled) {
+  background: var(--sv-burgundy-dim);
+  border-color: var(--sv-burgundy-dim);
+}
+
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+textarea, input {
+  font-family: var(--sv-font-body);
+  background: var(--sv-ivory);
+  color: var(--sv-ink);
+  border: 1px solid var(--sv-hairline-strong);
+  border-radius: 0;
+  padding: var(--sv-space-3);
+  font-size: 14px;
+  resize: none;
+}
+
+textarea:focus, input:focus {
+  outline: none;
+  border-color: var(--sv-burgundy);
+}
+
+::selection {
+  background: var(--sv-burgundy);
+  color: var(--sv-ivory);
+}
+
+.sv-hairline {
+  border: none;
+  border-top: 1px solid var(--sv-hairline);
+  margin: 0;
+}
+
+.sv-label {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--sv-ink-soft);
+}
+
+.sv-kind-tag {
+  display: inline-block;
+  font-family: var(--sv-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 1px 6px;
+  border: 1px solid currentColor;
+  margin-right: var(--sv-space-2);
+}
+
+.sv-kind-user { color: var(--sv-ink); }
+.sv-kind-inferred { color: var(--sv-burgundy); }
+.sv-kind-default { color: var(--sv-ink-soft); }
+.sv-kind-assumption { color: var(--sv-burgundy-dim); }
+.sv-kind-recommendation { color: #5a6b4e; }
+.sv-kind-unresolved { color: var(--sv-alert); }
+.sv-kind-rejected { color: #8a8578; text-decoration: line-through; }
+
+.sv-scrollpane {
+  overflow-y: auto;
+}
+
+.sv-scrollpane::-webkit-scrollbar {
+  width: 10px;
+}
+.sv-scrollpane::-webkit-scrollbar-thumb {
+  background: var(--sv-hairline-strong);
+}
+.sv-scrollpane::-webkit-scrollbar-track {
+  background: transparent;
+}
