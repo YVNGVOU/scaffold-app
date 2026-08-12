@@ -12,6 +12,9 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_fs::init())
         .setup(|app| {
             let app_data_dir = app
                 .path()
@@ -28,6 +31,10 @@ pub fn run() {
             commands::save_compile,
             commands::list_compiles,
             commands::get_compile,
+            commands::rename_prompt,
+            commands::delete_prompt,
+            commands::get_setting,
+            commands::set_setting,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

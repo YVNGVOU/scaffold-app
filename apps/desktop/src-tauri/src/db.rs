@@ -47,6 +47,11 @@ pub fn init_db(db_path: PathBuf) -> Connection {
           compiled_json TEXT NOT NULL,
           created_at TEXT NOT NULL
         );
+
+        CREATE TABLE IF NOT EXISTS settings (
+          key TEXT PRIMARY KEY,
+          value TEXT NOT NULL
+        );
         ",
     )
     .expect("failed to run schema migration");

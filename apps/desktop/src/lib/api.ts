@@ -35,3 +35,19 @@ export function listCompiles(promptId: string): Promise<Compile[]> {
 export function getCompile(id: string): Promise<Compile | null> {
   return invoke('get_compile', { id });
 }
+
+export function renamePrompt(id: string, newTitle: string): Promise<void> {
+  return invoke('rename_prompt', { id, newTitle });
+}
+
+export function deletePrompt(id: string): Promise<void> {
+  return invoke('delete_prompt', { id });
+}
+
+export function getSetting(key: string): Promise<string | null> {
+  return invoke('get_setting', { key });
+}
+
+export function setSetting(key: string, value: string): Promise<void> {
+  return invoke('set_setting', { key, value });
+}

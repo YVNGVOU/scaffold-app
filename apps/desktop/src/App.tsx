@@ -7,11 +7,12 @@ import {
   QUICK_MODE_STAGE_NAMES,
   runMasterPipeline,
 } from '@lucid/compiler';
-import { createPrompt, listPrompts, saveCompile, listCompiles, type Prompt } from './lib/api';
+import { createPrompt, listPrompts, saveCompile, listCompiles, getSetting, type Prompt } from './lib/api';
 import { PromptList } from './components/PromptList';
 import { CompiledOutput } from './components/CompiledOutput';
 import { DecisionsPanel } from './components/DecisionsPanel';
 import { PipelineStepper } from './components/PipelineStepper';
+import { SettingsPanel, DEFAULT_MODE_KEY, MAX_ROUNDS_KEY, DEFAULT_MAX_ROUNDS, type CompileMode } from './components/SettingsPanel';
 import './theme.css';
 
 const STAGE_DELAY_MS = 90;
@@ -28,7 +29,9 @@ export default function App() {
   const [stageIndex, setStageIndex] = useState(-1);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [mode, setMode] = useState<'architect' | 'quick' | 'master'>('architect');
+  const [mode, setMode] = useState<CompileMode>('architect');
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [maxRounds, setMaxRounds] = useState(DEFAULT_MAX_ROUNDS);
   // MASTER mode's stage sequence is dynamic (the deliberation loop can run a
   // variable number of rounds), unlike ARCHITECT/QUICK's static stage-name
   // arrays — so the stepper's name list is captured from the real
@@ -41,12 +44,42 @@ export default function App() {
 
   useEffect(() => {
     refreshPrompts();
+    // Load persisted settings (TASK-018 sub-feature A): default compile mode
+    // and MASTER mode's maxRounds. Best-effort — if the settings row doesn't
+    // exist yet (first run) or the read fails, the existing hardcoded
+    // defaults ('architect' / DEFAULT_MAX_ROUNDS) stand.
+    getSetting(DEFAULT_MODE_KEY)
+      .then((v) => {
+        if (v === 'architect' || v === 'quick' || v === 'master') setMode(v);
+      })
+      .catch(() => {});
+    getSetting(MAX_ROUNDS_KEY)
+      .then((v) => {
+        if (v) {
+          const n = Number(v);
+          if (Number.isFinite(n) && n >= 1 && n <= 5) setMaxRounds(n);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   async function refreshPrompts() {
     try {
       const list = await listPrompts();
       setPrompts(list);
+      // If the active prompt was renamed, pick up the fresh title; if it was
+      // deleted (TASK-018 sub-feature B), clear the now-dangling selection
+      // (and any compiled output still showing for it) rather than
+      // continuing to show a prompt that no longer exists.
+      setActivePrompt((prev) => {
+        if (!prev) return prev;
+        const fresh = list.find((p) => p.id === prev.id);
+        if (!fresh) {
+          setCompiled(null);
+          return null;
+        }
+        return fresh;
+      });
     } catch (e) {
       setError(String(e));
     }
@@ -119,6 +152,7 @@ export default function App() {
       let state;
       if (mode === 'master') {
         state = runMasterPipeline(rawInput, {
+          maxRounds,
           onStage: (_name, index) => {
             stageQueue.push(index);
           },
@@ -163,6 +197,50 @@ export default function App() {
     }
   }
 
+  // TASK-018 sub-feature D: keyboard shortcuts. Latest handlers/state are
+  // read via refs inside a single stable window listener, so the listener
+  // never goes stale without needing handleCompile/handleNewPrompt in a
+  // useEffect dependency array (which would re-run the pipeline's onStage
+  // callbacks unpredictably if re-created mid-run).
+  const runningRef = useRef(running);
+  runningRef.current = running;
+  const handleCompileRef = useRef(handleCompile);
+  handleCompileRef.current = handleCompile;
+  const handleNewPromptRef = useRef(handleNewPrompt);
+  handleNewPromptRef.current = handleNewPrompt;
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      const mod = e.ctrlKey || e.metaKey;
+
+      // Ctrl/Cmd+Enter: compile — respects the existing disabled={running}
+      // guard so a second compile can never fire while one is in flight.
+      if (mod && e.key === 'Enter') {
+        if (!runningRef.current) {
+          e.preventDefault();
+          handleCompileRef.current();
+        }
+        return;
+      }
+
+      // Ctrl/Cmd+Shift+N: new prompt. Plain Ctrl+N is reserved by most OSes
+      // (new window) and awkward inside a Tauri webview, so Shift is added.
+      if (mod && e.shiftKey && (e.key === 'N' || e.key === 'n')) {
+        e.preventDefault();
+        handleNewPromptRef.current();
+        return;
+      }
+
+      // Escape: cancel the running compile stepper animation via cancelRef —
+      // only meaningful while a compile is actually in flight.
+      if (e.key === 'Escape' && runningRef.current) {
+        cancelRef.current = true;
+      }
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr 320px', gridTemplateRows: '1fr 90px', height: '100vh', position: 'relative' }}>
       {/* Persistent company-brand stamp (TASK-016) — visible from every pane, not just the left nav footer. */}
@@ -184,8 +262,25 @@ export default function App() {
       </div>
 
       <div style={{ gridColumn: '1', gridRow: '1', borderRight: '1px solid var(--sv-hairline)', minHeight: 0, overflow: 'hidden' }}>
-        <PromptList prompts={prompts} activeId={activePrompt?.id ?? null} onSelect={handleSelectPrompt} onNew={handleNewPrompt} />
+        <PromptList
+          prompts={prompts}
+          activeId={activePrompt?.id ?? null}
+          onSelect={handleSelectPrompt}
+          onNew={handleNewPrompt}
+          onPromptsChanged={refreshPrompts}
+          onOpenSettings={() => setSettingsOpen(true)}
+        />
       </div>
+
+      {settingsOpen && (
+        <SettingsPanel
+          onClose={() => setSettingsOpen(false)}
+          defaultMode={mode}
+          onDefaultModeChange={setMode}
+          maxRounds={maxRounds}
+          onMaxRoundsChange={setMaxRounds}
+        />
+      )}
 
       <div style={{ gridColumn: '2', gridRow: '1', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
         <div style={{ padding: 'var(--sv-space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--sv-space-2)' }}>
@@ -230,6 +325,9 @@ export default function App() {
             </button>
           </div>
           {error && <div style={{ color: 'var(--sv-burgundy)', fontSize: 12 }}>{error}</div>}
+          <div style={{ fontSize: 10, color: 'var(--sv-ink-soft)', letterSpacing: '0.04em' }}>
+            ⌘/Ctrl+Enter to compile · ⌘/Ctrl+Shift+N for a new prompt · Esc to cancel
+          </div>
         </div>
         <hr className="sv-hairline" />
         <div className="sv-scrollpane" style={{ flex: 1, minHeight: 0 }}>

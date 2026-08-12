@@ -1,7 +1,76 @@
+import { useState } from 'react';
 import type { CompiledPrompt, RequirementItem } from '@lucid/schema';
+import { formatAsMarkdown } from '@lucid/compiler';
+import { writeText } from '@tauri-apps/plugin-clipboard-manager';
+import { save } from '@tauri-apps/plugin-dialog';
+import { writeTextFile } from '@tauri-apps/plugin-fs';
 import { KindTag } from './KindTag';
 import { CollapsibleSection } from './CollapsibleSection';
 import { formatSource, groupBySource } from './format';
+
+/** Export toolbar (TASK-018 sub-feature C): copy the compiled prompt as
+ * Markdown to the clipboard, or save it to a file. Only rendered when
+ * `compiled` is non-null — nothing to export before a compile exists. */
+function ExportToolbar({ compiled }: { compiled: CompiledPrompt }) {
+  const [status, setStatus] = useState<string | null>(null);
+
+  async function handleCopy() {
+    const md = formatAsMarkdown(compiled);
+    try {
+      await writeText(md);
+      setStatus('Copied to clipboard.');
+    } catch {
+      // Fallback to the browser clipboard API if the Tauri plugin call fails
+      // for any reason (e.g. permission not granted in this build).
+      try {
+        await navigator.clipboard.writeText(md);
+        setStatus('Copied to clipboard.');
+      } catch {
+        setStatus('Copy failed.');
+      }
+    }
+    setTimeout(() => setStatus(null), 2500);
+  }
+
+  async function handleExportMarkdown() {
+    await exportToFile('md');
+  }
+
+  async function handleExportJson() {
+    await exportToFile('json');
+  }
+
+  async function exportToFile(format: 'md' | 'json') {
+    try {
+      const path = await save({
+        defaultPath: `compiled-prompt.${format}`,
+        filters: [{ name: format === 'md' ? 'Markdown' : 'JSON', extensions: [format] }],
+      });
+      if (!path) return;
+      const content = format === 'md' ? formatAsMarkdown(compiled) : JSON.stringify(compiled, null, 2);
+      await writeTextFile(path, content);
+      setStatus('Exported.');
+    } catch {
+      setStatus('Export failed.');
+    }
+    setTimeout(() => setStatus(null), 2500);
+  }
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sv-space-2)', marginBottom: 'var(--sv-space-4)' }}>
+      <button type="button" onClick={handleCopy} style={{ fontSize: 10, padding: 'var(--sv-space-1) var(--sv-space-3)' }}>
+        Copy Markdown
+      </button>
+      <button type="button" onClick={handleExportMarkdown} style={{ fontSize: 10, padding: 'var(--sv-space-1) var(--sv-space-3)' }}>
+        Export .md
+      </button>
+      <button type="button" onClick={handleExportJson} style={{ fontSize: 10, padding: 'var(--sv-space-1) var(--sv-space-3)' }}>
+        Export .json
+      </button>
+      {status && <span style={{ fontSize: 11, color: 'var(--sv-ink-soft)' }}>{status}</span>}
+    </div>
+  );
+}
 
 function Item({ item }: { item: RequirementItem }) {
   return (
@@ -98,6 +167,8 @@ export function CompiledOutput({ compiled }: { compiled: CompiledPrompt | null }
         <h2 style={{ fontSize: 18 }}>Compiled Prompt</h2>
         <span className="sv-label">domain: {compiled.domain}</span>
       </div>
+
+      <ExportToolbar compiled={compiled} />
 
       {compiled.mission && (
         <div style={{ marginBottom: 'var(--sv-space-4)' }}>

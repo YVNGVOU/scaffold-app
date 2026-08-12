@@ -2,6 +2,7 @@ import type { CompiledPrompt } from '@lucid/schema';
 import { runArchitectPipeline, runQuickPipeline, runMasterPipeline, type RunMasterPipelineOptions } from './pipeline/index.js';
 
 export { mergeAnswer } from './mergeAnswer.js';
+export { formatAsMarkdown } from './formatAsMarkdown.js';
 
 /** Public entry point: compiles raw user input into a CompiledPrompt via ARCHITECT mode. */
 export function compileArchitect(rawInput: string): CompiledPrompt {

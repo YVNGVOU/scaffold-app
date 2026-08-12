@@ -85,6 +85,60 @@ pub fn list_compiles(state: State<DbState>, prompt_id: String) -> Result<Vec<Com
     Ok(out)
 }
 
+/// Renames a prompt in place (title only). Unlike `compiles`, `prompts` is not
+/// append-only/provenance-tracked, so an UPDATE here is correct.
+#[tauri::command]
+pub fn rename_prompt(state: State<DbState>, id: String, new_title: String) -> Result<(), String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    conn.execute(
+        "UPDATE prompts SET title = ?1 WHERE id = ?2",
+        params![new_title, id],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+/// Deletes a prompt and all of its associated `compiles` rows (children first,
+/// no `ON DELETE CASCADE` on the schema, so we clean up explicitly here).
+#[tauri::command]
+pub fn delete_prompt(state: State<DbState>, id: String) -> Result<(), String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    conn.execute("DELETE FROM compiles WHERE prompt_id = ?1", params![id])
+        .map_err(|e| e.to_string())?;
+    conn.execute("DELETE FROM prompts WHERE id = ?1", params![id])
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+/// Reads a single settings key/value pair. Returns `None` if unset.
+#[tauri::command]
+pub fn get_setting(state: State<DbState>, key: String) -> Result<Option<String>, String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    let mut stmt = conn
+        .prepare("SELECT value FROM settings WHERE key = ?1")
+        .map_err(|e| e.to_string())?;
+    let mut rows = stmt
+        .query_map(params![key], |row| row.get::<_, String>(0))
+        .map_err(|e| e.to_string())?;
+    match rows.next() {
+        Some(r) => Ok(Some(r.map_err(|e| e.to_string())?)),
+        None => Ok(None),
+    }
+}
+
+/// Upserts a single settings key/value pair.
+#[tauri::command]
+pub fn set_setting(state: State<DbState>, key: String, value: String) -> Result<(), String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    conn.execute(
+        "INSERT INTO settings (key, value) VALUES (?1, ?2)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        params![key, value],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 #[tauri::command]
 pub fn get_compile(state: State<DbState>, id: String) -> Result<Option<Compile>, String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
