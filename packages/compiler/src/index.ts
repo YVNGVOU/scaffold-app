@@ -2,6 +2,7 @@ import type { CompiledPrompt } from '@lucid/schema';
 import { runArchitectPipeline, runQuickPipeline, runMasterPipeline, type RunMasterPipelineOptions } from './pipeline/index.js';
 
 export { mergeAnswer } from './mergeAnswer.js';
+export { buildAugmentedInput } from './buildAugmentedInput.js';
 export { formatAsMarkdown } from './formatAsMarkdown.js';
 export type { PromptProfile } from './formatAsMarkdown.js';
 export { formatDiff } from './formatDiff.js';

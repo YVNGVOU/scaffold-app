@@ -187,9 +187,20 @@ function SummaryStrip({
 export function DecisionsPanel({
   compiled,
   onAnswered,
+  onConfirmRecompile,
+  recompiling,
 }: {
   compiled: CompiledPrompt | null;
   onAnswered?: (updated: CompiledPrompt) => void;
+  /** TASK-030 Part A: fires a full pipeline re-run using the current
+   * compiled result's answered items folded into an augmented raw input.
+   * Only rendered once at least one answered item exists (see `answered`
+   * below). */
+  onConfirmRecompile?: () => void;
+  /** True while a compile (normal or Confirm & Recompile) is in flight —
+   * used to disable the button and show in-progress copy so a second
+   * recompile can't be fired mid-run. */
+  recompiling?: boolean;
 }) {
   if (!compiled) {
     return (
@@ -253,11 +264,26 @@ export function DecisionsPanel({
       )}
 
       {answered.length > 0 && (
-        <CollapsibleSection title="Answered" count={answered.length} defaultOpen={false}>
-          {answered.map((it, i) => (
-            <RequirementCard key={i} item={it} />
-          ))}
-        </CollapsibleSection>
+        <div style={{ marginBottom: 'var(--sv-space-5)' }}>
+          {/* TASK-030 Part A: visible once at least one answered item exists
+              for the current compiled result. Fires a REAL full re-run of the
+              currently-selected pipeline mode with the answers folded into an
+              augmented raw input — not a merge-only shortcut. */}
+          <button
+            type="button"
+            className="sv-primary"
+            onClick={() => onConfirmRecompile?.()}
+            disabled={recompiling || !onConfirmRecompile}
+            style={{ marginBottom: 'var(--sv-space-3)', width: '100%' }}
+          >
+            {recompiling ? 'Recompiling…' : `Confirm & Recompile (${answered.length} answered)`}
+          </button>
+          <CollapsibleSection title="Answered" count={answered.length} defaultOpen={false}>
+            {answered.map((it, i) => (
+              <RequirementCard key={i} item={it} />
+            ))}
+          </CollapsibleSection>
+        </div>
       )}
 
       {conflicts.length > 0 && (

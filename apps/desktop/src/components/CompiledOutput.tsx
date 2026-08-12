@@ -2,11 +2,26 @@ import { useState } from 'react';
 import type { CompiledPrompt, RequirementItem } from '@lucid/schema';
 import { formatAsMarkdown, type PromptProfile } from '@lucid/compiler';
 import { writeText } from '@tauri-apps/plugin-clipboard-manager';
-import { save } from '@tauri-apps/plugin-dialog';
-import { writeTextFile } from '@tauri-apps/plugin-fs';
+import { open, save } from '@tauri-apps/plugin-dialog';
+import { writeTextFile, mkdir } from '@tauri-apps/plugin-fs';
 import { KindTag } from './KindTag';
 import { CollapsibleSection } from './CollapsibleSection';
+import { ErrorNote } from './ErrorNote';
+import { toFriendlyError, type FriendlyError } from '../lib/friendlyError';
 import { formatSource, groupBySource } from './format';
+
+/** TASK-030 Part B: sanitizes a prompt/project title into a safe folder
+ * name — strips characters invalid on Windows/macOS/Linux filesystems,
+ * collapses whitespace to single hyphens, trims leading/trailing hyphens,
+ * and falls back to a generic name if nothing usable remains. */
+export function sanitizeFolderName(title: string): string {
+  const cleaned = title
+    .trim()
+    .replace(/[<>:"/\\|?*\x00-\x1f]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return cleaned.length > 0 ? cleaned.slice(0, 80) : 'untitled-prompt';
+}
 
 /** Export toolbar (TASK-018 sub-feature C): copy the compiled prompt as
  * Markdown to the clipboard, or save it to a file. Only rendered when
@@ -19,9 +34,19 @@ const PROFILE_OPTIONS: { value: PromptProfile; label: string }[] = [
   { value: 'image-model', label: 'Image Model' },
 ];
 
-function ExportToolbar({ compiled }: { compiled: CompiledPrompt }) {
+function ExportToolbar({
+  compiled,
+  promptTitle,
+  mode,
+}: {
+  compiled: CompiledPrompt;
+  promptTitle: string;
+  mode: string;
+}) {
   const [status, setStatus] = useState<string | null>(null);
   const [profile, setProfile] = useState<PromptProfile>('generic');
+  const [folderError, setFolderError] = useState<FriendlyError | null>(null);
+  const [exportingFolder, setExportingFolder] = useState(false);
 
   async function handleCopy() {
     const md = formatAsMarkdown(compiled, profile);
@@ -65,8 +90,53 @@ function ExportToolbar({ compiled }: { compiled: CompiledPrompt }) {
     setTimeout(() => setStatus(null), 2500);
   }
 
+  // TASK-030 Part B: writes a prompt-handoff folder (prompt.md/prompt.json/
+  // README.md — NOT actual code/project scaffolding, per the task's explicit
+  // scope) into a user-chosen directory, following the same
+  // plugin-dialog/plugin-fs call pattern as `exportToFile` above. Cancel is
+  // a silent no-op (open() resolves null); write failures surface via the
+  // existing toFriendlyError/ErrorNote mechanism (TASK-027) rather than the
+  // plain `status` string used for the simpler copy/export actions.
+  async function handleExportFolder() {
+    setFolderError(null);
+    setExportingFolder(true);
+    try {
+      const baseDir = await open({ directory: true });
+      if (!baseDir) return; // user cancelled — no-op
+      const dirPath = Array.isArray(baseDir) ? baseDir[0] : baseDir;
+      const folderName = sanitizeFolderName(promptTitle);
+      const projectPath = `${dirPath}/${folderName}`;
+
+      await mkdir(projectPath, { recursive: true });
+
+      const md = formatAsMarkdown(compiled, profile);
+      const json = JSON.stringify(compiled, null, 2);
+      const readme = [
+        `# ${promptTitle || 'Untitled prompt'}`,
+        '',
+        `Generated: ${new Date().toISOString().slice(0, 10)}`,
+        `Mode: ${mode.toUpperCase()}`,
+        '',
+        'Compiled by Scaffold — paste prompt.md into your AI system of choice to begin.',
+        '',
+      ].join('\n');
+
+      await writeTextFile(`${projectPath}/prompt.md`, md);
+      await writeTextFile(`${projectPath}/prompt.json`, json);
+      await writeTextFile(`${projectPath}/README.md`, readme);
+
+      setStatus(`Exported to ${folderName}/`);
+      setTimeout(() => setStatus(null), 2500);
+    } catch (e) {
+      setFolderError(toFriendlyError(e));
+    } finally {
+      setExportingFolder(false);
+    }
+  }
+
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sv-space-2)', marginBottom: 'var(--sv-space-4)' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sv-space-2)', marginBottom: 'var(--sv-space-4)' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sv-space-2)', flexWrap: 'wrap' }}>
       <select
         value={profile}
         onChange={(e) => setProfile(e.target.value as PromptProfile)}
@@ -95,7 +165,17 @@ function ExportToolbar({ compiled }: { compiled: CompiledPrompt }) {
       <button type="button" onClick={handleExportJson} style={{ fontSize: 10, padding: 'var(--sv-space-1) var(--sv-space-3)' }}>
         Export .json
       </button>
+      <button
+        type="button"
+        onClick={handleExportFolder}
+        disabled={exportingFolder}
+        style={{ fontSize: 10, padding: 'var(--sv-space-1) var(--sv-space-3)' }}
+      >
+        {exportingFolder ? 'Exporting…' : 'Export Project Folder'}
+      </button>
       {status && <span style={{ fontSize: 11, color: 'var(--sv-ink-soft)' }}>{status}</span>}
+    </div>
+    {folderError && <ErrorNote error={folderError} />}
     </div>
   );
 }
@@ -174,7 +254,20 @@ function Section({
   );
 }
 
-export function CompiledOutput({ compiled }: { compiled: CompiledPrompt | null }) {
+export function CompiledOutput({
+  compiled,
+  promptTitle,
+  mode,
+}: {
+  compiled: CompiledPrompt | null;
+  /** TASK-030 Part B: current prompt's title, used to sanitize a folder
+   * name for "Export Project Folder" and for the handoff README's heading.
+   * Falls back to a generic name when no prompt has been saved yet. */
+  promptTitle?: string;
+  /** TASK-030 Part B: current compile mode (ARCHITECT/QUICK/MASTER), noted
+   * in the handoff README. */
+  mode?: string;
+}) {
   if (!compiled) {
     return (
       <div style={{ color: 'var(--sv-ink-soft)', fontSize: 13, padding: 'var(--sv-space-4)' }}>
@@ -196,7 +289,7 @@ export function CompiledOutput({ compiled }: { compiled: CompiledPrompt | null }
         <span className="sv-label">domain: {compiled.domain}</span>
       </div>
 
-      <ExportToolbar compiled={compiled} />
+      <ExportToolbar compiled={compiled} promptTitle={promptTitle ?? 'Untitled prompt'} mode={mode ?? 'architect'} />
 
       {compiled.mission && (
         <div style={{ marginBottom: 'var(--sv-space-4)' }}>

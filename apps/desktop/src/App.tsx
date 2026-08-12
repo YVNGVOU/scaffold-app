@@ -6,6 +6,7 @@ import {
   runQuickPipeline,
   QUICK_MODE_STAGE_NAMES,
   runMasterPipeline,
+  buildAugmentedInput,
 } from '@lucid/compiler';
 import { createPrompt, listPrompts, saveCompile, listCompiles, getSetting, setSetting, type Prompt } from './lib/api';
 import { PromptList } from './components/PromptList';
@@ -188,11 +189,13 @@ export default function App() {
     }
   }
 
-  async function handleCompile() {
-    if (!rawInput.trim() && rawInput.length === 0) {
-      // allow whitespace/symbol-only input through to the compiler (it must not throw),
-      // but require at least an empty-string call to be intentional.
-    }
+  // TASK-030: `overrideRawInput`, when provided, is used in place of the
+  // `rawInput` textbox state as the text fed into the pipeline — this is
+  // what lets "Confirm & Recompile" (handleConfirmRecompile below) run the
+  // exact same full pipeline/animation/persistence path as a normal compile,
+  // just with an augmented input string, without duplicating this function.
+  async function handleCompile(overrideRawInput?: string) {
+    const inputToCompile = overrideRawInput ?? rawInput;
     setError(null);
     setRunning(true);
     setCompiled(null);
@@ -212,7 +215,7 @@ export default function App() {
 
       let state;
       if (mode === 'master') {
-        state = runMasterPipeline(rawInput, {
+        state = runMasterPipeline(inputToCompile, {
           maxRounds,
           onStage: (_name, index) => {
             stageQueue.push(index);
@@ -226,7 +229,7 @@ export default function App() {
         setMasterStageNames([...state.stagesRun]);
       } else {
         const runPipeline = mode === 'quick' ? runQuickPipeline : runArchitectPipeline;
-        state = runPipeline(rawInput, {
+        state = runPipeline(inputToCompile, {
           onStage: (_name, index) => {
             stageQueue.push(index);
           },
@@ -246,8 +249,8 @@ export default function App() {
       let prompt = activePrompt;
       const wasNewPrompt = !prompt;
       if (!prompt) {
-        const title = rawInput.trim().slice(0, 60) || 'Untitled prompt';
-        prompt = await createPrompt(title, rawInput);
+        const title = inputToCompile.trim().slice(0, 60) || 'Untitled prompt';
+        prompt = await createPrompt(title, inputToCompile);
         setActivePrompt(prompt);
       }
       await saveCompile(prompt.id, mode, JSON.stringify(finalCompiled));
@@ -263,6 +266,22 @@ export default function App() {
     } finally {
       setRunning(false);
     }
+  }
+
+  // TASK-030 Part A: "Confirm & Recompile" — builds an augmented raw input
+  // (original rawInput + each answered item's original question + answer as
+  // a plain-English sentence, via the pure `buildAugmentedInput` helper) and
+  // runs it through the exact same `handleCompile` path as a normal compile
+  // — full pipeline re-run, same stepper animation, same saveCompile
+  // persistence (a new `compiles` row, so it shows up in TASK-020's version
+  // history) — never a merge-only shortcut. Deliberately only ever fired by
+  // an explicit user click, never automatically.
+  async function handleConfirmRecompile() {
+    if (!compiled) return;
+    const answeredItems = compiled.userRequirements.filter((r) => r.source === 'user-answered-question');
+    if (answeredItems.length === 0) return;
+    const augmented = buildAugmentedInput(rawInput, answeredItems);
+    await handleCompile(augmented);
   }
 
   // TASK-018 sub-feature D: keyboard shortcuts. Latest handlers/state are
@@ -418,7 +437,7 @@ export default function App() {
             </div>
           )}
           <div style={{ display: 'flex', gap: 'var(--sv-space-2)' }}>
-            <button className="sv-primary" onClick={handleCompile} disabled={running}>
+            <button className="sv-primary" onClick={() => handleCompile()} disabled={running}>
               {running ? 'Compiling…' : 'Compile'}
             </button>
             <button type="button" onClick={() => setHistoryOpen(true)} disabled={!activePrompt}>
@@ -432,7 +451,7 @@ export default function App() {
         </div>
         <hr className="sv-hairline" />
         <div className="sv-scrollpane" style={{ flex: 1, minHeight: 0 }}>
-          <CompiledOutput compiled={compiled} />
+          <CompiledOutput compiled={compiled} promptTitle={activePrompt?.title} mode={mode} />
         </div>
       </div>
 
@@ -446,7 +465,12 @@ export default function App() {
         }}
         className="sv-scrollpane"
       >
-        <DecisionsPanel compiled={compiled} onAnswered={handleAnswered} />
+        <DecisionsPanel
+          compiled={compiled}
+          onAnswered={handleAnswered}
+          onConfirmRecompile={handleConfirmRecompile}
+          recompiling={running}
+        />
       </div>
 
       <div style={{ gridColumn: '1 / 4', gridRow: '2', borderTop: '1px solid var(--sv-hairline)', background: 'var(--sv-ivory-dim)' }}>

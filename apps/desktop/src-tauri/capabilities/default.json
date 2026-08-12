@@ -11,6 +11,7 @@
     "clipboard-manager:default",
     "dialog:default",
     "fs:default",
-    "fs:allow-write-text-file"
+    "fs:allow-write-text-file",
+    "fs:allow-mkdir"
   ]
 }
