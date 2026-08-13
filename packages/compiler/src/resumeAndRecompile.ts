@@ -1,5 +1,6 @@
 import type { CompiledPrompt, RequirementItem } from '@lucid/schema';
 import type { PipelineState, RequirementCategory, TaskType } from './pipeline/state.js';
+import { isAnswered } from './isAnswered.js';
 import { architectSpecialistPass } from './pipeline/stages/architectSpecialistPass.js';
 import { technicalSpecialistPass } from './pipeline/stages/technicalSpecialistPass.js';
 import { uxSpecialistPass } from './pipeline/stages/uxSpecialistPass.js';
@@ -33,22 +34,6 @@ const CATEGORY_KEYS: RequirementCategory[] = [
 ];
 
 const KNOWN_TASK_TYPES: TaskType[] = ['build', 'research', 'write', 'design', 'fix'];
-
-/**
- * TASK-083: an unresolved item counts as "answered" when some item already
- * in `userRequirements` was produced by `mergeAnswer` (`source:
- * 'user-answered-question'`) and its `evidence` references this unresolved
- * item's exact text — i.e. `mergeAnswer` recorded `evidence: [unresolvedItem.text]`
- * when the answer was merged. This is intentionally the EXACT same check as
- * `isAnswered()` in `apps/desktop/src/components/DecisionsPanel.tsx` (not a
- * re-derived heuristic) so the UI's "answered" classification and the
- * recompile's "exclude from ambiguities" behavior never disagree.
- */
-function isAnswered(item: RequirementItem, userRequirements: RequirementItem[]): boolean {
-  return userRequirements.some(
-    (r) => r.source === 'user-answered-question' && r.evidence.includes(item.text)
-  );
-}
 
 /** Recovers the TaskType synthesis previously encoded into `compiled.objective` (`"${taskType} task in domain "${domain}""`). */
 function reconstructTaskType(objective: string | undefined): TaskType {
@@ -92,17 +77,37 @@ function reconstructTaskType(objective: string | undefined): TaskType {
  *   one previously, defaulting to `'unknown'` otherwise (harmless — nothing
  *   downstream of this resume path other than `synthesis`'s own objective
  *   string reads `taskType`).
+ * - Bug fix: items sourced from an ANALYSIS stage (critique/conflict/
+ *   alternative-generation/decision-scoring — same `LOOP_STAGE_SOURCES` set
+ *   critique.ts already exempts from self-critique) are dropped entirely
+ *   here, not carried forward as regular requirements. These are synthesized
+ *   commentary about a specific PAST run ("unresolved ambiguity survived",
+ *   "near-duplicate detected"), not user-stated facts — carrying them
+ *   forward meant a "this field is unspecified" critique finding stayed in
+ *   the compiled output (as a `kind: 'recommendation'` item, so the
+ *   `isAnswered`-based unresolved filtering never touched it) forever, even
+ *   after the field was answered, directly contradicting the answer sitting
+ *   in `userRequirements` — and every subsequent recompile stacked a fresh
+ *   round of analysis output on top of the last, uncleared, round's. Fresh
+ *   critique/conflict findings are regenerated on every recompile anyway
+ *   (that's the whole point of resuming), so nothing is lost by not
+ *   carrying the old ones forward — only the original `compiled` object
+ *   (the historical record) is ever exempt from this, and it is never
+ *   mutated by this function regardless.
  */
+const ANALYSIS_STAGE_SOURCES = new Set(['critique-engine', 'conflict-engine', 'alternative-generation', 'decision-scoring']);
+
 export function reconstructStateFromCompiled(compiled: CompiledPrompt, rawInput: string): PipelineState {
   const requirements: RequirementItem[] = [];
   const requirementCategories: RequirementCategory[] = [];
   const ambiguities: RequirementItem[] = [];
 
-  const userRequirements = compiled.userRequirements ?? [];
-
   for (const category of CATEGORY_KEYS) {
     const items = compiled[category] ?? [];
     for (const item of items) {
+      if (ANALYSIS_STAGE_SOURCES.has(item.source)) {
+        continue;
+      }
       if (item.kind === 'unresolved') {
         // TASK-083: an unresolved item with a matching answer already in
         // userRequirements is superseded by that answer — exclude it from
@@ -111,7 +116,7 @@ export function reconstructStateFromCompiled(compiled: CompiledPrompt, rawInput:
         // `compiled.assumptions`/etc, per the append-only provenance
         // discipline); this only affects what the RESUME path carries
         // forward into the new state's `ambiguities` array.
-        if (!isAnswered(item, userRequirements)) {
+        if (!isAnswered(item, compiled)) {
           ambiguities.push(item);
         }
       } else {
@@ -219,6 +224,52 @@ export function resumeAndRecompile(
 
   for (const { name, run } of SPECIALIST_STAGES) {
     runStage(run, name);
+  }
+
+  // Bug fix: every specialist decides what to emit purely from
+  // `domainModule` + `rawInput` — neither of those changes on a recompile,
+  // and no specialist checks whether it already emitted a given finding in
+  // a PRIOR compile (which reconstructStateFromCompiled carries forward
+  // into `state.requirements` before the specialist stages above run
+  // again). Net effect: every recompile re-added every specialist's entire
+  // consideration set as fresh duplicate entries on top of what was already
+  // there — confirmed directly (32 functionalRequirements became 47 after a
+  // single extra recompile with zero new information). Deduping by
+  // source+text identity right after the specialist stages, before
+  // critique/conflict/synthesis see the pool, is the single choke point
+  // that fixes this for all 7 specialists at once without touching their
+  // individual (correctly stateless, rawInput-only) logic.
+  {
+    const seen = new Set<string>();
+    const dedupedRequirements: typeof state.requirements = [];
+    const dedupedCategories: typeof state.requirementCategories = [];
+    for (let i = 0; i < state.requirements.length; i++) {
+      const id = findingIdentity(state.requirements[i]);
+      if (seen.has(id)) continue;
+      seen.add(id);
+      dedupedRequirements.push(state.requirements[i]);
+      dedupedCategories.push(state.requirementCategories[i]);
+    }
+    state = { ...state, requirements: dedupedRequirements, requirementCategories: dedupedCategories };
+  }
+
+  // Same bug, separate array: architectSpecialistPass emits ArchitectureNote
+  // decisions into `state.architectureNotes`, not `state.requirements` —
+  // confirmed to duplicate identically (9 notes became 18, then 27, across
+  // two recompiles with zero new information) since the dedup above never
+  // touches this array. Deduped by component+note identity (component alone
+  // isn't safe — the same component could legitimately carry more than one
+  // distinct note from different passes in principle).
+  {
+    const seen = new Set<string>();
+    const dedupedNotes: typeof state.architectureNotes = [];
+    for (const note of state.architectureNotes) {
+      const id = `${note.component}::${note.note}`;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      dedupedNotes.push(note);
+    }
+    state = { ...state, architectureNotes: dedupedNotes };
   }
 
   if (mode === 'master') {

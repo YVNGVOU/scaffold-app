@@ -1,21 +1,11 @@
 import { useState } from 'react';
 import type { CompiledPrompt, RequirementItem, ArchitectureNote } from '@lucid/schema';
-import { mergeAnswer } from '@lucid/compiler';
+import { mergeAnswer, isAnswered } from '@lucid/compiler';
 import { KindTag } from './KindTag';
 import { CollapsibleSection } from './CollapsibleSection';
 import { MetaDisclosure } from './MetaDisclosure';
 import { ProvenanceTip } from './ProvenanceTip';
 import { formatSource, groupBySource } from './format';
-
-/** True once a matching kind:'user' answer (source: 'user-answered-question',
- * evidence referencing this unresolved item's text) exists in the compiled
- * prompt's userRequirements — i.e. the item has already been answered
- * (TASK-017 req 3). */
-function isAnswered(item: RequirementItem, compiled: CompiledPrompt): boolean {
-  return compiled.userRequirements.some(
-    (r) => r.source === 'user-answered-question' && r.evidence.includes(item.text)
-  );
-}
 
 /** Inline free-text answer input + submit action for a single unresolved
  * item (TASK-017 req 1/2). Calls mergeAnswer (pure, headless-testable) and

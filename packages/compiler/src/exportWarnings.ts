@@ -1,4 +1,5 @@
 import type { CompiledPrompt } from '@lucid/schema';
+import { unresolvedUnanswered } from './isAnswered.js';
 
 /**
  * TASK-081: export-time risk signal threshold. `domainConfidence` (see
@@ -14,14 +15,12 @@ import type { CompiledPrompt } from '@lucid/schema';
 export const EXPORT_LOW_CONFIDENCE_THRESHOLD = 0.5;
 
 /** Pure, UI-independent read of export-time risk on a compiled prompt
- * (TASK-081). Unresolved items live in `compiled.assumptions` (see
- * `CompiledOutput.tsx`'s own comment on this — synthesis.ts routes
- * `kind: 'unresolved'` items there) with `kind: 'unresolved'`; this counts
- * them without excluding already-answered ones, since "answered" status is
- * derived client-side against `userRequirements` (see `DecisionsPanel.tsx`'s
- * `isAnswered`) and export warnings are a coarser, cheaper-to-compute signal
- * — a prompt with answered-but-still-present unresolved markers is still
- * worth a glance before handoff. */
+ * (TASK-081). Unresolved items live in `compiled.assumptions` with
+ * `kind: 'unresolved'`; `unresolvedUnanswered` (isAnswered.ts) excludes
+ * ones the user has already answered inline (via `mergeAnswer`) — a
+ * previous version of this function counted answered items too, which made
+ * the export warning contradict the answer sitting right there in
+ * `userRequirements`. Fixed: the count now means what it says. */
 export interface ExportWarnings {
   unresolvedCount: number;
   lowDomainConfidence: boolean;
@@ -29,7 +28,7 @@ export interface ExportWarnings {
 }
 
 export function getExportWarnings(compiled: CompiledPrompt): ExportWarnings {
-  const unresolvedCount = compiled.assumptions.filter((it) => it.kind === 'unresolved').length;
+  const unresolvedCount = unresolvedUnanswered(compiled).length;
   const lowDomainConfidence =
     compiled.domainConfidence !== undefined && compiled.domainConfidence < EXPORT_LOW_CONFIDENCE_THRESHOLD;
 

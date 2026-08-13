@@ -1,5 +1,6 @@
 import type { CompiledPrompt, RequirementItem } from '@lucid/schema';
 import { DEFAULT_SECTION_GROUP_ORDER, type SectionGroupKey } from './sectionGroups.js';
+import { unresolvedUnanswered } from './isAnswered.js';
 
 /**
  * TASK-021 (output-target profiles): which formatting convention
@@ -126,7 +127,17 @@ export function formatAsMarkdown(
       section('User Requirements', compiled.userRequirements);
       section('Functional Requirements', compiled.functionalRequirements);
       section('Preferences', compiled.preferences);
-      section('Assumptions', compiled.assumptions);
+      // Bug fix: this used to dump `compiled.assumptions` wholesale, which
+      // mixes still-open questions (kind: 'unresolved') in with everything
+      // else, and — worse — kept showing an item as "[unresolved]" even
+      // after the user answered it (the answer lives in userRequirements
+      // above; mergeAnswer never mutates the original unresolved entry).
+      // Split: genuinely-open questions get their own heading and are the
+      // ONLY unresolved items shown; answered ones are dropped entirely
+      // (the fact already appears once, correctly, in User Requirements)
+      // rather than repeated under a contradictory label.
+      section('Open Questions', unresolvedUnanswered(compiled));
+      section('Assumptions', compiled.assumptions.filter((it) => it.kind !== 'unresolved'));
     },
     // No CompiledPrompt field backs these yet — nothing to render, honestly.
     examples: () => {},

@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import type { CompiledPrompt, RequirementItem } from '@lucid/schema';
-import { formatAsMarkdown, getExportWarnings, DEFAULT_SECTION_GROUP_ORDER, type PromptProfile, type SectionGroupKey } from '@lucid/compiler';
+import { formatAsMarkdown, getExportWarnings, unresolvedUnanswered, DEFAULT_SECTION_GROUP_ORDER, type PromptProfile, type SectionGroupKey } from '@lucid/compiler';
 import { writeText } from '@tauri-apps/plugin-clipboard-manager';
 import { open, save } from '@tauri-apps/plugin-dialog';
 import { writeTextFile, mkdir } from '@tauri-apps/plugin-fs';
@@ -317,7 +317,13 @@ export function CompiledOutput({
   // Unresolved ambiguities are stored in `compiled.assumptions` (see
   // synthesis.ts) but are high-signal ("needs your input") — split them out
   // so they stay visible/expanded while the rest of Assumptions collapses.
-  const unresolved = compiled.assumptions.filter((it) => it.kind === 'unresolved');
+  // Bug fix: this used to show every kind:'unresolved' item regardless of
+  // whether the user had already answered it (mergeAnswer never mutates the
+  // original unresolved entry) — so the compiled-prompt preview kept
+  // contradicting the answer sitting right there in userRequirements even
+  // after DecisionsPanel had already stopped listing it. unresolvedUnanswered
+  // is the same shared check DecisionsPanel/exports now all use.
+  const unresolved = unresolvedUnanswered(compiled);
   const restAssumptions = compiled.assumptions.filter((it) => it.kind !== 'unresolved');
 
   // Mirrors formatAsMarkdown's renderGroup mapping exactly — same groups,
