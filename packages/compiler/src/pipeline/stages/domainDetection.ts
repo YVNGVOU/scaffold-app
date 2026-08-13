@@ -41,9 +41,14 @@ export function domainDetection(state: PipelineState): PipelineState {
   }
 
   if (!best || best.score < DOMAIN_CONFIDENCE_FLOOR) {
+    // Nothing cleared the floor — fall back to the generic domain module
+    // (always score 0, see domains/generic/index.ts) rather than 'unknown',
+    // so every specialist still has real domain-agnostic structure to work
+    // from instead of nothing. domainScores is still recorded honestly
+    // (every real score is 0 here by construction of the branch condition).
     return {
       ...state,
-      domain: 'unknown',
+      domain: 'generic',
       domainConfidence: 0,
       domainScores,
       stagesRun: [...state.stagesRun, 'domainDetection'],

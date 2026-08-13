@@ -126,6 +126,10 @@ export default function App() {
   const cancelRef = useRef(false);
 
   const [workspace, setWorkspace] = useState<WorkspaceId>('home');
+  // Prompt Studio's own internal views, per the spec: Compose (the raw-input
+  // editor), Structure (Architecture Panel), Preview (CompiledOutput),
+  // Compile (multi-pass visualization + inspector), Compare (Compare Modes).
+  const [studioTab, setStudioTab] = useState<'compose' | 'structure' | 'preview' | 'compile' | 'compare'>('compose');
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [templatesRefreshKey, setTemplatesRefreshKey] = useState(0);
@@ -135,7 +139,6 @@ export default function App() {
   // one-off per document). Feeds directly into CompiledOutput's render AND
   // formatAsMarkdown's export.
   const [groupOrder, setGroupOrder] = useState<SectionGroupKey[]>(DEFAULT_SECTION_GROUP_ORDER);
-  const [rightPanelTab, setRightPanelTab] = useState<'decisions' | 'architecture'>('decisions');
 
   // Multi-pass compiler visualization: real per-stage snapshots captured via
   // each pipeline run's onStage callback (not synthesized), so the
@@ -522,6 +525,7 @@ export default function App() {
       setSetting(draftKey(prompt.id), '').catch(() => {});
       if (wasNewPrompt) setSetting(NEW_DRAFT_KEY, '').catch(() => {});
       pushNotification('compilation', `Compiled "${prompt.title}" (${mode.toUpperCase()})`);
+      setStudioTab('preview');
     } catch (e) {
       setError(toFriendlyError(e));
       pushNotification('errors', 'Compile failed — see the error note in Prompt Studio.');
@@ -662,7 +666,7 @@ export default function App() {
   }, []);
 
   const studioView = (
-    <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr 320px', gridTemplateRows: '1fr auto', height: '100%', minHeight: 0, position: 'relative' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr 320px', gridTemplateRows: '1fr', height: '100%', minHeight: 0, position: 'relative' }}>
       <div style={{ gridColumn: '1', gridRow: '1', borderRight: '1px solid var(--sv-hairline)', minHeight: 0, overflow: 'hidden' }}>
         <PromptList
           prompts={prompts}
@@ -676,117 +680,207 @@ export default function App() {
       </div>
 
       <div style={{ gridColumn: '2', gridRow: '1', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-        <div style={{ padding: 'var(--sv-space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--sv-space-2)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--sv-space-2)', flexWrap: 'wrap' }}>
-            <div className="sv-label">Raw Input · {mode.toUpperCase()} mode</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sv-space-2)' }}>
-              {/* TASK-078: manual domain override, for when auto-detection guesses
-                  wrong and rephrasing the prompt isn't the fastest fix. */}
-              <select
-                value={forceDomain}
-                onChange={(e) => setForceDomain(e.target.value as DomainId | 'auto')}
-                disabled={running}
-                aria-label="Domain override"
-                title="Force a specific domain instead of auto-detecting"
-                style={{
-                  fontSize: 10,
-                  padding: 'var(--sv-space-1) var(--sv-space-2)',
-                  background: 'var(--sv-ivory)',
-                  color: 'var(--sv-ink)',
-                  border: '1px solid var(--sv-hairline-strong)',
-                  borderRadius: 0,
-                }}
-              >
-                <option value="auto">Auto-detect domain</option>
-                {DOMAIN_MODULES.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.label}
-                  </option>
-                ))}
-              </select>
-              <div style={{ display: 'flex', gap: 4 }}>
-                <button
-                  type="button"
-                  className={mode === 'architect' ? 'sv-primary' : ''}
-                  onClick={() => setMode('architect')}
-                  disabled={running}
-                >
-                  ARCHITECT
-                </button>
-                <button
-                  type="button"
-                  className={mode === 'quick' ? 'sv-primary' : ''}
-                  onClick={() => setMode('quick')}
-                  disabled={running}
-                >
-                  QUICK
-                </button>
-                <button
-                  type="button"
-                  className={mode === 'master' ? 'sv-primary' : ''}
-                  onClick={() => setMode('master')}
-                  disabled={running}
-                >
-                  MASTER
-                </button>
-              </div>
-              {/* TASK-082: runs the current raw input through all three modes and shows
-                  a compact side-by-side comparison. Disabled while a normal compile is
-                  in flight or the input is empty, same guard shape as the Compile button. */}
-              <button type="button" onClick={() => setCompareModesOpen(true)} disabled={running || rawInput.trim().length === 0}>
-                Compare Modes
-              </button>
-            </div>
+        <div style={{ display: 'flex', borderBottom: '1px solid var(--sv-hairline)' }}>
+          {([
+            ['compose', 'Compose'],
+            ['structure', 'Structure'],
+            ['preview', 'Preview'],
+            ['compile', 'Compile'],
+            ['compare', 'Compare'],
+          ] as const).map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              className={studioTab === key ? 'sv-primary' : ''}
+              onClick={() => setStudioTab(key)}
+              style={{ flex: 1, fontSize: 10, padding: 'var(--sv-space-2)', border: 'none' }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {running && (
+          <div style={{ fontSize: 10, color: 'var(--sv-burgundy)', padding: 'var(--sv-space-1) var(--sv-space-3)', borderBottom: '1px solid var(--sv-hairline)' }}>
+            Compiling… {studioTab !== 'compile' && <button type="button" onClick={() => setStudioTab('compile')} style={{ fontSize: 9, marginLeft: 6 }}>View progress</button>}
           </div>
-          <textarea
-            value={rawInput}
-            onChange={(e) => setRawInput(e.target.value)}
-            rows={5}
-            placeholder="Describe what you want, plainly. e.g. &quot;build me a portfolio site for a photographer&quot;"
-          />
-          {rawInput.length === 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sv-space-2)' }}>
-              <div className="sv-label">Try an example</div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--sv-space-2)' }}>
-                {STARTER_PROMPTS.map((starter) => (
-                  <button
-                    key={starter.label}
-                    type="button"
-                    title={starter.text}
-                    onClick={() => setRawInput(starter.text)}
+        )}
+
+        <div className="sv-scrollpane" style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
+          {studioTab === 'compose' && (
+            <div style={{ padding: 'var(--sv-space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--sv-space-2)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--sv-space-2)', flexWrap: 'wrap' }}>
+                <div className="sv-label">Raw Input · {mode.toUpperCase()} mode</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sv-space-2)' }}>
+                  {/* TASK-078: manual domain override, for when auto-detection guesses
+                      wrong and rephrasing the prompt isn't the fastest fix. */}
+                  <select
+                    value={forceDomain}
+                    onChange={(e) => setForceDomain(e.target.value as DomainId | 'auto')}
+                    disabled={running}
+                    aria-label="Domain override"
+                    title="Force a specific domain instead of auto-detecting"
                     style={{
-                      fontSize: 11,
-                      padding: 'var(--sv-space-1) var(--sv-space-3)',
-                      background: 'var(--sv-ivory-dim)',
-                      color: 'var(--sv-ink-soft)',
+                      fontSize: 10,
+                      padding: 'var(--sv-space-1) var(--sv-space-2)',
+                      background: 'var(--sv-ivory)',
+                      color: 'var(--sv-ink)',
                       border: '1px solid var(--sv-hairline-strong)',
+                      borderRadius: 0,
                     }}
                   >
-                    {starter.domain} · {starter.label}
-                  </button>
-                ))}
+                    <option value="auto">Auto-detect domain</option>
+                    {DOMAIN_MODULES.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.label}
+                      </option>
+                    ))}
+                  </select>
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    <button
+                      type="button"
+                      className={mode === 'architect' ? 'sv-primary' : ''}
+                      onClick={() => setMode('architect')}
+                      disabled={running}
+                    >
+                      ARCHITECT
+                    </button>
+                    <button
+                      type="button"
+                      className={mode === 'quick' ? 'sv-primary' : ''}
+                      onClick={() => setMode('quick')}
+                      disabled={running}
+                    >
+                      QUICK
+                    </button>
+                    <button
+                      type="button"
+                      className={mode === 'master' ? 'sv-primary' : ''}
+                      onClick={() => setMode('master')}
+                      disabled={running}
+                    >
+                      MASTER
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <textarea
+                value={rawInput}
+                onChange={(e) => setRawInput(e.target.value)}
+                rows={5}
+                placeholder="Describe what you want, plainly. e.g. &quot;build me a portfolio site for a photographer&quot;"
+              />
+              {rawInput.length === 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sv-space-2)' }}>
+                  <div className="sv-label">Try an example</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--sv-space-2)' }}>
+                    {STARTER_PROMPTS.map((starter) => (
+                      <button
+                        key={starter.label}
+                        type="button"
+                        title={starter.text}
+                        onClick={() => setRawInput(starter.text)}
+                        style={{
+                          fontSize: 11,
+                          padding: 'var(--sv-space-1) var(--sv-space-3)',
+                          background: 'var(--sv-ivory-dim)',
+                          color: 'var(--sv-ink-soft)',
+                          border: '1px solid var(--sv-hairline-strong)',
+                        }}
+                      >
+                        {starter.domain} · {starter.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div style={{ display: 'flex', gap: 'var(--sv-space-2)' }}>
+                <button
+                  className="sv-primary"
+                  onClick={() => {
+                    setStudioTab('compile');
+                    handleCompile();
+                  }}
+                  disabled={running}
+                >
+                  {running ? 'Compiling…' : 'Compile'}
+                </button>
+                <button type="button" onClick={() => setHistoryOpen(true)} disabled={!activePrompt}>
+                  History
+                </button>
+                <button type="button" onClick={handleSaveAsTemplate} disabled={!compiled}>
+                  Save as Template
+                </button>
+              </div>
+              {error && <ErrorNote error={error} />}
+              <div style={{ fontSize: 10, color: 'var(--sv-ink-soft)', letterSpacing: '0.04em' }}>
+                ⌘/Ctrl+Enter to compile · ⌘/Ctrl+Shift+N for a new prompt · Esc to cancel
               </div>
             </div>
           )}
-          <div style={{ display: 'flex', gap: 'var(--sv-space-2)' }}>
-            <button className="sv-primary" onClick={() => handleCompile()} disabled={running}>
-              {running ? 'Compiling…' : 'Compile'}
-            </button>
-            <button type="button" onClick={() => setHistoryOpen(true)} disabled={!activePrompt}>
-              History
-            </button>
-            <button type="button" onClick={handleSaveAsTemplate} disabled={!compiled}>
-              Save as Template
-            </button>
-          </div>
-          {error && <ErrorNote error={error} />}
-          <div style={{ fontSize: 10, color: 'var(--sv-ink-soft)', letterSpacing: '0.04em' }}>
-            ⌘/Ctrl+Enter to compile · ⌘/Ctrl+Shift+N for a new prompt · Esc to cancel
-          </div>
-        </div>
-        <hr className="sv-hairline" />
-        <div className="sv-scrollpane" style={{ flex: 1, minHeight: 0 }}>
-          <CompiledOutput compiled={compiled} promptTitle={activePrompt?.title} mode={mode} groupOrder={groupOrder} />
+
+          {studioTab === 'structure' && <ArchitecturePanel compiled={compiled} order={groupOrder} onReorder={handleReorderGroups} />}
+
+          {studioTab === 'preview' && (
+            <CompiledOutput compiled={compiled} promptTitle={activePrompt?.title} mode={mode} groupOrder={groupOrder} />
+          )}
+
+          {studioTab === 'compile' &&
+            (() => {
+              const activeStageNames = isRecompiling
+                ? recompileStageNames
+                : mode === 'quick'
+                  ? QUICK_MODE_STAGE_NAMES
+                  : mode === 'master'
+                    ? masterStageNames
+                    : ARCHITECT_MODE_STAGE_NAMES;
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <MultiPassView
+                    stageNames={activeStageNames}
+                    activeIndex={stageIndex}
+                    running={running}
+                    hasCompiled={compiled !== null}
+                    selectedBucket={selectedBucket}
+                    onSelectBucket={(b) => setSelectedBucket((prev) => (prev === b ? null : b))}
+                  />
+                  {selectedBucket && (
+                    <StageInspector
+                      bucket={selectedBucket}
+                      stageNames={activeStageNames}
+                      snapshots={stageSnapshots}
+                      onClose={() => setSelectedBucket(null)}
+                    />
+                  )}
+                  <PipelineStepper stageNames={activeStageNames} activeIndex={stageIndex} running={running} />
+                </div>
+              );
+            })()}
+
+          {studioTab === 'compare' && (
+            <div style={{ padding: 'var(--sv-space-4)' }}>
+              <div className="sv-label" style={{ marginBottom: 'var(--sv-space-2)' }}>
+                Compare Modes
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--sv-ink-soft)', marginBottom: 'var(--sv-space-3)', maxWidth: 480 }}>
+                Runs the current raw input through QUICK, ARCHITECT, and MASTER concurrently and shows a side-by-side comparison
+                you can pick a winner from.
+              </div>
+              <button
+                className="sv-primary"
+                type="button"
+                onClick={() => setCompareModesOpen(true)}
+                disabled={running || rawInput.trim().length === 0}
+              >
+                Run Comparison
+              </button>
+              {rawInput.trim().length === 0 && (
+                <div style={{ fontSize: 11, color: 'var(--sv-ink-soft)', marginTop: 'var(--sv-space-2)' }}>
+                  Write something in Compose first.
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -800,69 +894,14 @@ export default function App() {
           flexDirection: 'column',
         }}
       >
-        <div style={{ display: 'flex', borderBottom: '1px solid var(--sv-hairline)' }}>
-          <button
-            type="button"
-            className={rightPanelTab === 'decisions' ? 'sv-primary' : ''}
-            onClick={() => setRightPanelTab('decisions')}
-            style={{ flex: 1, fontSize: 10, padding: 'var(--sv-space-2)', border: 'none' }}
-          >
-            Decisions
-          </button>
-          <button
-            type="button"
-            className={rightPanelTab === 'architecture' ? 'sv-primary' : ''}
-            onClick={() => setRightPanelTab('architecture')}
-            style={{ flex: 1, fontSize: 10, padding: 'var(--sv-space-2)', border: 'none' }}
-          >
-            Architecture
-          </button>
-        </div>
         <div className="sv-scrollpane" style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
-          {rightPanelTab === 'decisions' ? (
-            <DecisionsPanel
-              compiled={compiled}
-              onAnswered={handleAnswered}
-              onConfirmRecompile={handleConfirmRecompile}
-              recompiling={running}
-            />
-          ) : (
-            <ArchitecturePanel compiled={compiled} order={groupOrder} onReorder={handleReorderGroups} />
-          )}
+          <DecisionsPanel
+            compiled={compiled}
+            onAnswered={handleAnswered}
+            onConfirmRecompile={handleConfirmRecompile}
+            recompiling={running}
+          />
         </div>
-      </div>
-
-      <div style={{ gridColumn: '1 / 4', gridRow: '2', borderTop: '1px solid var(--sv-hairline)', background: 'var(--sv-ivory-dim)', display: 'flex', flexDirection: 'column' }}>
-        {(() => {
-          const activeStageNames = isRecompiling
-            ? recompileStageNames
-            : mode === 'quick'
-              ? QUICK_MODE_STAGE_NAMES
-              : mode === 'master'
-                ? masterStageNames
-                : ARCHITECT_MODE_STAGE_NAMES;
-          return (
-            <>
-              <MultiPassView
-                stageNames={activeStageNames}
-                activeIndex={stageIndex}
-                running={running}
-                hasCompiled={compiled !== null}
-                selectedBucket={selectedBucket}
-                onSelectBucket={(b) => setSelectedBucket((prev) => (prev === b ? null : b))}
-              />
-              {selectedBucket && (
-                <StageInspector
-                  bucket={selectedBucket}
-                  stageNames={activeStageNames}
-                  snapshots={stageSnapshots}
-                  onClose={() => setSelectedBucket(null)}
-                />
-              )}
-              <PipelineStepper stageNames={activeStageNames} activeIndex={stageIndex} running={running} />
-            </>
-          );
-        })()}
       </div>
     </div>
   );

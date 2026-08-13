@@ -7,9 +7,9 @@ import type { CompiledPrompt } from '@lucid/schema';
  * this threshold the classification is weak enough that the user should
  * see a flag before handing the compiled prompt off. Deliberately a
  * separate constant from `DOMAIN_CONFIDENCE_FLOOR` (packages/compiler/src/
- * domains/index.ts) — that floor gates whether detection picks a domain at
- * all vs. falling back to `'unknown'` and is measured in raw score points,
- * not a 0-1 confidence fraction, so it isn't a comparable value here.
+ * domains/index.ts) — that floor gates whether detection picks a NAMED domain
+ * vs. falling back to the generic domain module and is measured in raw score
+ * points, not a 0-1 confidence fraction, so it isn't a comparable value here.
  */
 export const EXPORT_LOW_CONFIDENCE_THRESHOLD = 0.5;
 

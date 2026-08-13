@@ -52,6 +52,7 @@ export {
   QUICK_MODE_PIPELINE,
   QUICK_MODE_STAGE_NAMES,
   runMasterPipeline,
+  createInitialState,
 } from './pipeline/index.js';
 export type { PipelineState, TaskType, Decision, RequirementCategory, RunPipelineOptions, RunMasterPipelineOptions } from './pipeline/index.js';
 export { DOMAIN_MODULES, DOMAIN_CONFIDENCE_FLOOR, webDomain, gameDomain, brandingDomain } from './domains/index.js';

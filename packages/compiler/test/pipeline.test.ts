@@ -8,6 +8,7 @@ import {
   QUICK_MODE_STAGE_NAMES,
   compileMaster,
   runMasterPipeline,
+  createInitialState,
 } from '../src/index.js';
 import { critique } from '../src/pipeline/stages/critique.js';
 import { requirementExpansion } from '../src/pipeline/stages/requirementExpansion.js';
@@ -49,9 +50,9 @@ describe('ARCHITECT pipeline', () => {
     expect(compiled.domain).toBe('game');
   });
 
-  it('missing-context / extremely short input falls back to unknown domain gracefully', () => {
+  it('missing-context / extremely short input falls back to the generic domain gracefully', () => {
     const compiled = compileArchitect('make an app');
-    expect(compiled.domain).toBe('unknown');
+    expect(compiled.domain).toBe('generic');
   });
 
   it('extremely long input completes within reasonable time without truncation crash', () => {
@@ -65,7 +66,7 @@ describe('ARCHITECT pipeline', () => {
   it('empty string input returns a valid mostly-unresolved CompiledPrompt, never throws', () => {
     expect(() => compileArchitect('')).not.toThrow();
     const compiled = compileArchitect('');
-    expect(compiled.domain).toBe('unknown');
+    expect(compiled.domain).toBe('generic');
     expect(compiled.userRequirements).toEqual([]);
   });
 
@@ -76,7 +77,7 @@ describe('ARCHITECT pipeline', () => {
   it('symbol-only input never throws', () => {
     expect(() => compileArchitect('!!! @@@ ### $$$ %%%')).not.toThrow();
     const compiled = compileArchitect('!!! @@@ ### $$$ %%%');
-    expect(compiled.domain).toBe('unknown');
+    expect(compiled.domain).toBe('generic');
   });
 
   it('web domain detected on canonical web example', () => {
@@ -875,7 +876,14 @@ describe('Critique engine (TASK-005)', () => {
   });
 
   it('near-duplicate rule fires on two cross-source recommendations with heavily overlapping text (direct stage-level test)', () => {
-    const state = runArchitectPipeline('make an app');
+    // Deliberately an empty/isolated base state (not a real pipeline run) —
+    // this test wants ONLY the two synthetic fixture requirements below in
+    // scope, so critique's near-duplicate pairing can't accidentally match
+    // one of them against unrelated real domain-module output instead of
+    // each other (e.g. the generic domain's own considerations, which now
+    // populate state.requirements for any input that doesn't hit a named
+    // domain — see domains/generic/index.ts).
+    const state = createInitialState('make an app');
     const withDuplicates = {
       ...state,
       requirements: [
@@ -1005,7 +1013,7 @@ describe('QUICK pipeline (TASK-008)', () => {
   it('never throws on empty string input', () => {
     expect(() => compileQuick('')).not.toThrow();
     const compiled = compileQuick('');
-    expect(compiled.domain).toBe('unknown');
+    expect(compiled.domain).toBe('generic');
     expect(compiled.userRequirements).toEqual([]);
   });
 
