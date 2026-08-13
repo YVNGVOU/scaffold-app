@@ -1,0 +1,20 @@
+# Caps cargo's build parallelism so a background `tauri build`/`cargo build`
+# doesn't peg all cores and make the machine sluggish for interactive use
+# while it runs. This machine has 24 logical cores; 8 keeps builds fast
+# without visibly starving everything else. Local-only dev convenience,
+# not something that affects CI or other machines — feel free to bump this
+# up/down (or delete the file) if it's too conservative/aggressive.
+[build]
+jobs = 8
+# Caches compiled object files across DEPENDENCY crates across builds (this
+# crate's own multi-crate-type lib below — staticlib+cdylib+rlib, standard
+# Tauri desktop+mobile scaffolding — is a known sccache limitation, not
+# cached; verified directly: a full `cargo clean --release` + rebuild with
+# this on went from 2m37s to 1m36s, 357 cache hits / 44.85% hit rate, all
+# on the ~400 tauri/tauri-plugin-*/etc. dependency crates). Bare command
+# name (not an absolute path) so this works on any machine that has
+# sccache on PATH — install via `winget install Mozilla.sccache` (Windows)
+# or see https://github.com/mozilla/sccache for other platforms. If
+# sccache isn't installed, cargo will fail to find it as the rustc-wrapper
+# — delete this line (or the whole file) rather than leave it broken.
+rustc-wrapper = "sccache"
