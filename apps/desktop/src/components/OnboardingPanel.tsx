@@ -37,12 +37,20 @@ export function OnboardingPanel({ onDismiss }: OnboardingPanelProps) {
         <div className="sv-label">Welcome</div>
         <h2 style={{ fontSize: 20 }}>Scaffold, in brief</h2>
         <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: 'var(--sv-ink)' }}>
-          Describe what you want, plainly, in the raw input box — Scaffold turns it into a
+          The left rail switches between workspaces — <strong>Home</strong> for recents and
+          quick actions, <strong>Prompt Studio</strong> to compose and compile, <strong>Projects</strong>{' '}
+          to group related prompts, <strong>Templates</strong> and <strong>Library</strong> for
+          reusable starting points, and <strong>History</strong> for everything you've compiled.
+          Press <strong>⌘/Ctrl+K</strong> anywhere to jump straight to a command or prompt.
+        </p>
+        <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: 'var(--sv-ink)' }}>
+          In Prompt Studio: describe what you want, plainly — Scaffold turns it into a
           structured, verifiable prompt. Pick a mode: <strong>ARCHITECT</strong> runs the full
           multi-specialist pipeline for a thorough compile; <strong>QUICK</strong> is a fast
           single-pass compile for simple requests; <strong>MASTER</strong> runs a deliberation
           loop across specialists to resolve conflicts before producing a final output. Compile,
-          then review the structured output and any unresolved questions in the decisions panel.
+          then review the structured output, its Architecture tree, and any unresolved questions
+          in the decisions panel.
         </p>
         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
           <button type="button" className="sv-primary" onClick={onDismiss}>

@@ -38,6 +38,7 @@ import { MultiPassView } from './components/compiler/MultiPassView';
 import { StageInspector } from './components/compiler/StageInspector';
 import type { BucketKey } from './components/compiler/stageBuckets';
 import { NotificationCenter } from './components/NotificationCenter';
+import { ImportPrompt } from './components/ImportPrompt';
 import { loadAppearance, saveAppearance, applyAppearance, DEFAULT_APPEARANCE, type AppearanceSettings } from './lib/appearance';
 import {
   loadNotifications,
@@ -217,6 +218,35 @@ export default function App() {
     await refreshTemplates();
     setActivePrompt(null);
     setCompiled(null);
+  }
+
+  const [importOpen, setImportOpen] = useState(false);
+
+  function handleImportRaw(text: string) {
+    setActivePrompt(null);
+    setCompiled(null);
+    setStageIndex(-1);
+    setMasterStageNames([]);
+    setError(null);
+    setRawInput(text);
+    setWorkspace('studio');
+    pushNotification('project', 'Imported a new prompt draft.');
+  }
+
+  async function handleImportCompiled(compiledPrompt: CompiledPrompt) {
+    const title = (compiledPrompt.objective || compiledPrompt.userRequirements[0]?.text || 'Imported prompt').slice(0, 60);
+    try {
+      const prompt = await createPrompt(title, '');
+      await saveCompile(prompt.id, mode, JSON.stringify(compiledPrompt));
+      setActivePrompt(prompt);
+      setCompiled(compiledPrompt);
+      setRawInput('');
+      await refreshPrompts();
+      setWorkspace('studio');
+      pushNotification('project', `Imported "${title}" as a compiled prompt.`);
+    } catch (e) {
+      setError(toFriendlyError(e));
+    }
   }
 
   async function refreshTemplates() {
@@ -894,6 +924,10 @@ export default function App() {
         />
       )}
 
+      {importOpen && (
+        <ImportPrompt onImportRaw={handleImportRaw} onImportCompiled={handleImportCompiled} onClose={() => setImportOpen(false)} />
+      )}
+
       {notificationCenterOpen && (
         <NotificationCenter
           notifications={notifications}
@@ -919,6 +953,7 @@ export default function App() {
           }}
           onOpenPrompt={handleOpenPromptFromNav}
           onOpenSettings={() => setSettingsOpen(true)}
+          onOpenImport={() => setImportOpen(true)}
         />
       )}
 
@@ -940,6 +975,7 @@ export default function App() {
             }}
             onNavigate={setWorkspace}
             onOpenPalette={() => setPaletteOpen(true)}
+            onOpenImport={() => setImportOpen(true)}
           />
         )}
         {workspace === 'studio' && studioView}

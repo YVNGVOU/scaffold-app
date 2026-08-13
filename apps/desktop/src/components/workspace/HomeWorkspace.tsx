@@ -7,9 +7,10 @@ interface HomeWorkspaceProps {
   onNewPrompt: () => void;
   onNavigate: (w: WorkspaceId) => void;
   onOpenPalette: () => void;
+  onOpenImport: () => void;
 }
 
-export function HomeWorkspace({ prompts, onOpenPrompt, onNewPrompt, onNavigate, onOpenPalette }: HomeWorkspaceProps) {
+export function HomeWorkspace({ prompts, onOpenPrompt, onNewPrompt, onNavigate, onOpenPalette, onOpenImport }: HomeWorkspaceProps) {
   const recent = prompts.slice(0, 8);
   const favorites = prompts.filter((p) => p.is_favorite).slice(0, 8);
   const projectsInUse = new Set(prompts.map((p) => p.project_id).filter(Boolean)).size;
@@ -32,6 +33,9 @@ export function HomeWorkspace({ prompts, onOpenPrompt, onNewPrompt, onNavigate, 
           </button>
           <button type="button" onClick={() => onNavigate('templates')}>
             Template Library
+          </button>
+          <button type="button" onClick={onOpenImport}>
+            Import
           </button>
           <button type="button" onClick={onOpenPalette}>
             Search · ⌘K

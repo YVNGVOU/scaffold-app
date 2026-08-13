@@ -17,11 +17,12 @@ interface CommandPaletteProps {
   onCompile: () => void;
   onOpenPrompt: (p: Prompt) => void;
   onOpenSettings: () => void;
+  onOpenImport: () => void;
 }
 
 /** Real Ctrl/Cmd+K command palette: static app commands + fuzzy-ish substring
  * match over prompt titles, one flat keyboard-navigable list. */
-export function CommandPalette({ prompts, onClose, onNavigate, onNewPrompt, onCompile, onOpenPrompt, onOpenSettings }: CommandPaletteProps) {
+export function CommandPalette({ prompts, onClose, onNavigate, onNewPrompt, onCompile, onOpenPrompt, onOpenSettings, onOpenImport }: CommandPaletteProps) {
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState(0);
 
@@ -36,8 +37,9 @@ export function CommandPalette({ prompts, onClose, onNavigate, onNewPrompt, onCo
       { id: 'go-library', label: 'Go to Library', run: () => onNavigate('library') },
       { id: 'go-history', label: 'Go to History', run: () => onNavigate('history') },
       { id: 'settings', label: 'Open Settings', run: onOpenSettings },
+      { id: 'import', label: 'Import…', run: onOpenImport },
     ],
-    [onNavigate, onNewPrompt, onCompile, onOpenSettings],
+    [onNavigate, onNewPrompt, onCompile, onOpenSettings, onOpenImport],
   );
 
   const promptCommands: Command[] = useMemo(
