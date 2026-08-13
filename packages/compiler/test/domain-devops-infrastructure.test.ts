@@ -46,4 +46,34 @@ describe('devops-infrastructure domain', () => {
     );
     expect(mentionsDevopsTech).toBe(true);
   });
+
+  it('detects devops-infrastructure via newer keyword phrasings (SLO, error budget, on-call rotation)', () => {
+    const compiled = compileArchitect(
+      'Define an SLO and error budget for our platform engineering team, with an on-call rotation handled via PagerDuty for incident postmortems'
+    );
+    expect(compiled.domain).toBe('devops-infrastructure');
+  });
+
+  it('word-boundary regression: "slo" and "sla" do not falsely match inside unrelated words', () => {
+    const state = runArchitectPipeline('The gaslow furnace and Oslo trip were unrelated topics discussed casually');
+    expect(state.domain).not.toBe('devops-infrastructure');
+  });
+
+  it('ambiguity checklist recognizes a short bare answer for on-call ownership', () => {
+    const compiled = compileArchitect(
+      'Set up a CI/CD pipeline on AWS using Terraform and Kubernetes, with autoscaling and monitoring. On-call rotation.'
+    );
+    expect(compiled.domain).toBe('devops-infrastructure');
+    const compiledText = JSON.stringify(compiled);
+    expect(compiledText).not.toMatch(/on-call.*incident ownership model is unspecified/i);
+  });
+
+  it('constraint specialist flags no on-call coverage vs 24/7 uptime commitment as infeasible', () => {
+    const state = runArchitectPipeline(
+      'Our Kubernetes deployment pipeline with Terraform infrastructure as code has no on-call coverage since it is business hours only, but we need a 24/7 uptime commitment for the platform'
+    );
+    expect(state.domain).toBe('devops-infrastructure');
+    const constraintText = JSON.stringify(state.requirements);
+    expect(constraintText).toMatch(/on-call|24\/7|uptime/i);
+  });
 });

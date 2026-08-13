@@ -12,7 +12,9 @@ import type { DomainModule } from '../types.js';
 const KEYWORDS = [
   'brand', 'branding', 'branded', 'logo', 'identity', 'style guide', 'brand guidelines',
   'color palette', 'typography', 'wordmark', 'visual identity', 'rebrand', 'rebranding',
-  'brand kit', 'moodboard',
+  'brand kit', 'moodboard', 'brandmark', 'monogram', 'brand identity', 'brand strategy',
+  'brand voice', 'brand story', 'tagline', 'logotype', 'icon mark', 'favicon design',
+  'letterhead', 'business card design', 'brand refresh', 'visual language',
 ];
 
 function wordBoundaryRegex(keyword: string): RegExp {
@@ -36,22 +38,34 @@ export const brandingDomain: DomainModule = {
     { text: 'Deliver a coherent color and type system', category: 'functional' },
     { text: 'Deliverables must be provided in editable + exportable formats', category: 'constraint' },
     { text: 'Consider scalability of logo across sizes/media', category: 'preference' },
+    { text: 'Include a monochrome/single-color version of the mark for constrained-print or embossing use cases', category: 'functional' },
+    { text: 'Define minimum clear space and minimum reproduction size for the logo', category: 'constraint' },
   ],
   ambiguityChecklist: [
     {
       field: 'audience',
       description: 'Target audience/market for the brand is unspecified',
-      isResolved: (input) => /(audience|market|customers?|demographic|for (my|our|a))/i.test(input),
+      isResolved: (input) => /\b(audience|market|customers?|demographic|for (my|our|a))\b/i.test(input),
     },
     {
       field: 'deliverables',
       description: 'Expected deliverables (logo, guidelines, full kit, etc.) are unspecified',
-      isResolved: (input) => /(logo|guideline|brand kit|style guide|wordmark|assets?)/i.test(input),
+      isResolved: (input) => /\b(logo|guideline|brand kit|style guide|wordmark|assets?)\b/i.test(input),
     },
     {
       field: 'style',
       description: 'Desired style/tone (e.g. minimal, playful, luxury) is unspecified',
-      isResolved: (input) => /(minimal|playful|luxury|modern|retro|bold|elegant|professional|edgy|warm|corporate)/i.test(input),
+      isResolved: (input) => /\b(minimal|playful|luxury|modern|retro|bold|elegant|professional|edgy|warm|corporate)\b/i.test(input),
+    },
+    {
+      field: 'usage scope',
+      description: 'Where the brand will be applied (digital-only, print, packaging, signage) is unspecified',
+      isResolved: (input) => /\b(digital|print|packaging|signage|web|social media|merch(?:andise)?|app icon)\b/i.test(input),
+    },
+    {
+      field: 'reference brands',
+      description: 'No reference brands, competitors, or inspiration examples were given to anchor the visual direction',
+      isResolved: (input) => /\b(competitor|inspir(?:ation|ed by)|reference|similar to|like (?:apple|nike|airbnb)|benchmark)\b/i.test(input),
     },
   ],
   architectureTemplate: [
@@ -65,6 +79,7 @@ export const brandingDomain: DomainModule = {
     { aspect: 'color specification', note: 'Specify colors precisely (Pantone/CMYK/RGB/hex) for consistent reproduction across media', category: 'functionalRequirements' },
     { aspect: 'typography licensing', note: 'Confirm font licensing covers intended usage (web embedding, print, commercial use)', category: 'constraints' },
     { aspect: 'deliverable packaging', note: 'Consider packaging a brand guidelines document alongside raw asset files', category: 'preferences' },
+    { aspect: 'trademark clearance', note: 'Run a trademark/name-availability search before finalizing a wordmark or brand name to avoid legal conflicts and costly rebrands post-launch', category: 'constraints' },
   ],
   uxConsiderations: [
     { aspect: 'brand touchpoint hierarchy', note: 'Map where the brand appears across touchpoints (packaging, web, social, print) and prioritize which matter most to the audience', category: 'functionalRequirements' },
@@ -116,6 +131,13 @@ export const brandingDomain: DomainModule = {
       category: 'constraints',
       triggerA: /\bdigital[- ]only\b/i,
       triggerB: /\b(print|signage|packaging|cmyk)\b/i,
+    },
+    {
+      aspect: 'trademark vs launch timeline',
+      note: 'A name/mark that must clear trademark search and legal review conflicts with an immediate public launch — trademark clearance searches and registration filings take longer than same-week or next-week timelines.',
+      category: 'constraints',
+      triggerA: /\b(trademark|legal clearance|clear(?:ance)? search)\b/i,
+      triggerB: /\b(launch(?:ing)? (?:this|next) week|by tomorrow|asap|immediately)\b/i,
     },
   ],
 };

@@ -23,7 +23,13 @@ const KEYWORDS = [
   'rigidbody', 'unity physics', 'unity ui', 'ugui', 'unity package',
   'asset bundle', 'asset bundles', 'addressables', 'unity render pipeline',
   'urp', 'hdrp', 'unity animator', 'coroutine', 'nuget for unity',
-  'unity asset store', 'il2cpp', 'unity cloud build',
+  'unity asset store', 'il2cpp', 'unity cloud build', 'shader graph',
+  'cinemachine', 'unity timeline', 'unity navmesh', 'nav mesh agent',
+  'unity terrain', 'unity input system', 'netcode for gameobjects',
+  'unity dots', 'unity ecs', 'burst compiler', 'unity job system',
+  'unity visual scripting', 'unity vfx graph', 'unity post-processing',
+  'unity xr toolkit', 'unity ar foundation', 'unity test runner',
+  'unity localization package',
 ];
 
 function wordBoundaryRegex(keyword: string): RegExp {
@@ -70,6 +76,11 @@ export const unityDomain: DomainModule = {
       description: 'Scripting backend (Mono vs IL2CPP) and .NET API compatibility level are unspecified',
       isResolved: (input) => /\b(il2cpp|mono|\.net (standard|framework))\b/i.test(input),
     },
+    {
+      field: 'networkingFramework',
+      description: 'Multiplayer networking framework (Netcode for GameObjects, Mirror, Photon, etc.) is unspecified for a networked/multiplayer project',
+      isResolved: (input) => /\b(netcode( for gameobjects)?|mirror networking|photon( fusion| pun)?|fishnet|dedicated server|peer-?to-?peer|client-?server|single-?player|singleplayer)\b/i.test(input),
+    },
   ],
   architectureTemplate: [
     { component: 'scene hierarchy', dependsOn: [], note: 'Scene layout and load/unload flow (single-scene vs additive scene loading)' },
@@ -86,6 +97,8 @@ export const unityDomain: DomainModule = {
     { aspect: 'asset pipeline', note: 'Define asset import settings, compression, and delivery strategy (Addressables/AssetBundles) to control build size and load times', category: 'functionalRequirements' },
     { aspect: 'build targets', note: 'Confirm each target platform\'s scripting backend (Mono vs IL2CPP), API compatibility level, and platform-specific SDK requirements', category: 'constraints' },
     { aspect: 'performance profiling', note: 'Plan to profile with the Unity Profiler/Frame Debugger against a target frame budget rather than optimizing blind', category: 'preferences' },
+    { aspect: 'networking framework', note: 'Pick a multiplayer stack (Netcode for GameObjects, Mirror, Photon Fusion) up front — client-server topology, transport, and object-ownership model are foundational and expensive to swap once gameplay code depends on them', category: 'constraints' },
+    { aspect: 'garbage collection', note: 'Avoid per-frame heap allocations (LINQ in Update loops, string concatenation, boxing) that trigger the Boehm/incremental GC and cause frame-time spikes on mobile and console targets', category: 'constraints' },
   ],
   uxConsiderations: [
     { aspect: 'input handling', note: 'Decide between the legacy Input Manager and the new Input System package, and design a remappable control scheme', category: 'functionalRequirements' },
@@ -100,6 +113,7 @@ export const unityDomain: DomainModule = {
     { aspect: 'asset tampering', note: 'Consider integrity checks for downloadable Addressables/AssetBundles to prevent tampered content injection at runtime', category: 'preferences' },
     { aspect: 'IL2CPP obfuscation', note: 'Evaluate whether IL2CPP alone is sufficient protection against reverse-engineering, or whether additional code obfuscation is warranted for sensitive logic', category: 'preferences' },
     { aspect: 'unsafe assumptions', note: 'Flag any implicit assumption that the compiled build cannot be decompiled/modified by end users, which is false without additional hardening', category: 'preferences' },
+    { aspect: 'save data trust', note: 'Do not trust locally-stored save files or PlayerPrefs as tamper-proof — validate or checksum save data server-side wherever it affects competitive standing or economy state', category: 'constraints' },
   ],
   creativeConsiderations: [
     { aspect: 'visual direction', note: 'Establish an art direction (lighting mood, material/shader style, palette) compatible with the chosen render pipeline before production assets are built', category: 'preferences' },

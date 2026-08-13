@@ -18,6 +18,13 @@ const KEYWORDS = [
   'residential architecture', 'commercial architecture', 'architect',
   'archicad', 'revit', 'autocad', 'sketchup', 'bim model',
   'lighting plan', 'furniture, fixtures, and equipment', 'ffe',
+  'open floor plan', 'kitchen remodel', 'bathroom remodel',
+  'tenant improvement', 'space program', 'adjacency diagram',
+  'reflected ceiling plan', 'schematic design', 'design development',
+  'construction documents', 'punch list', 'as-built drawings',
+  'occupant load', 'egress width', 'universal design', 'passive house',
+  'leed certification', 'net zero building', 'historic preservation',
+  'landmark building',
 ];
 
 function wordBoundaryRegex(keyword: string): RegExp {
@@ -76,6 +83,16 @@ export const architectureInteriorDomain: DomainModule = {
       description: 'Whether the space must meet ADA or other accessibility standards is unspecified',
       isResolved: (input) => /\b(ada|accessib\w*|wheelchair|universal\s+design)\b/i.test(input),
     },
+    {
+      field: 'project timeline',
+      description: 'The desired schedule or delivery deadline for design/construction is unspecified',
+      isResolved: (input) => /\b(deadline|timeline|by\s+(?:next|this)\s+\w+|\d+\s*-?\s*(week|month)s?\b|move-?in\s+date|completion\s+date)\b/i.test(input),
+    },
+    {
+      field: 'design style / aesthetic direction',
+      description: 'The intended aesthetic direction (modern, traditional, industrial, minimalist, etc.) is unspecified',
+      isResolved: (input) => /\b(modern|traditional|industrial|minimalist|contemporary|rustic|mid-?century|scandinavian|transitional|farmhouse|aesthetic|design\s+style)\b/i.test(input),
+    },
   ],
   architectureTemplate: [
     { component: 'site and zoning analysis', dependsOn: [], note: 'Confirm zoning district, setbacks, height limits, and lot coverage allowances before design begins' },
@@ -98,6 +115,9 @@ export const architectureInteriorDomain: DomainModule = {
     { aspect: 'CAD/BIM software workflow', note: 'Standardize on a modeling platform (Revit, ArchiCAD, AutoCAD, SketchUp) and file format for coordination between architect, engineer, and contractor', category: 'preferences' },
     { aspect: 'ceiling height and clearances', note: 'Verify finished ceiling height after ductwork, insulation, and lighting fixtures still meets code minimums and design intent', category: 'constraints' },
     { aspect: 'moisture and vapor barrier detailing', note: 'Specify vapor barrier and waterproofing details at wet areas (bathrooms, kitchens, exteriors) to prevent mold and structural damage', category: 'functionalRequirements' },
+    { aspect: 'existing conditions survey', note: 'For renovation/remodel work, commission an as-built measured survey rather than relying on original drawings, since field conditions frequently diverge from historical plans', category: 'constraints' },
+    { aspect: 'energy code and sustainability compliance', note: 'Verify envelope, glazing, and mechanical systems meet the applicable energy code (IECC, Title 24, or local equivalent), and flag if a LEED/passive-house/net-zero target is stated since that drives additional documentation and commissioning', category: 'constraints' },
+    { aspect: 'low-voltage, data, and equipment power requirements', note: 'Coordinate low-voltage cabling, dedicated circuits, and equipment power/data drops (kitchen equipment, AV, workstations) before walls and ceilings close, since retrofitting is disruptive and costly', category: 'functionalRequirements' },
   ],
   uxConsiderations: [
     { aspect: 'circulation and wayfinding', note: 'Design clear circulation paths and sightlines so occupants intuitively find entries, exits, and key spaces without signage dependency', category: 'functionalRequirements' },
@@ -160,6 +180,13 @@ export const architectureInteriorDomain: DomainModule = {
       category: 'constraints',
       triggerA: /\b(high\s+occupancy|large\s+crowd|hundreds\s+of\s+(?:people|guests|attendees))\b/i,
       triggerB: /\b(single\s+exit|one\s+exit|only\s+one\s+door|single\s+entry\/exit)\b/i,
+    },
+    {
+      aspect: 'historic preservation vs open modern renovation',
+      note: 'A historic/landmark-designated building alongside a request for an open floor plan or removal of original architectural elements is a known-infeasible combination — preservation review boards typically restrict alterations to street-facing facades, original layouts, and character-defining features.',
+      category: 'constraints',
+      triggerA: /\b(historic\s+preservation|landmark\s+building|historic(?:al)?\s+building|heritage\s+building)\b/i,
+      triggerB: /\b(open\s+floor\s+plan|remove\s+(?:the\s+)?original|gut\s+renovation|modernize\s+completely)\b/i,
     },
   ],
 };

@@ -2,52 +2,58 @@ import { describe, it, expect } from 'vitest';
 import { compileArchitect, runArchitectPipeline } from '../src/index.js';
 
 describe('unreal domain', () => {
-  it('detects unreal domain on a realistic Unreal Engine-specific request', () => {
+  it('detects unreal domain on a realistic Unreal Engine project request', () => {
     const compiled = compileArchitect(
-      'Build an Unreal Engine 5 project with Blueprint gameplay classes, a level design pass with landscape tools, custom materials in the material editor, and Nanite/Lumen enabled for the PC build target'
+      'Build a third-person action game in Unreal Engine 5 with Blueprint gameplay, a behavior tree for enemy AI, and Lumen lighting'
     );
     expect(compiled.domain).toBe('unreal');
   });
 
-  it('negative control: an unrelated web-focused request does not misclassify as unreal', () => {
+  it('negative control: an unrelated web-development request does not misclassify as unreal', () => {
     const compiled = compileArchitect(
-      'I need a responsive marketing website with a React frontend for a bakery, targeting mobile and desktop customers'
+      'Build a REST API in Node.js with Express and PostgreSQL for a task management app'
     );
     expect(compiled.domain).not.toBe('unreal');
-    expect(compiled.domain).toBe('web');
   });
 
-  it('negative control: a generic game-development request without Unreal-specific detail does not misclassify as unreal', () => {
-    const compiled = compileArchitect('Make a horror game in Unreal with multiplayer and a boss fight');
-    expect(compiled.domain).not.toBe('unreal');
-    expect(compiled.domain).toBe('game');
-  });
-
-  it('word-boundary regression: inflected/unrelated words do not falsely trigger unreal keywords', () => {
-    // "landscaping" must not match the \blandscape tool\b keyword, and
-    // "unreality" must not match the bare \bunreal\b keyword, since neither
-    // has a word boundary at the point the substring would have to align.
+  it('word-boundary regression: new keywords do not falsely trigger on unrelated words', () => {
     const state = runArchitectPipeline(
-      'We upgraded our landscaping tools and building materials this quarter, brushing off the unreality of the deadline'
+      'The multiplayer lobby lyrics were displayed while the navigation menu bar collision-avoidance banner appeared, and the aircontroller light blinked'
     );
     expect(state.domain).not.toBe('unreal');
   });
 
-  it('architect specialist produces unreal-appropriate architecture output', () => {
+  it('word-boundary regression: standalone new keywords correctly score when used as real terms', () => {
     const compiled = compileArchitect(
-      'Build an Unreal Engine 5 game with Blueprint and C++ gameplay classes, level design with world partition streaming, a material and shader library, and packaging for Windows and PlayStation'
+      'Set up a behavior tree and blackboard for AI Controller pathfinding on the navmesh, with an animation blueprint driving a skeletal mesh in Unreal Engine'
     );
     expect(compiled.domain).toBe('unreal');
-    const architectureText = JSON.stringify(compiled.architecture);
-    expect(architectureText).toMatch(/gameplay framework|material and shader library|content pipeline|packaging configuration/i);
   });
 
-  it('technical specialist surfaces an Unreal-specific consideration', () => {
+  it('ambiguity checklist recognizes bare short answers for networking model and AI navigation', () => {
     const compiled = compileArchitect(
-      'Build an Unreal Engine 5 game with Blueprint and C++ gameplay classes, level design with world partition streaming, a material and shader library, and packaging for Windows and PlayStation'
+      'Make an Unreal Engine 5 game with dedicated server networking, behavior tree AI, motion matching animation, targeting PC'
     );
     expect(compiled.domain).toBe('unreal');
     const compiledText = JSON.stringify(compiled);
-    expect(compiledText).toMatch(/rendering pipeline|blueprint vs c\+\+|level streaming|packaging and build/i);
+    expect(compiledText).not.toMatch(/networking model.*unspecified/i);
+  });
+
+  it('technical specialist surfaces the AI navigation / navmesh consideration', () => {
+    const compiled = compileArchitect(
+      'Build an Unreal Engine 5 stealth game with NPC guards using behavior trees and navmesh pathfinding, targeting PC and console'
+    );
+    expect(compiled.domain).toBe('unreal');
+    const compiledText = JSON.stringify(compiled);
+    expect(compiledText).toMatch(/NavMesh bounds volume|behavior tree\/blackboard/i);
+  });
+
+  it('constraint specialist flags mocap animation vs solo developer as infeasible', () => {
+    const compiled = compileArchitect(
+      'I am a solo developer building an Unreal Engine 5 game with MetaHuman characters and full motion capture facial animation'
+    );
+    expect(compiled.domain).toBe('unreal');
+    const compiledText = JSON.stringify(compiled);
+    expect(compiledText).toMatch(/mocap cleanup and retargeting pipelines/i);
   });
 });

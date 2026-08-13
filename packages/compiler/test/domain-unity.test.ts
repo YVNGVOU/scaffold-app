@@ -45,4 +45,37 @@ describe('unity domain', () => {
     const compiledText = JSON.stringify(compiled);
     expect(compiledText).toMatch(/render pipeline|scripting backend|build targets|unity version/i);
   });
+
+  it('detects unity domain via newly added keywords (Cinemachine, Shader Graph, DOTS/ECS)', () => {
+    const compiled = compileArchitect(
+      'Build a Unity game using Cinemachine for camera work, Shader Graph for stylized materials, and Unity DOTS/ECS with the Burst compiler for large-scale unit simulation'
+    );
+    expect(compiled.domain).toBe('unity');
+  });
+
+  it('word-boundary regression: new keywords do not false-positive inside unrelated words', () => {
+    // "burst" inside "burst of energy", "dots" inside "connect the dots", "terrain" without "unity"
+    const state = runArchitectPipeline(
+      'The startup had a sudden burst of energy connecting the dots between rugged terrain photography and community art'
+    );
+    expect(state.domain).not.toBe('unity');
+  });
+
+  it('ambiguity checklist recognizes a bare short answer for networking framework', () => {
+    const compiled = compileArchitect(
+      'Build a Unity3D multiplayer game with prefabs, MonoBehaviour scripting, and scene management. Networking: Photon Fusion.'
+    );
+    expect(compiled.domain).toBe('unity');
+    const compiledText = JSON.stringify(compiled);
+    expect(compiledText).not.toMatch(/networking framework.{0,120}unspecified for a networked/i);
+  });
+
+  it('surfaces new networking and GC-related technical/security considerations', () => {
+    const compiled = compileArchitect(
+      'Build a Unity3D game with a prefab-based enemy system, MonoBehaviour scripting, scene management for multiple levels, an asset pipeline using Addressables, and build targets for Windows and WebGL with URP rendering'
+    );
+    expect(compiled.domain).toBe('unity');
+    const compiledText = JSON.stringify(compiled);
+    expect(compiledText).toMatch(/netcode for gameobjects|mirror|photon fusion|garbage collect|per-frame heap allocations|save data|playerprefs/i);
+  });
 });

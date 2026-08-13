@@ -2,47 +2,58 @@ import { describe, it, expect } from 'vitest';
 import { compileArchitect, runArchitectPipeline } from '../src/index.js';
 
 describe('education domain', () => {
-  it('education domain detected on canonical education example', () => {
+  it('detects education domain on a realistic online course request', () => {
     const compiled = compileArchitect(
-      'Design an online course with a lesson plan, learning objectives, and a quiz to assess students at a beginner skill level'
+      'Design an online course for beginner students covering JavaScript basics, with lesson plans, quizzes, and a certificate of completion'
     );
     expect(compiled.domain).toBe('education');
   });
 
-  it('negative control: unrelated web request does not misclassify as education', () => {
-    const compiled = compileArchitect('I need a responsive website with a React frontend and an API backend');
+  it('negative control: an unrelated software-development request does not misclassify as education', () => {
+    const compiled = compileArchitect(
+      'Build a CLI tool in Rust that parses log files and outputs aggregated metrics to a local SQLite database'
+    );
     expect(compiled.domain).not.toBe('education');
   });
 
-  it('negative control: bare substring inside unrelated words does not misclassify as education', () => {
-    // Word-boundary safety check, mirroring TASK-006's 'multiplayer'/'api' regressions.
-    // Bare 'course' or 'exam' matching inside unrelated words (e.g. "intercourse",
-    // "examine") must not inflate the education score.
-    const state = runArchitectPipeline('We need to examine the intercourse of trade routes across the continent for our history documentary');
+  it('word-boundary regression: new keywords do not falsely trigger on unrelated substrings', () => {
+    const state = runArchitectPipeline(
+      'The alms distribution program and the algorithms lecture were unrelated topics discussed at the town hall'
+    );
     expect(state.domain).not.toBe('education');
   });
 
-  it('architect specialist produces education-appropriate output when this domain is detected', () => {
-    const state = runArchitectPipeline(
-      'Build a beginner course teaching students Python basics, with lessons and a final quiz to assess mastery of learning objectives'
+  it('detects education domain using new employee-training phrasing', () => {
+    const compiled = compileArchitect(
+      'Build an employee training program with an LMS-hosted onboarding module, a question bank, and a gradebook for managers to track completion'
     );
-    expect(state.domain).toBe('education');
-    const architectureItems = state.requirements.filter((r) => r.source === 'architect-specialist');
-    expect(architectureItems.length).toBeGreaterThan(0);
-    const mentionsCurriculum = architectureItems.some(
-      (r) => r.text.toLowerCase().includes('curriculum') || r.text.toLowerCase().includes('lesson') || r.text.toLowerCase().includes('assessment')
-    );
-    expect(mentionsCurriculum).toBe(true);
+    expect(compiled.domain).toBe('education');
   });
 
-  it('technical specialist produces education-appropriate output when this domain is detected', () => {
-    const state = runArchitectPipeline(
-      'Create a self-paced training module with quizzes for new employees, delivered through an LMS'
+  it('ambiguity checklist recognizes bare short answers for delivery timeline and credential fields', () => {
+    const compiled = compileArchitect(
+      'Create a course for intermediate learners about data analysis, self-paced, with a certificate at the end, assessed via quizzes'
     );
-    expect(state.domain).toBe('education');
-    const technicalItems = state.requirements.filter((r) => r.source === 'technical-specialist');
-    expect(technicalItems.length).toBeGreaterThan(0);
-    const mentionsEducationTech = technicalItems.some((r) => /platform|LMS|scoring|grading|content format/i.test(r.text));
-    expect(mentionsEducationTech).toBe(true);
+    expect(compiled.domain).toBe('education');
+    const unresolvedText = (compiled.ambiguities ?? []).map((a) => a.text).join(' | ');
+    expect(unresolvedText).not.toMatch(/delivery.*timeline|completion credential/i);
+  });
+
+  it('surfaces the self-paced vs proctored exam constraint conflict', () => {
+    const compiled = compileArchitect(
+      'Create a fully self-paced online course with a proctored final exam required for certification'
+    );
+    expect(compiled.domain).toBe('education');
+    const compiledText = JSON.stringify(compiled);
+    expect(compiledText).toMatch(/proctor/i);
+  });
+
+  it('technical specialist surfaces SCORM/xAPI packaging consideration for LMS-hosted content', () => {
+    const compiled = compileArchitect(
+      'Design a training module to be hosted inside our company LMS, with progress tracking reported back to the LMS'
+    );
+    expect(compiled.domain).toBe('education');
+    const compiledText = JSON.stringify(compiled);
+    expect(compiledText).toMatch(/SCORM|xAPI|Tin Can/i);
   });
 });

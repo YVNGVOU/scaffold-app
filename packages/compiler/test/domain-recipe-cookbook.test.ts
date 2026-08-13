@@ -4,7 +4,7 @@ import { compileArchitect, runArchitectPipeline } from '../src/index.js';
 describe('recipe-cookbook domain', () => {
   it('detects recipe-cookbook domain on a realistic cookbook request', () => {
     const compiled = compileArchitect(
-      'Write a cookbook of 20 recipes with ingredient lists, step-by-step instructions, serving size, and vegan dietary variations for each recipe'
+      'Write a cookbook of weeknight recipes with ingredient lists, step-by-step instructions, yield and prep time, and gluten-free recipe variations'
     );
     expect(compiled.domain).toBe('recipe-cookbook');
   });
@@ -16,40 +16,33 @@ describe('recipe-cookbook domain', () => {
     expect(compiled.domain).not.toBe('recipe-cookbook');
   });
 
-  it('word-boundary regression: unrelated words do not falsely trigger recipe-cookbook keywords', () => {
-    const state = runArchitectPipeline('The cook was preparing to book a table at a restaurant next to the menu stand');
+  it('disambiguation: a restaurant menu design request does not misclassify as recipe-cookbook', () => {
+    const compiled = compileArchitect(
+      'Design a restaurant menu with sections for appetizers, entrees, and drinks, with item descriptions and pricing layout'
+    );
+    expect(compiled.domain).not.toBe('recipe-cookbook');
+  });
+
+  it('word-boundary regression: new keywords do not false-positive on unrelated words', () => {
+    const state = runArchitectPipeline(
+      'The multiplayer game blog had a roundup of the weeknights team stayed late testing kitchen sinks for a plumbing app'
+    );
     expect(state.domain).not.toBe('recipe-cookbook');
   });
 
-  it('disambiguation: a restaurant menu design request classifies as menu-design, not recipe-cookbook', () => {
+  it('detects new keyword phrasings like recipe development and food blog', () => {
     const compiled = compileArchitect(
-      'Design a restaurant menu with a food menu and drink menu section, item descriptions, and pricing layout for a bistro'
-    );
-    expect(compiled.domain).toBe('menu-design');
-  });
-
-  it('disambiguation: a recipe/cookbook request classifies as recipe-cookbook, not menu-design', () => {
-    const compiled = compileArchitect(
-      'Compile a recipe collection cookbook with ingredient lists, cooking instructions, prep time, and gluten-free recipe substitutions'
+      'I need help with recipe development for my food blog, including a recipe roundup of family recipes with allergen labeling'
     );
     expect(compiled.domain).toBe('recipe-cookbook');
   });
 
-  it('architect specialist produces recipe-cookbook-appropriate architecture output', () => {
+  it('architect specialist surfaces equipment/component-recipe considerations', () => {
     const compiled = compileArchitect(
-      'Create a recipe collection cookbook with ingredient lists, step-by-step cooking instructions, yield and serving size, dietary variation notes, and food photography for each recipe'
-    );
-    expect(compiled.domain).toBe('recipe-cookbook');
-    const architectureText = JSON.stringify(compiled.architecture);
-    expect(architectureText).toMatch(/ingredient list|recipe testing|food photography|dietary variation/i);
-  });
-
-  it('technical specialist surfaces a recipe-cookbook-specific consideration', () => {
-    const compiled = compileArchitect(
-      'Create a recipe collection cookbook with ingredient lists, step-by-step cooking instructions, yield and serving size, dietary variation notes, and food photography for each recipe'
+      'Write a baking cookbook of kitchen-tested recipes for beginners, each recipe with ingredient list, step-by-step instructions, and yield, serves 8, using only basic kitchen equipment'
     );
     expect(compiled.domain).toBe('recipe-cookbook');
     const compiledText = JSON.stringify(compiled);
-    expect(compiledText).toMatch(/measurement consistency|unit conversion|recipe scaling|nutritional data/i);
+    expect(compiledText).toMatch(/equipment|component-recipe|altitude/i);
   });
 });

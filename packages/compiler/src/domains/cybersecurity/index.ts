@@ -19,6 +19,11 @@ const KEYWORDS = [
   'iso 27001', 'pci-dss', 'pci dss', 'siem rules', 'ids/ips', 'firewall rules',
   'privilege escalation', 'lateral movement', 'attack surface',
   'security hardening', 'infosec', 'cybersecurity', 'cyber security',
+  'threat intelligence', 'threat intel', 'endpoint detection', 'edr', 'xdr',
+  'zero trust', 'sql injection', 'cross-site scripting', 'dast', 'sast',
+  'patch management', 'ransomware', 'data breach', 'phishing test',
+  'attack simulation', 'wireless security assessment', 'risk assessment',
+  'compliance audit', 'security posture', 'network security assessment',
 ];
 
 function wordBoundaryRegex(keyword: string): RegExp {
@@ -45,6 +50,8 @@ export const cybersecurityDomain: DomainModule = {
     { text: 'Sensitive findings (credentials, PII, exploit details) must be handled and stored per an agreed confidentiality/data-handling standard', category: 'constraint' },
     { text: 'Maintain an audit trail/log of all testing activity performed (what, when, by whom) for accountability', category: 'functional' },
     { text: 'Distinguish clearly between defensive (hardening, detection) and offensive (exploitation, red-team) work in scope and deliverables', category: 'preference' },
+    { text: 'Define an emergency communication path (out-of-band contact) for critical findings discovered mid-engagement, separate from the final report cadence', category: 'functional' },
+    { text: 'Specify the testing methodology (black-box, white-box, or gray-box) so tooling access and reconnaissance effort are scoped correctly up front', category: 'preference' },
   ],
   ambiguityChecklist: [
     {
@@ -77,6 +84,11 @@ export const cybersecurityDomain: DomainModule = {
       description: 'How sensitive data encountered during testing (credentials, PII, production secrets) will be handled/stored/destroyed is unspecified',
       isResolved: (input) => /\b(sensitive\s+data|pii|credentials?\s+handling|data\s+destruction|secure\s+storage\s+of\s+findings)\b/i.test(input),
     },
+    {
+      field: 'testing methodology',
+      description: 'Whether testing is black-box (no prior knowledge), white-box (full access/source), or gray-box (partial knowledge, e.g. limited credentials) is unspecified',
+      isResolved: (input) => /\b(black[- ]?box|white[- ]?box|gray[- ]?box|grey[- ]?box|no\s+prior\s+knowledge|full\s+source\s+access|credentialed\s+scan)\b/i.test(input),
+    },
   ],
   architectureTemplate: [
     { component: 'rules of engagement document', dependsOn: [], note: 'Signed scope-and-authorization document defining in-scope targets, excluded systems, testing window, and emergency stop procedure — must exist before any technical work' },
@@ -98,6 +110,8 @@ export const cybersecurityDomain: DomainModule = {
     { aspect: 'safe exploitation practices', note: 'Prefer proof-of-concept/non-destructive exploitation techniques (e.g. read-only proof over data exfiltration) unless full exploitation impact is explicitly authorized', category: 'constraints' },
     { aspect: 'network segmentation awareness', note: 'Understand target network segmentation before testing lateral movement/privilege escalation paths so testing does not inadvertently cross into an unauthorized segment', category: 'constraints' },
     { aspect: 'patch/CVE tracking', note: 'Cross-reference discovered software versions against current CVE databases (NVD) to identify known, unpatched vulnerabilities', category: 'functionalRequirements' },
+    { aspect: 'SAST/DAST pipeline placement', note: 'Static analysis (SAST) belongs in the CI/CD pipeline pre-merge to catch code-level flaws like SQL injection or XSS early, while dynamic analysis (DAST) requires a running instance and is better suited to staging or a dedicated test environment', category: 'functionalRequirements' },
+    { aspect: 'EDR/XDR data volume', note: 'Endpoint/extended detection tooling generates high-volume telemetry; plan retention and query-cost budgets before rollout rather than discovering storage/licensing limits after deployment', category: 'constraints' },
   ],
   uxConsiderations: [
     { aspect: 'report readability for non-technical stakeholders', note: 'Provide an executive summary in plain language alongside technical detail, since findings are often read by non-technical decision-makers who approve remediation budget', category: 'preferences' },
@@ -159,6 +173,13 @@ export const cybersecurityDomain: DomainModule = {
       category: 'constraints',
       triggerA: /\b(pci[- ]?dss|soc\s*2|iso\s*27001)\b/i,
       triggerB: /\b(guarantee\s+certification|will\s+certify|makes?\s+us\s+compliant|grant\s+certification)\b/i,
+    },
+    {
+      aspect: 'ransomware readiness vs no backups',
+      note: 'Requesting ransomware readiness/incident response planning while also stating backups are missing or untested is a high-risk combination — an incident response plan cannot deliver a viable recovery path without verified, isolated backups to restore from, so backup remediation should be treated as a prerequisite, not a parallel task.',
+      category: 'constraints',
+      triggerA: /\b(ransomware|incident\s+response\s+plan)\b/i,
+      triggerB: /\b(no\s+backups?|backups?\s+(?:aren'?t|are\s+not)\s+(?:tested|working)|don'?t\s+have\s+backups?)\b/i,
     },
   ],
 };

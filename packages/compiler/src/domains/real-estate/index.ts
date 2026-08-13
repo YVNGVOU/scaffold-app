@@ -11,7 +11,13 @@ const KEYWORDS = [
   'lease', 'leasing', 'tenant', 'landlord', 'escrow', 'closing disclosure',
   'square footage', 'comps', 'comparative market analysis', 'open house',
   'brokerage', 'appraisal', 'title company', 'homebuyer', 'rezoning',
-  'zoning', 'multiple listing service',
+  'zoning', 'multiple listing service', 'showing', 'showings',
+  'walk score', 'hoa fees', 'school district', 'pre-approval', 'preapproval',
+  'earnest money', 'due diligence period', 'seller disclosure',
+  'virtual tour', 'floor plan', 'days on market', 'price per square foot',
+  'cma report', 'rent roll', 'cap rate', 'listing agent', 'buyer\'s agent',
+  'commercial real estate', 'residential real estate', 'reso web api',
+  'rets feed',
 ];
 
 function wordBoundaryRegex(keyword: string): RegExp {
@@ -52,17 +58,27 @@ export const realEstateDomain: DomainModule = {
     {
       field: 'geographic scope',
       description: 'Geographic coverage area (single market, statewide, national) is unspecified',
-      isResolved: (input) => /\b(city|county|state|nationwide|region|metro|zip code|market area)\b/i.test(input),
+      isResolved: (input) => /\b(city|county|state|nationwide|region|metro|zip code|market area|local(ly)?|statewide)\b/i.test(input),
     },
     {
       field: 'transaction type',
       description: 'Whether the platform covers sales, rentals/leasing, or property management is unspecified',
-      isResolved: (input) => /\b(for sale|rentals?|leasing|property management|buy|sell|rent)\b/i.test(input),
+      isResolved: (input) => /\b(for sale|rentals?|leasing|property management|buy|sell|rent|sales|residential sale|commercial lease)\b/i.test(input),
     },
     {
       field: 'compliance scope',
       description: 'Regulatory compliance requirements (fair housing, RESPA, state licensing disclosures) are unspecified',
       isResolved: (input) => /\b(fair housing|respa|disclosure|licens(e|ing)|compliance|regulation)\b/i.test(input),
+    },
+    {
+      field: 'property type coverage',
+      description: 'Which property types are supported (single-family, condo/multi-family, land, commercial) is unspecified',
+      isResolved: (input) => /\b(single[- ]family|condo(minium)?s?|multi[- ]family|land|lots?|commercial|residential|townhomes?|new construction)\b/i.test(input),
+    },
+    {
+      field: 'monetization model',
+      description: 'How the platform generates revenue (agent subscriptions, listing fees, referral/lead fees, ad-supported) is unspecified',
+      isResolved: (input) => /\b(subscription|listing fee|referral fee|lead fee|commission split|ad[- ]supported|free to list|pay per lead)\b/i.test(input),
     },
   ],
   architectureTemplate: [
@@ -85,6 +101,9 @@ export const realEstateDomain: DomainModule = {
     { aspect: 'third-party valuation APIs', note: 'Consider integrating AVM (automated valuation model) data (e.g. Zestimate-equivalent) if estimated value display is required', category: 'preferences' },
     { aspect: 'data deduplication', note: 'Handle duplicate listings across multiple MLS boards or syndication feeds for the same property', category: 'functionalRequirements' },
     { aspect: 'scalability', note: 'Plan for regional expansion (multiple MLS regions) without hardcoding a single board\'s schema', category: 'preferences' },
+    { aspect: 'RESO Data Dictionary compliance', note: 'Map incoming feed fields to the RESO Data Dictionary standard field names so the schema is portable across MLS boards rather than coupled to one board\'s custom field naming', category: 'constraints' },
+    { aspect: 'showing scheduling integration', note: 'Integrate with a showing-management system (e.g. ShowingTime-equivalent) if agents need to coordinate showing requests and lockbox access rather than building scheduling from scratch', category: 'preferences' },
+    { aspect: 'status change webhooks', note: 'Use MLS feed webhooks/polling with a defined SLA (e.g. 15-minute sync) rather than nightly batch sync, since price and status changes are time-sensitive to buyers', category: 'functionalRequirements' },
   ],
   uxConsiderations: [
     { aspect: 'search and filters', note: 'Provide intuitive filtering by price, beds/baths, property type, and radius/map-drawn search area', category: 'functionalRequirements' },
@@ -94,6 +113,8 @@ export const realEstateDomain: DomainModule = {
     { aspect: 'photo gallery experience', note: 'Design a fast, swipeable photo/virtual-tour viewer since listing photos are the primary decision driver', category: 'functionalRequirements' },
     { aspect: 'mobile-first browsing', note: 'Optimize for mobile since a large share of property search traffic is on-the-go/mobile', category: 'constraints' },
     { aspect: 'agent contact flow', note: 'Make contacting the listing agent or requesting a showing low-friction without excessive form fields', category: 'preferences' },
+    { aspect: 'price change visibility', note: 'Surface price history and price-drop indicators clearly so buyers can spot negotiation signals without digging through a details tab', category: 'preferences' },
+    { aspect: 'comparison/shortlist workflow', note: 'Let buyers shortlist and side-by-side compare properties (price, beds/baths, HOA, days on market) since real estate decisions rarely happen on a single listing view', category: 'functionalRequirements' },
   ],
   securityConsiderations: [
     { aspect: 'fair housing compliance', note: 'Ensure search/filter features cannot be used to discriminate on protected classes (familial status, race, religion, etc.) per the Fair Housing Act', category: 'constraints' },
@@ -103,6 +124,8 @@ export const realEstateDomain: DomainModule = {
     { aspect: 'API data scraping', note: 'Enforce MLS data-license terms prohibiting unauthorized scraping/redistribution of syndicated listing data', category: 'constraints' },
     { aspect: 'seller privacy', note: 'Avoid exposing seller identity or exact showing schedules to unauthenticated users beyond what MLS rules permit', category: 'preferences' },
     { aspect: 'payment/escrow security', note: 'If handling earnest money or transaction payments, use a licensed escrow/title partner rather than direct fund handling', category: 'constraints' },
+    { aspect: 'wire fraud / BEC protection', note: 'Warn users about wire-fraud scams targeting closing funds (spoofed wiring instructions) and never transmit wiring instructions via unauthenticated email/chat channels', category: 'constraints' },
+    { aspect: 'tenant screening data (FCRA)', note: 'If tenant background/credit checks are part of the flow, handle screening reports under FCRA requirements (adverse action notices, permissible purpose, secure storage)', category: 'constraints' },
   ],
   creativeConsiderations: [
     { aspect: 'listing photography presentation', note: 'Design a gallery/hero-image treatment that makes listing photos the visual centerpiece, not an afterthought', category: 'preferences' },
@@ -120,6 +143,8 @@ export const realEstateDomain: DomainModule = {
     { aspect: 'edge case: incomplete listing', note: 'Test rendering of listings missing photos, price, or key fields so the UI degrades gracefully rather than breaking', category: 'preferences' },
     { aspect: 'geocoding accuracy', note: 'Verify map pins match the actual property address, especially for new construction or rural addresses with imprecise geocoding', category: 'functionalRequirements' },
     { aspect: 'cross-MLS duplicate check', note: 'Test that the same property syndicated from multiple sources does not appear as duplicate listings', category: 'functionalRequirements' },
+    { aspect: 'fair housing filter combination check', note: 'Test that no combination of otherwise-legitimate filters (e.g. school district plus proximity plus price band) can be used as a proxy to redline a protected class', category: 'constraints' },
+    { aspect: 'timezone/DST for showing times', note: 'Verify showing schedule and open-house times display correctly across timezones and around DST transitions so agents and buyers do not show up at the wrong time', category: 'functionalRequirements' },
   ],
   constraintConsiderations: [
     {
@@ -142,6 +167,13 @@ export const realEstateDomain: DomainModule = {
       category: 'constraints',
       triggerA: /\b(by tomorrow|this week|in (?:a|one) day|overnight|asap)\b/i,
       triggerB: /\b(multi-mls|multiple mls|reso|rets|mls integration)\b/i,
+    },
+    {
+      aspect: 'nationwide coverage vs. single developer',
+      note: 'Nationwide or multi-state listing coverage built by a single developer/small team is infeasible in the near term — each MLS board requires a separate data agreement, schema mapping, and compliance review, so scope should start with one market.',
+      category: 'constraints',
+      triggerA: /\b(nationwide|all 50 states|coast to coast|every state)\b/i,
+      triggerB: /\b(solo|one developer|small team|just me|indie)\b/i,
     },
   ],
 };

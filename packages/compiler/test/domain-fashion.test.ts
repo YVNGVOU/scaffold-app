@@ -2,40 +2,63 @@ import { describe, it, expect } from 'vitest';
 import { compileArchitect, runArchitectPipeline } from '../src/index.js';
 
 describe('fashion domain', () => {
-  it('detects fashion domain on a realistic Fashion Design request', () => {
+  it('detects fashion domain on a realistic apparel brand request', () => {
     const compiled = compileArchitect(
-      'Design a Spring/Summer capsule collection of womenswear dresses in cotton and linen, with a size run from XS to XL and small-batch manufacturing at a contemporary price point'
+      'Design a streetwear clothing brand capsule wardrobe with a lookbook and a tech pack for a cut and sew manufacturer'
     );
     expect(compiled.domain).toBe('fashion');
   });
 
   it('negative control: an unrelated software-development request does not misclassify as fashion', () => {
     const compiled = compileArchitect(
-      'Build a REST API backend service in Node.js with a PostgreSQL database and JWT authentication for a task management app'
+      'Build a CLI tool in Rust that parses log files and outputs aggregated metrics to a local SQLite database'
     );
     expect(compiled.domain).not.toBe('fashion');
   });
 
-  it('word-boundary regression: unrelated words do not falsely trigger fashion keywords', () => {
-    const state = runArchitectPipeline('The hemisphere of the trimmer market grew, and the collectionist reviewed the seasonal report');
+  it('word-boundary regression: unrelated words do not falsely trigger new fashion keywords', () => {
+    const state = runArchitectPipeline(
+      'The multiplayer game lobby had a fitness tracker widget and a brandenburg gate photo in the background'
+    );
     expect(state.domain).not.toBe('fashion');
   });
 
-  it('architect specialist produces fashion-appropriate architecture output', () => {
+  it('detects fashion domain on made-to-measure/bespoke tailoring phrasing', () => {
     const compiled = compileArchitect(
-      'Design a Fall/Winter streetwear collection of hoodies and outerwear in a heavyweight cotton fleece, with pattern making, tech packs, and bulk manufacturing through a cut-and-sew factory'
+      'I want to start a bespoke tailoring service offering made-to-measure suits for menswear clients'
     );
     expect(compiled.domain).toBe('fashion');
-    const architectureText = JSON.stringify(compiled.architecture);
-    expect(architectureText).toMatch(/pattern making|tech pack|sample development|grading/i);
   });
 
-  it('technical specialist surfaces a fashion-specific consideration', () => {
+  it('ambiguity checklist flags missing sales channel and resolves on bare answer', () => {
+    const unresolved = runArchitectPipeline(
+      'Design a womenswear jacket collection using wool fabric in size S-XL for fall'
+    );
+    const unresolvedText = JSON.stringify(unresolved);
+    expect(unresolvedText).toMatch(/sales channel|distribution/i);
+
+    const resolved = runArchitectPipeline(
+      'Design a womenswear jacket collection using wool fabric in size S-XL for fall, sold wholesale to boutiques'
+    );
+    const resolvedText = JSON.stringify(resolved);
+    expect(resolvedText === unresolvedText).toBe(false);
+  });
+
+  it('constraint specialist flags inclusive sizing vs solo-designer infeasibility', () => {
     const compiled = compileArchitect(
-      'Design a Fall/Winter streetwear collection of hoodies and outerwear in a heavyweight cotton fleece, with pattern making, tech packs, and bulk manufacturing through a cut-and-sew factory'
+      'As a solo designer working by myself, I want to launch a womenswear clothing brand with a full inclusive sizing range from XS to 4XL for my new fashion label'
     );
     expect(compiled.domain).toBe('fashion');
     const compiledText = JSON.stringify(compiled);
-    expect(compiledText).toMatch(/fabric sourcing|pattern grading|construction method|manufacturing partner|tech pack/i);
+    expect(compiledText).toMatch(/sizing scope|solo|independent designer/i);
+  });
+
+  it('technical specialist surfaces landed cost/duty consideration for overseas sourcing', () => {
+    const compiled = compileArchitect(
+      'Design a footwear collection manufactured overseas with fabric sourcing, tech pack, and production QC'
+    );
+    expect(compiled.domain).toBe('fashion');
+    const compiledText = JSON.stringify(compiled);
+    expect(compiledText).toMatch(/landed cost|duty|tariff|HTS/i);
   });
 });

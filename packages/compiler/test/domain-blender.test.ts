@@ -2,40 +2,49 @@ import { describe, it, expect } from 'vitest';
 import { compileArchitect, runArchitectPipeline } from '../src/index.js';
 
 describe('blender domain', () => {
-  it('blender domain detected on canonical 3D modeling example', () => {
+  it('detects blender domain on a realistic 3D asset request', () => {
     const compiled = compileArchitect(
-      'I need to model a low-poly character in Blender with clean topology, rig it with an armature, and export as glTF for a game engine'
+      'Model a low-poly game-ready hero prop in Blender with retopology, UV unwrap, and PBR texturing baked from a high-poly sculpt'
     );
     expect(compiled.domain).toBe('blender');
   });
 
-  it('negative control: unrelated web request does not misclassify as blender', () => {
-    const compiled = compileArchitect('I need a responsive website with a React frontend and an API backend');
+  it('negative control: an unrelated marketing request does not misclassify as blender', () => {
+    const compiled = compileArchitect(
+      'Write a quarterly email newsletter announcing our new pricing tiers to existing subscribers'
+    );
     expect(compiled.domain).not.toBe('blender');
   });
 
-  it('negative control: unrelated game engine request does not misclassify as blender', () => {
-    const compiled = compileArchitect('Make a horror game in Unity with multiplayer and a boss fight');
-    expect(compiled.domain).not.toBe('blender');
-  });
-
-  it('technical specialist produces Blender-appropriate output when this domain is detected', () => {
+  it('word-boundary regression: unrelated words do not falsely trigger blender keywords', () => {
     const state = runArchitectPipeline(
-      'Create a 3D model asset in Blender: sculpt a high-poly rock, retopologize, unwrap UVs, and set up materials with Cycles render'
+      'The multiplayer environmental design was rigorous and the superhero costume concept felt heroic'
     );
-    expect(state.domain).toBe('blender');
-    const technicalItems = state.requirements.filter((r) => r.source === 'technical-specialist');
-    expect(technicalItems.length).toBeGreaterThan(0);
-    const mentionsDomainConcept = technicalItems.some((r) =>
-      /(topology|render engine|polycount|rig|export format|cycles|eevee)/i.test(r.text)
-    );
-    expect(mentionsDomainConcept).toBe(true);
+    expect(state.domain).not.toBe('blender');
   });
 
-  it('architect stage includes blender architecture template components not mentioned in raw input', () => {
-    const state = runArchitectPipeline('Build a character model in Blender for a cinematic render');
-    expect(state.domain).toBe('blender');
-    const architectureItems = state.requirements.filter((r) => r.source === 'architect-specialist');
-    expect(architectureItems.length).toBeGreaterThan(0);
+  it('detects blender domain from newly added phrasings (geometry nodes, hard surface, hdri)', () => {
+    const compiled = compileArchitect(
+      'Use geometry nodes for a hard surface sci-fi environment prop lit with an HDRI, then bake normal maps for a game-ready asset'
+    );
+    expect(compiled.domain).toBe('blender');
+  });
+
+  it('ambiguity checklist recognizes a bare short answer for texture resolution', () => {
+    const compiled = compileArchitect(
+      'Model a character prop in Blender for a game engine, low poly, rigged, using Eevee, 2k textures, exported as glTF'
+    );
+    expect(compiled.domain).toBe('blender');
+    const compiledText = JSON.stringify(compiled);
+    expect(compiledText).not.toMatch(/texture resolution.*unspecified/i);
+  });
+
+  it('flags the mobile-platform vs. 4K texture infeasible combination', () => {
+    const compiled = compileArchitect(
+      'Build a mobile game character asset in Blender with 4k texture PBR materials for maximum fidelity'
+    );
+    expect(compiled.domain).toBe('blender');
+    const compiledText = JSON.stringify(compiled);
+    expect(compiledText).toMatch(/mobile.*texture|texture.*mobile/i);
   });
 });

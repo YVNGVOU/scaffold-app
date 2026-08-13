@@ -23,6 +23,13 @@ const KEYWORDS = [
   'disaster recovery', 'high availability', 'uptime sla', 'incident response',
   'runbook', 'infrastructure provisioning', 'immutable infrastructure',
   'reverse proxy', 'nginx ingress', 'service mesh', 'zero-downtime deployment',
+  'deploy to production', 'provisioning script', 'configuration management',
+  'terraform module', 'terraform state', 'kubernetes cluster', 'docker compose',
+  'container image', 'artifact registry', 'build agent', 'deployment rollout',
+  'health check endpoint', 'readiness probe', 'liveness probe', 'sla target',
+  'slo', 'error budget', 'chaos engineering', 'on-call rotation', 'pagerduty',
+  'opsgenie', 'incident postmortem', 'infra team', 'platform engineering',
+  'multi-cloud', 'hybrid cloud', 'edge deployment', 'cdn configuration',
 ];
 
 function wordBoundaryRegex(keyword: string): RegExp {
@@ -81,6 +88,11 @@ export const devopsInfrastructureDomain: DomainModule = {
       description: 'Required uptime SLA or compliance regime (SOC 2, HIPAA, PCI-DSS) that constrains the infrastructure design is unspecified',
       isResolved: (input) => /\b(sla|uptime\s+target|soc\s*2|hipaa|pci-?dss|compliance\s+requirement|\d{2}\.\d+%\s+uptime)\b/i.test(input),
     },
+    {
+      field: 'on-call / incident ownership model',
+      description: 'Who owns incident response and on-call rotation (dedicated SRE team, rotating engineers, third-party managed) is unspecified',
+      isResolved: (input) => /\b(on-?call|pagerduty|opsgenie|incident\s+response|sre\s+team|rotation|managed\s+service\s+provider)\b/i.test(input),
+    },
   ],
   architectureTemplate: [
     { component: 'source control + branch strategy', dependsOn: [], note: 'Git repository with a defined branching model (trunk-based, gitflow) that the pipeline triggers off of' },
@@ -104,6 +116,8 @@ export const devopsInfrastructureDomain: DomainModule = {
     { aspect: 'idempotent provisioning', note: 'IaC apply/plan operations must be idempotent and safe to re-run; avoid imperative provisioning scripts that produce different results on repeat runs', category: 'constraints' },
     { aspect: 'multi-environment parity', note: 'Keep staging and production infrastructure defined from the same IaC modules (parameterized, not duplicated/forked) to avoid config drift that causes "works in staging, breaks in prod"', category: 'preferences' },
     { aspect: 'cost visibility', note: 'Tag resources by environment/team/service and set up cost alerting, since autoscaling and multi-environment setups can silently run up cloud spend', category: 'preferences' },
+    { aspect: 'terraform state locking and blast radius', note: 'A shared Terraform state file without remote locking (S3+DynamoDB, Terraform Cloud) risks concurrent applies corrupting state; split state by environment/service so a bad apply cannot touch unrelated infrastructure', category: 'constraints' },
+    { aspect: 'health check design', note: 'Readiness and liveness probes must check real dependency health (DB connection, downstream service) not just "process is running" — a shallow health check lets a broken instance stay in the load balancer pool', category: 'functionalRequirements' },
   ],
   uxConsiderations: [
     { aspect: 'deployment feedback for engineers', note: 'Pipeline status (build/test/deploy) should be visible in the PR/commit UI, not require digging through a separate CI dashboard to know if a change is safe to merge', category: 'preferences' },
@@ -121,6 +135,7 @@ export const devopsInfrastructureDomain: DomainModule = {
     { aspect: 'image vulnerability scanning', note: 'Scan container images and IaC plans (tfsec, checkov) for known vulnerabilities and misconfigurations as a blocking pipeline stage before deployment', category: 'functionalRequirements' },
     { aspect: 'audit logging', note: 'Log who deployed what, when, and from what pipeline run — infrastructure changes and deployments must be attributable for incident forensics and compliance', category: 'functionalRequirements' },
     { aspect: 'TLS everywhere', note: 'Terminate TLS at the load balancer/ingress and encrypt service-to-service traffic where compliance or threat model requires it, not just the public-facing edge', category: 'constraints' },
+    { aspect: 'secret rotation and blast radius', note: 'Static, never-rotated credentials mean a single leaked secret grants indefinite access; set rotation policies and scope each secret to one service so a leak doesn\'t compromise the whole system', category: 'constraints' },
   ],
   creativeConsiderations: [
     { aspect: 'naming conventions', note: 'Establish a consistent, predictable naming scheme for resources (environment-service-component) so infrastructure stays navigable as it grows', category: 'preferences' },
@@ -165,6 +180,13 @@ export const devopsInfrastructureDomain: DomainModule = {
       category: 'constraints',
       triggerA: /\b(no\s+budget|solo\s+developer|just\s+me|one[- ]person\s+team|no\s+ops\s+team)\b/i,
       triggerB: /\b(soc\s*2|hipaa|pci-?dss|compliance\s+requirement)\b/i,
+    },
+    {
+      aspect: 'no on-call coverage vs 24/7 uptime commitment',
+      note: 'No dedicated on-call rotation or after-hours coverage alongside a 24/7 uptime/SLA commitment is a high-risk combination — without someone available to respond to alerts at 3am, the uptime target has no one enforcing it when it matters most.',
+      category: 'constraints',
+      triggerA: /\b(no\s+on-?call|no\s+after-?hours\s+support|business\s+hours\s+only)\b/i,
+      triggerB: /\b(24\/7|24x7|round-?the-?clock|always[- ]on\s+uptime)\b/i,
     },
   ],
 };

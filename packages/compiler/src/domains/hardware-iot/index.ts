@@ -15,7 +15,11 @@ const KEYWORDS = [
   'edge computing', 'smart home', 'smart device', 'wearable device',
   'battery life', 'low power mode', 'ota update', 'over-the-air update',
   'device firmware', 'hardware prototype', 'breadboard', 'soldering',
-  'ip rating', 'thingsboard', 'device provisioning',
+  'ip rating', 'thingsboard', 'device provisioning', 'matter protocol',
+  'thread network', 'home assistant', 'device telemetry', 'fcc certification',
+  'ce certification', 'pcb layout', 'schematic capture', 'digital twin',
+  'sensor fusion', 'wireless sensor network', 'device fleet', 'edge ai',
+  'tinyml', 'brownout', 'watchdog timer', 'can bus',
 ];
 
 function wordBoundaryRegex(keyword: string): RegExp {
@@ -74,6 +78,16 @@ export const hardwareIotDomain: DomainModule = {
       description: 'Whether this is a one-off prototype or a design intended for volume manufacturing is unspecified',
       isResolved: (input) => /\b(prototype|proof\s+of\s+concept|poc|mass\s+production|manufactur\w*|volume\s+production|small\s+batch)\b/i.test(input),
     },
+    {
+      field: 'regulatory certification target',
+      description: 'Which regulatory certifications the device must meet (FCC, CE, UL, RoHS) for its intended sale region is unspecified',
+      isResolved: (input) => /\b(fcc|ce\s+mark(?:ing)?|ul\s+listed|rohs|regulatory\s+certif\w*|compliance\s+testing|emc\s+testing)\b/i.test(input),
+    },
+    {
+      field: 'interoperability/ecosystem standard',
+      description: 'Whether the device must interoperate with a specific smart-home ecosystem or standard (Matter, HomeKit, Alexa, Google Home) is unspecified',
+      isResolved: (input) => /\b(matter|thread|homekit|apple\s+home|alexa|google\s+home|smartthings|standalone\s+app|no\s+ecosystem)\b/i.test(input),
+    },
   ],
   architectureTemplate: [
     { component: 'hardware schematic/PCB design', dependsOn: [], note: 'Component selection, schematic capture, and PCB layout for the target board' },
@@ -97,6 +111,8 @@ export const hardwareIotDomain: DomainModule = {
     { aspect: 'bus protocol selection', note: 'Choose I2C (multi-device, lower speed), SPI (faster, more pins), or UART based on peripheral requirements and pin budget on the target MCU', category: 'preferences' },
     { aspect: 'clock/timing accuracy', note: 'Define timing/synchronization requirements (RTC drift, NTP sync over network, or GPS time source) if the device must timestamp events accurately', category: 'preferences' },
     { aspect: 'manufacturing test/provisioning', note: 'Define an end-of-line factory test and provisioning flow (flashing unique credentials, verifying peripherals) if moving beyond a handful of prototype units', category: 'constraints' },
+    { aspect: 'EMI/RF coexistence', note: 'Account for electromagnetic interference between the PCB\'s radio and its own switching power supply/digital traces, and coexistence with other 2.4GHz devices (Wi-Fi/BLE/Zigbee sharing spectrum) in the deployment environment', category: 'constraints' },
+    { aspect: 'interoperability standard', note: 'If the device must join an existing smart-home ecosystem, evaluate Matter/Thread certification requirements early — retrofitting a proprietary protocol stack to a certified standard after hardware is locked is costly', category: 'functionalRequirements' },
   ],
   uxConsiderations: [
     { aspect: 'first-time setup flow', note: 'Design an out-of-box pairing/provisioning flow (BLE onboarding to Wi-Fi credentials, QR code claim) that works without a screen on the device itself', category: 'functionalRequirements' },
@@ -114,6 +130,7 @@ export const hardwareIotDomain: DomainModule = {
     { aspect: 'default credentials', note: 'Never ship devices with a hardcoded default password or open admin interface — require a forced credential change or unique per-device provisioning', category: 'constraints' },
     { aspect: 'key/secret storage', note: 'Store cryptographic keys in a secure element or hardware-backed key store where available, rather than in plaintext flash readable via a debug port', category: 'constraints' },
     { aspect: 'fleet revocation', note: 'Support revoking a compromised device\'s credentials/certificate without needing to physically recall the unit', category: 'functionalRequirements' },
+    { aspect: 'local vs cloud dependency for core function', note: 'Avoid making core device function (e.g. turning on a light) depend entirely on an internet-connected cloud service — a cloud outage or company shutdown should not brick the physical product\'s local operation', category: 'functionalRequirements' },
   ],
   creativeConsiderations: [
     { aspect: 'industrial design', note: 'Establish the enclosure\'s form factor, materials, and finish appropriate to the installation context (consumer countertop device vs. rugged outdoor sensor)', category: 'preferences' },
@@ -152,6 +169,13 @@ export const hardwareIotDomain: DomainModule = {
       category: 'constraints',
       triggerA: /\b(no\s+budget|shoestring\s+budget|hobbyist\s+budget)\b/i,
       triggerB: /\b(mass\s+production|mass\s+manufactur\w*|volume\s+manufactur\w*)\b/i,
+    },
+    {
+      aspect: 'launch timeline vs regulatory certification',
+      note: 'A near-term launch/ship date alongside a requirement for regulatory certification (FCC, CE, UL) on a new hardware design is unrealistic — compliance testing and any required design revisions typically take weeks to months and cannot be compressed by adding engineering effort alone.',
+      category: 'constraints',
+      triggerA: /\b(launch\s+next\s+month|ship\s+next\s+month|by\s+tomorrow|this\s+week|asap)\b/i,
+      triggerB: /\b(fcc|ce\s+mark(?:ing)?|ul\s+listed|regulatory\s+certif\w*)\b/i,
     },
   ],
 };

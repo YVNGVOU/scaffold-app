@@ -20,7 +20,10 @@ const KEYWORDS = [
   'recipe collection', 'recipe book', 'meal plan recipes', 'recipe index',
   'nutritional information', 'measurement conversion', 'metric conversion',
   'recipe testing', 'test kitchen', 'gluten-free recipe', 'vegan recipe',
-  'recipe headnote',
+  'recipe headnote', 'recipe writing', 'recipe development', 'baking recipe',
+  'dinner recipes', 'family recipes', 'weeknight recipes', 'meal prep recipes',
+  'recipe blog', 'food blog', 'recipe roundup', 'allergen labeling',
+  'kitchen-tested', 'plating diagram', 'mise en place',
 ];
 
 function wordBoundaryRegex(keyword: string): RegExp {
@@ -52,7 +55,7 @@ export const recipeCookbookDomain: DomainModule = {
     {
       field: 'measurement system',
       description: 'Whether measurements are US customary, metric, or both is unspecified',
-      isResolved: (input) => /\b(metric|us\s+customary|imperial|grams?|ounces?|cups?\s+and\s+grams|dual[- ]unit)\b/i.test(input),
+      isResolved: (input) => /\b(metric|us\s+customary|imperial|grams?|ounces?|cups?\s+and\s+grams|dual[- ]unit|both\s+units)\b/i.test(input),
     },
     {
       field: 'dietary scope',
@@ -79,6 +82,16 @@ export const recipeCookbookDomain: DomainModule = {
       description: 'Whether the output is a print cookbook, digital recipe cards, blog posts, or an app/database is unspecified',
       isResolved: (input) => /\b(print(ed)?\s+cookbook|ebook|pdf|recipe\s+card|blog\s+post|recipe\s+app|recipe\s+database)\b/i.test(input),
     },
+    {
+      field: 'collection size/scope',
+      description: 'How many recipes the collection includes, or its category scope (e.g. one course vs. a full cookbook), is unspecified',
+      isResolved: (input) => /\b(\d+\s+recipes|full[- ]length\s+cookbook|single\s+recipe|one\s+recipe|entire\s+cookbook|recipe\s+collection\s+of)\b/i.test(input),
+    },
+    {
+      field: 'equipment/appliance assumptions',
+      description: 'What kitchen equipment the recipes assume the reader owns (stand mixer, sous vide, specific pan sizes) is unspecified',
+      isResolved: (input) => /\b(stand\s+mixer|sous\s+vide|instant\s+pot|air\s+fryer|specialty\s+equipment|standard\s+kitchen\s+equipment|basic\s+equipment)\b/i.test(input),
+    },
   ],
   architectureTemplate: [
     { component: 'recipe concept/collection outline', dependsOn: [], note: 'List of recipes to include, organized by course/category/theme, with a consistent editorial angle' },
@@ -99,6 +112,8 @@ export const recipeCookbookDomain: DomainModule = {
     { aspect: 'nutritional data sourcing', note: 'If nutritional information is included, specify a reliable calculation method/database rather than estimated figures presented as precise', category: 'constraints' },
     { aspect: 'searchability/tagging', note: 'For digital collections, define a tagging taxonomy (ingredient, course, dietary tag, cook time) that supports filtering/search', category: 'preferences' },
     { aspect: 'version control for recipe edits', note: 'Track recipe revisions (a tweak after testing failure) so a corrected version does not get confused with an earlier untested draft', category: 'preferences' },
+    { aspect: 'ingredient/equipment assumptions', note: 'Specify what equipment and ingredient availability the recipes assume (stand mixer, sous vide, specialty flours) so a home cook without that access is not silently blocked mid-recipe', category: 'functionalRequirements' },
+    { aspect: 'altitude/climate adjustment', note: 'For baking-heavy content, note whether high-altitude or humidity adjustments are in scope, since leavening and liquid ratios that work at sea level can fail elsewhere', category: 'constraints' },
   ],
   uxConsiderations: [
     { aspect: 'scannable step formatting', note: 'Format steps so a cook can glance back at the page mid-task without losing their place (numbered steps, bolded key actions/temperatures/times)', category: 'functionalRequirements' },
@@ -107,6 +122,7 @@ export const recipeCookbookDomain: DomainModule = {
     { aspect: 'kitchen-usable layout', note: 'Design for real kitchen conditions — readable at arm\'s length, resistant to smudges/spills if printed, no critical info buried in small print', category: 'preferences' },
     { aspect: 'skill-level appropriate language', note: 'Match instructional detail and technique explanation to the stated target skill level rather than assuming culinary vocabulary the audience may not have', category: 'functionalRequirements' },
     { aspect: 'visual cues for timing', note: 'Call out time-sensitive or easy-to-miss steps (do not overmix, watch closely after X minutes) rather than burying them in plain narrative text', category: 'preferences' },
+    { aspect: 'component-recipe navigation', note: 'For multi-component dishes (a cake with filling, frosting, and assembly), give each component its own clearly labeled sub-list of ingredients/steps rather than one merged undifferentiated list', category: 'functionalRequirements' },
   ],
   securityConsiderations: [
     { aspect: 'allergen/dietary accuracy', note: 'Treat allergen and dietary-safety claims (gluten-free, nut-free, vegan) as safety-critical, not just descriptive copy — an incorrect claim can cause real harm', category: 'constraints' },
@@ -151,6 +167,13 @@ export const recipeCookbookDomain: DomainModule = {
       category: 'constraints',
       triggerA: /\b(guaranteed|certified|strict(ly)?)\s+(nut|gluten|dairy|allergen)[- ]free\b/i,
       triggerB: /\b(untested\s+substitut\w*|assume[sd]?\s+substitut\w*|swap\s+.*\s+without\s+testing)\b/i,
+    },
+    {
+      aspect: 'beginner audience vs specialty equipment dependency',
+      note: 'Targeting an absolute-beginner/basic-kitchen audience while every recipe depends on specialty equipment (sous vide, stand mixer, thermomix) is a mismatched-scope combination — either broaden the equipment assumption or narrow the stated audience.',
+      category: 'constraints',
+      triggerA: /\b(beginner|novice|basic\s+kitchen|no\s+special\s+equipment|minimal\s+equipment)\b/i,
+      triggerB: /\b(sous\s+vide|stand\s+mixer\s+required|thermomix|specialty\s+equipment\s+required|requires\s+a\s+(?:stand\s+mixer|sous\s+vide))\b/i,
     },
   ],
 };

@@ -30,7 +30,12 @@ const KEYWORDS = [
   'physicsservice', 'chatservice', 'textchatservice', 'badgeservice',
   'groupservice', 'analyticsservice', 'open cloud', 'roblox open cloud',
   'egg hunt', 'admin commands', 'anti-exploit', 'anti exploit',
-  'leaderstats', 'leaderboard stats',
+  'leaderstats', 'leaderboard stats', 'roblox creator', 'creator hub',
+  'roblox api', 'roblox plugin', 'studio plugin', 'ugc item', 'ugc limited',
+  'ugc accessory', 'ragdoll', 'rig', 'wedge part', 'union operation',
+  'welds', 'weldconstraint', 'attribute value', 'toolbox model',
+  'roblox terrain', 'terraineditor', 'moveto', 'raycast params',
+  'physicsservice groups', 'roblox economy', 'catalog item',
 ];
 
 function wordBoundaryRegex(keyword: string): RegExp {
@@ -94,6 +99,11 @@ export const robloxDomain: DomainModule = {
       description: 'Expected rigor of exploit/cheat resistance (basic server validation vs dedicated anti-exploit tooling/rate limiting) is unspecified',
       isResolved: (input) => /\b(anti[- ]?exploit|anti[- ]?cheat|rate[- ]?limit\w*|exploit[- ]?resistant)\b/i.test(input),
     },
+    {
+      field: 'avatar/character customization scope',
+      description: 'Whether the experience needs custom rigs/UGC-compatible avatars vs stock R15/R6 humanoid characters is unspecified',
+      isResolved: (input) => /\b(r15|r6|custom\s+rig\w*|ugc[- ]?(compatible|item|accessory|limited)|avatar\s+custom\w*|stock\s+humanoid)\b/i.test(input),
+    },
   ],
   architectureTemplate: [
     { component: 'client scripts (LocalScripts)', dependsOn: [], note: 'Input handling, UI, client-side prediction/effects — never authoritative for game state' },
@@ -121,6 +131,8 @@ export const robloxDomain: DomainModule = {
     { aspect: 'cross-server state', note: 'For matchmaking, global leaderboards, or cross-server events, use MemoryStoreService (low-latency, ephemeral) or MessagingService (pub/sub), not DataStoreService (too slow/rate-limited for real-time coordination)', category: 'functionalRequirements' },
     { aspect: 'ContentProvider preloading', note: 'Use ContentProvider:PreloadAsync for critical assets (UI images, key meshes) to avoid pop-in during a loading screen rather than letting assets stream in visibly mid-experience', category: 'preferences' },
     { aspect: 'attributes vs custom values', note: 'Prefer Instance:SetAttribute()/GetAttribute() over ad-hoc ObjectValue/NumberValue instances for simple per-instance data — attributes are replicated, lighter-weight, and inspectable in Studio', category: 'preferences' },
+    { aspect: 'part count and physics cost', note: 'Union operations and unanchored physics parts are expensive; favor MeshParts for detailed static geometry and minimize the count of simultaneously simulated unanchored assemblies to protect server tick time', category: 'preferences' },
+    { aspect: 'server region and network latency', note: 'Roblox auto-selects a server region per player; for latency-sensitive genres (PvP shooters) design netcode (client-side prediction, server reconciliation) rather than assuming near-zero round-trip time for every player', category: 'functionalRequirements' },
   ],
   uxConsiderations: [
     { aspect: 'mobile-first controls', note: 'Design touch-friendly controls and UI scaling since a large share of Roblox traffic is mobile', category: 'constraints' },
@@ -185,6 +197,13 @@ export const robloxDomain: DomainModule = {
       category: 'constraints',
       triggerA: /\b(no\s+budget|solo\s+developer|just\s+me|one[- ]person\s+team)\b/i,
       triggerB: /\b(anti[- ]?cheat\s+system|behavioral\s+anomaly|dedicated\s+anti[- ]?exploit)\b/i,
+    },
+    {
+      aspect: 'massive concurrent player count vs single-server architecture',
+      note: 'A single Roblox server instance is capped at a small player count (well under a few hundred); a request for thousands of concurrent players in "one game/server" requires a multi-server architecture (matchmaking, teleport between places, MemoryStore/MessagingService for shared state), not a single server instance.',
+      category: 'constraints',
+      triggerA: /\b(thousands?\s+of\s+players?|\d{3,}\s*(?:concurrent\s+)?players?)\b/i,
+      triggerB: /\b(single\s+server|one\s+server|same\s+server\s+instance)\b/i,
     },
   ],
 };

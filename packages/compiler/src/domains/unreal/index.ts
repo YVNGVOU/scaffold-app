@@ -25,6 +25,14 @@ const KEYWORDS = [
   'unreal build tool', 'unreal header tool', 'uclass', 'ustruct', 'ufunction',
   'gameplay ability system', 'unreal marketplace', 'metahuman', 'pak file',
   'unreal editor', 'packaging project', 'target platform',
+  'enhanced input', 'data table', 'data asset', 'gameplay tag', 'gameplay tags',
+  'behavior tree', 'blackboard', 'ai controller', 'navmesh', 'nav mesh',
+  'skeletal mesh', 'animation blueprint', 'anim blueprint', 'control rig',
+  'physics asset', 'collision channel', 'replicated variable', 'multicast rpc',
+  'server rpc', 'dedicated server', 'listen server', 'subsystem class',
+  'game instance', 'save game', 'savegame', 'asset manager', 'primary data asset',
+  'lyra', 'gameplay ability', 'ability system component', 'motion matching',
+  'ik retargeter', 'live link', 'unreal live link',
 ];
 
 function wordBoundaryRegex(keyword: string): RegExp {
@@ -49,6 +57,7 @@ export const unrealDomain: DomainModule = {
     { text: 'Decide the Blueprint vs C++ split for gameplay logic before production scales up', category: 'functional' },
     { text: 'Define target platform(s) and packaging configuration (e.g. PC, console, mobile)', category: 'constraint' },
     { text: 'Establish a level/content folder organization convention early', category: 'preference' },
+    { text: 'Decide the networking model (single-player, listen server, or dedicated server) since it drives class replication design', category: 'functional' },
   ],
   ambiguityChecklist: [
     {
@@ -71,6 +80,21 @@ export const unrealDomain: DomainModule = {
       description: 'The Unreal Engine version (UE4 vs UE5, or specific minor version) to target is unspecified',
       isResolved: (input) => /\b(unreal engine\s*\d|ue4|ue5|5\.\d|4\.2[0-7])\b/i.test(input),
     },
+    {
+      field: 'networkingModel',
+      description: 'Whether the project is single-player, listen-server, or dedicated-server multiplayer is unspecified',
+      isResolved: (input) => /\b(single[- ]player|singleplayer|listen server|dedicated server|multiplayer|co[- ]?op|peer[- ]to[- ]peer|lan only)\b/i.test(input),
+    },
+    {
+      field: 'aiNavigation',
+      description: 'Whether NPCs/enemies require AI navigation (behavior trees, navmesh) or the project has no AI-driven characters is unspecified',
+      isResolved: (input) => /\b(behavior tree|blackboard|nav\s?mesh|ai controller|no ai|no npcs?)\b/i.test(input),
+    },
+    {
+      field: 'characterAnimation',
+      description: 'The character animation approach (mocap, animation blueprints, motion matching, or static/no characters) is unspecified',
+      isResolved: (input) => /\b(mocap|motion capture|animation blueprint|anim blueprint|motion matching|control rig|no character animation)\b/i.test(input),
+    },
   ],
   architectureTemplate: [
     { component: 'level layout', dependsOn: [], note: 'Level/world partition structure and streaming boundaries' },
@@ -87,6 +111,9 @@ export const unrealDomain: DomainModule = {
     { aspect: 'level streaming', note: 'Define World Partition/level streaming strategy so large levels do not blow memory budgets or stall on load', category: 'functionalRequirements' },
     { aspect: 'performance profiling', note: 'Plan to profile with Unreal Insights/stat commands against a target frame budget per platform rather than optimizing blind', category: 'preferences' },
     { aspect: 'packaging and build', note: 'Confirm each target platform\'s packaging settings, cook configuration, and Unreal Build Tool toolchain requirements', category: 'constraints' },
+    { aspect: 'ai navigation', note: 'If NPCs require pathfinding, plan the NavMesh bounds volume and behavior tree/blackboard structure alongside level layout, not after — retrofitting navigation onto a finished level is costly', category: 'functionalRequirements' },
+    { aspect: 'save game data', note: 'Design the SaveGame class schema and versioning strategy up front so future content additions do not corrupt or orphan existing player save files', category: 'functionalRequirements' },
+    { aspect: 'asset manager and cook rules', note: 'Configure the Asset Manager and primary asset labels so unused/unreferenced content is not silently cooked into shipping packages, bloating build size', category: 'constraints' },
   ],
   uxConsiderations: [
     { aspect: 'input handling', note: 'Design the Enhanced Input System mapping contexts and action bindings so controls remain remappable across input devices', category: 'functionalRequirements' },
@@ -138,6 +165,13 @@ export const unrealDomain: DomainModule = {
       category: 'constraints',
       triggerA: /\b(by tomorrow|this week|in (?:a|one) (?:day|week)|overnight|asap)\b/i,
       triggerB: /\b(multiplayer|dedicated server|replication|online subsystem)\b/i,
+    },
+    {
+      aspect: 'photorealistic mocap animation vs solo/tiny team',
+      note: 'High-fidelity motion-captured character animation (Control Rig retargeting, MetaHuman facial mocap) alongside a solo developer or tiny team with no animation budget is a known-infeasible combination — mocap cleanup and retargeting pipelines require dedicated animation expertise and tooling time.',
+      category: 'constraints',
+      triggerA: /\b(mocap|motion capture|metahuman)\b/i,
+      triggerB: /\b(solo (?:dev|developer)|one[- ]person team|just me|no animator|no animation budget)\b/i,
     },
   ],
 };

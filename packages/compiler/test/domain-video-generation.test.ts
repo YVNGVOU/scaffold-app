@@ -2,42 +2,65 @@ import { describe, it, expect } from 'vitest';
 import { compileArchitect, runArchitectPipeline } from '../src/index.js';
 
 describe('video-generation domain', () => {
-  it('video-generation domain detected on canonical AI video example', () => {
+  it('detects video-generation domain on a realistic AI video request', () => {
     const compiled = compileArchitect(
-      'Generate an AI video clip of a spaceship landing at sunset, cinematic style, 16:9 aspect ratio, 10 second duration'
+      'Generate a 30 second AI video ad for Instagram Reels using Runway, vertical 9:16, with a fast-cut cinematic style and voiceover narration'
     );
     expect(compiled.domain).toBe('video-generation');
   });
 
-  it('negative control: unrelated web request does not misclassify as video-generation', () => {
-    const compiled = compileArchitect('I need a responsive website with a React frontend and an API backend');
-    expect(compiled.domain).not.toBe('video-generation');
-  });
-
-  it('negative control: image-generation request does not misclassify as video-generation', () => {
+  it('negative control: an unrelated multiplayer game request does not misclassify as video-generation', () => {
     const compiled = compileArchitect(
-      'Generate an AI image of a mountain landscape at sunset, photorealistic style, 16:9 aspect ratio, with a few variations'
+      'Build a multiplayer online game with matchmaking, leaderboards, and cross-platform play using Unity'
     );
     expect(compiled.domain).not.toBe('video-generation');
   });
 
-  it('technical specialist produces video-generation-appropriate output when this domain is detected', () => {
+  it('word-boundary regression: unrelated words do not falsely trigger video-generation keywords', () => {
     const state = runArchitectPipeline(
-      'I want to use an AI video generation tool like Runway to create a text-to-video ad, need multiple shots with consistent style and a voiceover'
+      'The multiplayer lobby had a shortcut button and a cutout graphic in the corner of the screen'
     );
-    expect(state.domain).toBe('video-generation');
-    const technicalItems = state.requirements.filter((r) => r.source === 'technical-specialist');
-    expect(technicalItems.length).toBeGreaterThan(0);
-    const mentionsDomainConcept = technicalItems.some((r) =>
-      /(duration|frame rate|resolution|aspect ratio|shot|continuity|render|export)/i.test(r.text)
-    );
-    expect(mentionsDomainConcept).toBe(true);
+    expect(state.domain).not.toBe('video-generation');
   });
 
-  it('architect stage includes video-generation architecture template components not mentioned in raw input', () => {
-    const state = runArchitectPipeline('Create a storyboard-driven AI video montage for a product launch, with scene transitions and background music');
-    expect(state.domain).toBe('video-generation');
-    const architectureItems = state.requirements.filter((r) => r.source === 'architect-specialist');
-    expect(architectureItems.length).toBeGreaterThan(0);
+  it('word-boundary regression: new keywords do not false-positive inside unrelated words', () => {
+    const state = runArchitectPipeline(
+      'Our generator produces electricity and the model railway loop needs a new track section near the video store'
+    );
+    expect(state.domain).not.toBe('video-generation');
+  });
+
+  it('detects video-generation domain using newly added phrasings (explainer video, dolly shot, camera pan)', () => {
+    const compiled = compileArchitect(
+      'Create an explainer video with a dolly shot opening and a slow camera pan across the product, ending with a seamless video loop'
+    );
+    expect(compiled.domain).toBe('video-generation');
+  });
+
+  it('ambiguity checklist recognizes bare short answers for camera work and model fields', () => {
+    const compiled = compileArchitect(
+      'Make an AI video of a product demo, tracking shot, using Kling, vertical for TikTok, 20 seconds, cinematic style, with voiceover and consistent character'
+    );
+    expect(compiled.domain).toBe('video-generation');
+    const compiledText = JSON.stringify(compiled);
+    expect(compiledText).not.toMatch(/camera movement and shot framing.*unspecified/i);
+  });
+
+  it('constraint specialist flags exact lip sync vs generative model tension', () => {
+    const compiled = compileArchitect(
+      'Generate an AI text-to-video clip requiring exact lip sync to our scripted dialogue for a 60 second ad'
+    );
+    expect(compiled.domain).toBe('video-generation');
+    const compiledText = JSON.stringify(compiled);
+    expect(compiledText).toMatch(/lip sync/i);
+  });
+
+  it('technical specialist surfaces a video-generation-specific consideration on character drift', () => {
+    const compiled = compileArchitect(
+      'Generate a multi-scene AI video ad with a recurring mascot character appearing consistently across 6 different shots'
+    );
+    expect(compiled.domain).toBe('video-generation');
+    const compiledText = JSON.stringify(compiled);
+    expect(compiledText).toMatch(/drift|reference-image|seed-locking/i);
   });
 });

@@ -12,6 +12,11 @@ const KEYWORDS = [
   'revenue model', 'pricing strategy', 'market research', 'value proposition',
   'financial projections', 'investors', 'monetization',
   'customer acquisition', 'market fit', 'swot analysis', 'roi',
+  'business idea', 'startup idea', 'elevator pitch',
+  'lean canvas', 'business canvas', 'market size', 'total addressable market',
+  'unit economics', 'break-even', 'breakeven', 'funding round', 'seed round',
+  'series a', 'burn rate', 'runway', 'customer segments', 'cap table',
+  'churn rate', 'subscription model', 'freemium model', 'b2b', 'b2c',
 ];
 
 function wordBoundaryRegex(keyword: string): RegExp {
@@ -41,22 +46,32 @@ export const businessDomain: DomainModule = {
     {
       field: 'target market',
       description: 'The target customer segment/market is unspecified',
-      isResolved: (input) => /\b(target market|target customers?|target audience|demographic|b2b|b2c|smb|enterprise customers?)\b/i.test(input),
+      isResolved: (input) => /\b(target market|target customers?|target audience|demographic|b2b|b2c|smb|enterprise customers?|small businesses|consumers|households|niche market)\b/i.test(input),
     },
     {
       field: 'revenue model',
       description: 'How the business makes money (revenue/pricing model) is unspecified',
-      isResolved: (input) => /\b(revenue model|subscription|pricing|freemium|one-time purchase|commission|monetiz\w*)\b/i.test(input),
+      isResolved: (input) => /\b(revenue model|subscription\w*|pricing|freemium|one-time purchase|commission|monetiz\w*|ads?[- ]supported|advertising revenue)\b/i.test(input),
     },
     {
       field: 'competitive landscape',
       description: 'Competitors or competitive positioning is unaddressed',
-      isResolved: (input) => /\b(competitors?|competitive landscape|competing with|alternatives? to|market leaders?)\b/i.test(input),
+      isResolved: (input) => /\b(competitors?|competitive landscape|competing with|alternatives? to|market leaders?|incumbents?)\b/i.test(input),
     },
     {
       field: 'financial assumptions',
       description: 'Financial assumptions (budget, costs, funding, margins) are unspecified',
-      isResolved: (input) => /\b(budget|funding|startup costs?|margins?|financial projections?|burn rate|runway)\b/i.test(input),
+      isResolved: (input) => /\b(budget|funding|startup costs?|margins?|financial projections?|burn rate|runway|bootstrapp\w*|self-funded)\b/i.test(input),
+    },
+    {
+      field: 'growth stage',
+      description: 'The business stage (idea, pre-launch, pre-revenue, launched, scaling) is unspecified',
+      isResolved: (input) => /\b(idea stage|pre-launch|pre-revenue|early[- ]stage|already launched|scaling|growth stage|mvp|minimum viable product|already operating|existing business)\b/i.test(input),
+    },
+    {
+      field: 'customer acquisition channel',
+      description: 'How the business will reach and acquire customers (channels, marketing approach) is unspecified',
+      isResolved: (input) => /\b(acquisition channels?|paid ads?|social media marketing|word of mouth|referrals?|content marketing|seo|cold outreach|partnerships?|distribution channels?)\b/i.test(input),
     },
   ],
   architectureTemplate: [
@@ -72,6 +87,8 @@ export const businessDomain: DomainModule = {
     { aspect: 'forecasting method', note: 'State the forecasting method used for revenue/growth projections (bottom-up vs top-down) so assumptions are auditable', category: 'preferences' },
     { aspect: 'tooling', note: 'Specify what tools/spreadsheets/CRM will be used to track the plan and its metrics over time', category: 'preferences' },
     { aspect: 'scalability of operations', note: 'Consider operational bottlenecks (fulfillment, support, hiring) that could break the model at 10x scale', category: 'constraints' },
+    { aspect: 'cohort tracking', note: 'Define how customer cohorts are tracked over time (signup month/channel) so retention and payback period can actually be measured, not just estimated', category: 'functionalRequirements' },
+    { aspect: 'break-even calculation', note: 'State the break-even point explicitly (units or months) derived from fixed costs, variable costs, and contribution margin — not just a target revenue figure', category: 'constraints' },
   ],
   uxConsiderations: [
     { aspect: 'customer journey', note: 'Map the customer journey from awareness to purchase to retention to identify where the plan is thin', category: 'functionalRequirements' },
@@ -84,6 +101,7 @@ export const businessDomain: DomainModule = {
     { aspect: 'customer data handling', note: 'If the model collects customer/prospect data (emails, payment info), define how it is stored and who can access it', category: 'constraints' },
     { aspect: 'ip protection', note: 'Identify any proprietary process, formula, or trade secret in the business model that needs protection before wide sharing', category: 'constraints' },
     { aspect: 'compliance and licensing', note: 'Check whether the business activity requires licenses, permits, or regulatory compliance (financial services, health, food, etc.)', category: 'constraints' },
+    { aspect: 'co-founder equity terms', note: 'If co-founders or early hires are involved, define equity split, vesting schedule, and cliff before it becomes a dispute — undocumented equity is a leading cause of early-stage business breakups', category: 'constraints' },
   ],
   creativeConsiderations: [
     { aspect: 'brand positioning', note: 'Articulate a clear, differentiated brand positioning statement that distinguishes the business from competitors', category: 'preferences' },
@@ -96,6 +114,7 @@ export const businessDomain: DomainModule = {
     { aspect: 'acceptance criteria', note: 'Define concrete, measurable milestones (e.g. "acquire 100 paying customers within 90 days") to validate the plan', category: 'functionalRequirements' },
     { aspect: 'assumption stress test', note: 'Stress-test key assumptions: what happens if CAC doubles, churn triples, or a competitor undercuts on price', category: 'preferences' },
     { aspect: 'financial sanity check', note: 'Verify revenue projections are internally consistent with stated pricing, market size, and conversion assumptions', category: 'constraints' },
+    { aspect: 'market size math', note: 'Check that the addressable market size (TAM/SAM/SOM) is derived from a defensible bottom-up calculation, not just an oft-cited industry-wide headline figure', category: 'functionalRequirements' },
   ],
   constraintConsiderations: [
     {
@@ -111,6 +130,13 @@ export const businessDomain: DomainModule = {
       category: 'constraints',
       triggerA: /\b(by tomorrow|this week|in (?:a|one) day|overnight|asap)\b/i,
       triggerB: /\b(raise (?:funding|capital|investment)|seed round|series a|full (?:launch|rollout))\b/i,
+    },
+    {
+      aspect: 'solo founder vs operational scope',
+      note: 'A single/solo founder running everything alongside a wide multi-market or multi-product scope is a known-infeasible combination for early stages — sales, support, product, and finance across many fronts typically requires a team.',
+      category: 'constraints',
+      triggerA: /\b(solo founder|one[- ]person (?:team|business)|just me|by myself|no co-?founders?|no employees)\b/i,
+      triggerB: /\b(multiple (?:markets|countries|product lines)|international expansion|multi-market|several product lines)\b/i,
     },
   ],
 };

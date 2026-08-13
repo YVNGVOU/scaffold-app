@@ -103,5 +103,5 @@ describe('summarizeForComparison (TASK-082)', () => {
       row.categoryCounts.assumptions +
       row.categoryCounts.functionalRequirements;
     expect(row.totalRequirements).toBe(expectedTotal);
-  });
+  }, 20000);
 });

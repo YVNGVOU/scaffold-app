@@ -16,6 +16,11 @@ const KEYWORDS = [
   'digital invitation', 'e-invite', 'e-invitation', 'guest list rsvp',
   'plus-one', 'plus one rsvp', 'reception card', 'ceremony card',
   'invitation wording', 'envelope liner', 'response card', 'formality level',
+  'invitation template', 'wedding website', 'gift registry', 'registry link',
+  'virtual event invite', 'hybrid event invite', 'corporate event invite',
+  'holiday party invitation', 'anniversary invitation', 'graduation invitation',
+  'retirement party invitation', 'engagement party invitation',
+  'invitation mockup', 'guest addressing', 'calligraphy addressing',
 ];
 
 function wordBoundaryRegex(keyword: string): RegExp {
@@ -88,6 +93,11 @@ export const eventInvitationsDomain: DomainModule = {
       description: 'Lead time before the event and mailing/response deadlines are unspecified',
       isResolved: (input) => /\b(\d+\s*(weeks?|months?)\s+(before|ahead|out)|mailing\s+deadline|response\s+deadline|by\s+[A-Z][a-z]+\s+\d)\b/i.test(input),
     },
+    {
+      field: 'budget and print quantity',
+      description: 'Approximate budget and the number of pieces to print/send is unspecified',
+      isResolved: (input) => /\b(budget|\$\d+|low[- ]cost|premium\s+budget|\d+\s*(pieces|invitations|invites|copies)|print\s+run\s+of\s+\d+)\b/i.test(input),
+    },
   ],
   architectureTemplate: [
     { component: 'save-the-date piece', dependsOn: [], note: 'Early-notice card or digital send, mailed/sent well ahead of the formal invitation' },
@@ -108,6 +118,8 @@ export const eventInvitationsDomain: DomainModule = {
     { aspect: 'variable data printing', note: 'If addressing/personalizing each piece individually (guest names, table numbers), plan for variable data printing or mail-merge rather than manual per-piece editing', category: 'functionalRequirements' },
     { aspect: 'proofing and print deadlines', note: 'Build in a proofing round before the full print run, and back-calculate the mailing deadline from postal transit time plus RSVP response window', category: 'constraints' },
     { aspect: 'file format handoff', note: 'Deliver print-ready files (PDF with bleed/crop marks, CMYK color) to the print vendor, separate from RGB digital-send assets', category: 'functionalRequirements' },
+    { aspect: 'wedding website / RSVP data sync', note: 'If a wedding website or digital RSVP platform also collects responses, define which system is the source of truth and how the two are reconciled to avoid conflicting headcounts', category: 'functionalRequirements' },
+    { aspect: 'timezone handling for virtual/hybrid events', note: 'For virtual or hybrid events, display event time with an explicit timezone (and ideally a timezone-converting link) since a bare local time is ambiguous to remote guests', category: 'functionalRequirements' },
   ],
   uxConsiderations: [
     { aspect: 'wording clarity', note: 'Event details (date, time, venue, dress code) must be unambiguous and scannable at a glance, especially for guests unfamiliar with the venue', category: 'functionalRequirements' },
@@ -123,6 +135,8 @@ export const eventInvitationsDomain: DomainModule = {
     { aspect: 'public event detail exposure', note: 'Posting a home address or exact venue on a fully public digital invite/social post can expose attendees to unwanted visitors; consider a private link or registration gate', category: 'constraints' },
     { aspect: 'gift registry link trust', note: 'Only link to registries hosted on reputable, known platforms — third-party or unfamiliar registry links can be used for phishing against guests', category: 'constraints' },
     { aspect: 'RSVP data retention', note: 'Define how long guest RSVP/dietary/address data is retained after the event and how it is disposed of or handed off to the couple/host', category: 'preferences' },
+    { aspect: 'minors\' names on public-facing invites', note: 'Avoid publishing children\'s full names or ages on a publicly indexable digital invitation/social post; use first names only or move that detail to the private RSVP form', category: 'constraints' },
+    { aspect: 'wedding website vendor lock-in and data export', note: 'Confirm the wedding website/RSVP platform allows exporting the guest list and RSVP data before the event, so the host is not stranded if the platform shuts down or the subscription lapses', category: 'constraints' },
   ],
   creativeConsiderations: [
     { aspect: 'visual identity consistency', note: 'Establish one cohesive palette, typography, and motif system that carries across save-the-date, invitation, RSVP card, and thank-you card', category: 'preferences' },
@@ -131,6 +145,7 @@ export const eventInvitationsDomain: DomainModule = {
     { aspect: 'cultural and religious motifs', note: 'For culturally or religiously specific events (quinceañera, bar/bat mitzvah), incorporate appropriate traditional motifs and wording conventions respectfully and accurately', category: 'preferences' },
     { aspect: 'photography integration', note: 'If engagement/event photos are used (save-the-date, thank-you card), design the layout to frame photography as a focal point rather than a cramped afterthought', category: 'preferences' },
     { aspect: 'envelope and unboxing experience', note: 'Treat envelope liners, wax seals, and ribbon as part of the first-impression design, particularly for higher-formality suites', category: 'preferences' },
+    { aspect: 'monogram or event crest design', note: 'For formal suites, a custom monogram or event crest gives a reusable visual anchor that can be embossed, foil-stamped, or repeated across day-of stationery and signage', category: 'preferences' },
   ],
   qaConsiderations: [
     { aspect: 'proofreading event details', note: 'Triple-check date, day-of-week consistency, time zone, venue name/address, and names for typos before any print run or send — these are the highest-cost errors in this domain', category: 'constraints' },
@@ -139,6 +154,7 @@ export const eventInvitationsDomain: DomainModule = {
     { aspect: 'print proof review', note: 'Review a physical print proof (not just a screen preview) for color accuracy and paper feel before committing to the full print run', category: 'preferences' },
     { aspect: 'digital rendering across clients', note: 'Test digital invitations across major email clients and phone screens for broken layouts, since guests self-select their platform', category: 'functionalRequirements' },
     { aspect: 'link/QR code testing', note: 'Test every RSVP link and QR code on both mobile and desktop before mailing/sending, since a broken link cannot be corrected after physical distribution', category: 'constraints' },
+    { aspect: 'name/title accuracy for guest addressing', note: 'Verify guest honorifics, name spellings, and couple vs. individual addressing (e.g. "Mr. and Mrs." vs. separate names) against the master guest list, since misaddressed envelopes are a common and hard-to-fix mailing error', category: 'functionalRequirements' },
   ],
   constraintConsiderations: [
     {
@@ -161,6 +177,13 @@ export const eventInvitationsDomain: DomainModule = {
       category: 'constraints',
       triggerA: /\b(public|shareable|post\s+(?:it\s+)?on\s+social|open\s+link)\b/i,
       triggerB: /\b(private\s+guest\s+list|keep\s+(?:the\s+)?address\s+private|confidential\s+rsvp)\b/i,
+    },
+    {
+      aspect: 'compressed timeline vs custom calligraphy addressing',
+      note: 'A rush turnaround combined with hand-done custom calligraphy addressing for the full mailing list is infeasible — calligraphers address envelopes individually by hand and typically need 1-2+ weeks depending on guest count.',
+      category: 'constraints',
+      triggerA: /\b(by tomorrow|this week|in (?:a|one) day|overnight|asap|need it today)\b/i,
+      triggerB: /\b(custom\s+calligraphy|hand[- ]?lettered\s+addressing|calligraphy\s+addressing)\b/i,
     },
   ],
 };

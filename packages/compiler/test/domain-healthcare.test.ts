@@ -46,4 +46,39 @@ describe('healthcare domain', () => {
     const compiledText = JSON.stringify(compiled);
     expect(compiledText).toMatch(/HIPAA|HL7 FHIR|Business Associate Agreement|ICD-10/i);
   });
+
+  it('detects healthcare domain via remote patient monitoring / wearable / billing phrasing', () => {
+    const compiled = compileArchitect(
+      'Build a remote patient monitoring app that ingests wearable device data for chronic disease management patients at an urgent care clinic, plus medical billing and claims processing'
+    );
+    expect(compiled.domain).toBe('healthcare');
+  });
+
+  it('word-boundary regression: new keywords do not falsely trigger on unrelated words', () => {
+    const state = runArchitectPipeline(
+      'The mechanic gave the clinical-sounding technobabble a pharmacy-adjacent brand name for the hospitality startup pitch deck'
+    );
+    // "clinic" must not bare-match inside "clinical-sounding" or "pharmacy" inside "pharmacy-adjacent" in a way
+    // that misclassifies an unrelated hospitality/branding pitch as healthcare.
+    expect(state.domain).not.toBe('healthcare');
+  });
+
+  it('ambiguity checklist recognizes short bare answers for the new reimbursement and RPM fields', () => {
+    const compiled = compileArchitect(
+      'Build a remote patient monitoring platform for chronic disease management, billed via insurance billing, using wearables for continuous monitoring'
+    );
+    expect(compiled.domain).toBe('healthcare');
+    const compiledText = JSON.stringify(compiled);
+    // new considerations should surface: claims transaction format / RPM device trust boundary
+    expect(compiledText).toMatch(/X12 837|NCPDP|RPM device data trust boundary|clearinghouse/i);
+  });
+
+  it('constraint specialist flags infeasible consumer-wearable diagnostic-grade claim', () => {
+    const compiled = compileArchitect(
+      'Build a health app using an Apple Watch as the sole vitals source, marketed as FDA-cleared diagnostic-grade accuracy for arrhythmia detection'
+    );
+    expect(compiled.domain).toBe('healthcare');
+    const compiledText = JSON.stringify(compiled);
+    expect(compiledText).toMatch(/consumer wearable|diagnostic-grade|FDA-cleared/i);
+  });
 });

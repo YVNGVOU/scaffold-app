@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { compileArchitect, runArchitectPipeline } from '../src/index.js';
+import { writingDomain } from '../src/domains/writing/index.js';
 
 describe('writing domain', () => {
   it('writing domain detected on canonical writing example', () => {
@@ -38,5 +39,31 @@ describe('writing domain', () => {
     expect(architectureItems.length).toBeGreaterThan(0);
     const mentionsProofreading = architectureItems.some((r) => r.text.toLowerCase().includes('proofreading'));
     expect(mentionsProofreading).toBe(true);
+  });
+
+  it('detects writing domain on newer keyword phrasings (white paper, case study, speech writing)', () => {
+    const compiled = compileArchitect(
+      'Write a white paper and case study for our SaaS product, plus speech writing for the launch keynote'
+    );
+    expect(compiled.domain).toBe('writing');
+  });
+
+  it('word-boundary regression: "speechless" and "resumed" do not trigger writing keywords', () => {
+    const state = runArchitectPipeline('The negotiations resumed after the team was left speechless by the offer');
+    expect(state.domain).not.toBe('writing');
+  });
+
+  it('ambiguity checklist recognizes a bare delivery-format answer', () => {
+    const formatField = writingDomain.ambiguityChecklist.find((f) => f.field === 'format');
+    expect(formatField).toBeDefined();
+    expect(formatField!.isResolved('Markdown')).toBe(true);
+    expect(formatField!.isResolved('No format mentioned at all')).toBe(false);
+  });
+
+  it('security specialist flags AI-assistance disclosure for writing requests', () => {
+    const state = runArchitectPipeline('Write a personal essay for a literary magazine submission, reflective tone, 2000 words');
+    expect(state.domain).toBe('writing');
+    const compiledText = JSON.stringify(state.requirements);
+    expect(compiledText).toMatch(/AI-assist|AI involvement|AI-generated/i);
   });
 });

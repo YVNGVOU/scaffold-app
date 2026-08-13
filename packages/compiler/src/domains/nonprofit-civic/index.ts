@@ -16,7 +16,12 @@ const KEYWORDS = [
   'rfp process', 'public records', 'foia', 'constituent services',
   'ngo', 'charity platform', 'membership dues', 'crm for nonprofits',
   'in-kind donation', 'recurring donation', 'tax-deductible receipt',
-  'board of directors portal',
+  'board of directors portal', 'peer-to-peer fundraising', 'matching gift',
+  'capital campaign', 'advocacy campaign', 'civic engagement platform',
+  'public comment portal', 'town hall platform', 'open data portal',
+  'case management system', 'beneficiary tracking', 'form 990',
+  'giving tuesday', 'planned giving', 'endowment fund', 'ballot measure',
+  'legislative tracking', 'constituent relationship management',
 ];
 
 function wordBoundaryRegex(keyword: string): RegExp {
@@ -51,9 +56,19 @@ export const nonprofitCivicDomain: DomainModule = {
       isResolved: (input) => /\b(501c3|501\(c\)\(3\)|nonprofit|non-profit|ngo|government agency|municipal|city government|county|federal agency|civic tech)\b/i.test(input),
     },
     {
+      field: 'donation frequency model',
+      description: 'Whether the platform must primarily support one-time gifts, recurring/subscription giving, or both is unspecified',
+      isResolved: (input) => /\b(one-?time|recurring|subscription giving|monthly (?:giving|donor)|sustaining donor)\b/i.test(input),
+    },
+    {
       field: 'payment processor',
       description: 'Which donation/payment processor (Stripe, PayPal Giving Fund, Classy, GiveLively) and its associated fee structure is unspecified',
       isResolved: (input) => /\b(stripe|paypal|classy|givelively|give lively|square|donorbox|payment processor)\b/i.test(input),
+    },
+    {
+      field: 'reporting cadence',
+      description: 'How often board/grant financial reports must be generated (monthly, quarterly, annually, ad hoc) is unspecified',
+      isResolved: (input) => /\b(monthly|quarterly|annually|annual report|ad hoc reporting|real-time reporting)\b/i.test(input),
     },
     {
       field: 'accessibility standard',
@@ -97,6 +112,8 @@ export const nonprofitCivicDomain: DomainModule = {
     { aspect: 'low-bandwidth/legacy device support', note: 'Design for constituents and volunteers on older devices or slow connections, since public-facing civic/nonprofit tools often serve underserved populations', category: 'constraints' },
     { aspect: 'multi-language support', note: 'Support internationalization/localization for constituent-facing content when serving linguistically diverse communities, a common requirement in civic tech', category: 'preferences' },
     { aspect: 'reporting export formats', note: 'Support standard export formats (CSV, PDF, IRS Form 990 schedules) needed for board reporting, grant reporting, and annual audits', category: 'functionalRequirements' },
+    { aspect: 'matching-gift lookup', note: 'If offering matching-gift discovery, integrate with a matching-gift database (Double the Donation, Millie) rather than relying on donors to self-report their employer, since self-reported match rates are very low', category: 'functionalRequirements' },
+    { aspect: 'peer-to-peer fundraising infrastructure', note: 'If supporting peer-to-peer campaigns (walk/run-a-thons, birthday fundraisers), design a distinct sub-page/team-page data model tied back to the parent campaign so team totals and individual attribution both reconcile correctly', category: 'functionalRequirements' },
   ],
   uxConsiderations: [
     { aspect: 'donation flow friction', note: 'Minimize steps in the donation checkout flow (guest checkout, saved payment methods, one-click recurring upgrade) since donor drop-off correlates strongly with form length', category: 'functionalRequirements' },
@@ -106,6 +123,7 @@ export const nonprofitCivicDomain: DomainModule = {
     { aspect: 'trust signals', note: 'Surface transparency/trust signals (org registration status, financial transparency badges like Charity Navigator/GuideStar ratings) near donation calls-to-action to build donor confidence', category: 'preferences' },
     { aspect: 'mobile-first constituent access', note: 'Design public-facing pages mobile-first, since many constituents and donors primarily access civic/nonprofit services via phone', category: 'functionalRequirements' },
     { aspect: 'error recovery in forms', note: 'Provide clear, specific inline error messages on donation and application forms rather than generic failures, since a failed transaction may discourage a donor from retrying', category: 'preferences' },
+    { aspect: 'public-comment submission UX', note: 'For civic public-comment or town-hall tools, design a clear submission confirmation and status tracker (received, under review, responded) so constituents trust their input was actually recorded, not lost', category: 'functionalRequirements' },
   ],
   securityConsiderations: [
     { aspect: 'PCI DSS compliance', note: 'Never store raw payment card data directly; use a PCI-compliant processor\'s tokenization/hosted-fields approach to keep the organization out of PCI DSS scope where possible', category: 'constraints' },
@@ -115,6 +133,7 @@ export const nonprofitCivicDomain: DomainModule = {
     { aspect: 'volunteer background-check data', note: 'If tracking background-check results for volunteers (especially those working with minors/vulnerable populations), store only the pass/fail status needed, not raw report details, unless legally required', category: 'constraints' },
     { aspect: 'account takeover protection', note: 'Protect donor and staff accounts (MFA for staff/admin accounts, especially those with financial or PII access) given the high value of donor databases to attackers', category: 'constraints' },
     { aspect: 'third-party integration scope', note: 'Limit data shared with third-party fundraising tools/marketing platforms to the minimum necessary, and confirm their own compliance posture (SOC 2, PCI) before integrating', category: 'constraints' },
+    { aspect: 'anonymous public-comment identity protection', note: 'If public-comment or advocacy tools allow anonymous or pseudonymous submissions, ensure server logs, IP addresses, and metadata cannot be trivially cross-referenced to re-identify submitters, especially on politically sensitive topics', category: 'constraints' },
   ],
   creativeConsiderations: [
     { aspect: 'mission-driven visual identity', note: 'Ground the visual direction in the organization\'s mission and cause area rather than generic corporate templates, so the brand reads as authentic to the cause', category: 'preferences' },
@@ -132,6 +151,7 @@ export const nonprofitCivicDomain: DomainModule = {
     { aspect: 'permission boundary testing', note: 'Verify role-based access controls actually prevent lower-privilege roles (volunteers, junior staff) from viewing/exporting sensitive donor financial data', category: 'constraints' },
     { aspect: 'contradiction check', note: 'Check stated requirements for contradictions (e.g. "fully anonymous donations" alongside "personalized tax receipts requiring donor identity")', category: 'constraints' },
     { aspect: 'load testing for giving events', note: 'Load-test donation infrastructure ahead of high-traffic giving events (Giving Tuesday, year-end matching campaigns) where traffic spikes far above baseline', category: 'preferences' },
+    { aspect: 'peer-to-peer attribution testing', note: 'Verify that donations made through a peer-to-peer fundraiser or team page correctly attribute to both the individual fundraiser and the parent campaign total, with no double-counting or dropped records', category: 'functionalRequirements' },
   ],
   constraintConsiderations: [
     {
@@ -154,6 +174,13 @@ export const nonprofitCivicDomain: DomainModule = {
       category: 'constraints',
       triggerA: /\b(by tomorrow|this week|in (?:a|one) day|asap|next week)\b/i,
       triggerB: /\b(rfp|procurement process|competitive bid|formal bidding)\b/i,
+    },
+    {
+      aspect: 'anonymous public comment vs re-identification-proof',
+      note: 'Requiring fully anonymous public-comment submissions while also requiring per-submitter status tracking (received/under review/responded) is in tension — a tracker that lets a submitter check their own status needs some persistent identifier, which undercuts true anonymity unless a separate token/receipt scheme is designed.',
+      category: 'constraints',
+      triggerA: /\b(anonymous|pseudonymous)\s+(public\s+)?comment/i,
+      triggerB: /\bstatus\s+track(?:er|ing)\b/i,
     },
   ],
 };

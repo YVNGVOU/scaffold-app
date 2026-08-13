@@ -7,11 +7,15 @@ import type { DomainModule } from '../types.js';
 // domain's context — silently inflating scores on inputs unrelated to
 // agriculture/agtech.
 const KEYWORDS = [
-  'agriculture', 'agtech', 'ag-tech', 'farm', 'farming', 'farmer', 'crop', 'crops',
-  'livestock', 'irrigation', 'greenhouse', 'harvest', 'planting', 'soil',
-  'pesticide', 'fertilizer', 'yield', 'orchard', 'vineyard', 'dairy',
+  'agriculture', 'agricultural', 'agtech', 'ag-tech', 'farm', 'farming', 'farmer', 'crop', 'crops',
+  'livestock', 'irrigation', 'greenhouse', 'harvest', 'harvesting', 'planting', 'soil',
+  'pesticide', 'herbicide', 'fertilizer', 'yield', 'orchard', 'vineyard', 'dairy',
   'poultry', 'grain', 'silo', 'agronomy', 'agronomist', 'tractor',
   'combine harvester', 'precision agriculture', 'crop rotation',
+  'ranch', 'ranching', 'cattle', 'beef cattle', 'row crop', 'cover crop',
+  'no-till', 'variable rate', 'yield monitor', 'yield map', 'crop insurance',
+  'farm management', 'smart farming', 'vertical farming', 'hydroponic',
+  'hydroponics', 'aquaponics', 'field scouting', 'seed drill', 'grain elevator',
 ];
 
 function wordBoundaryRegex(keyword: string): RegExp {
@@ -69,6 +73,11 @@ export const agricultureDomain: DomainModule = {
       description: 'Applicable agricultural/food-safety regulatory framework is unspecified',
       isResolved: (input) => /\b(usda|epa|organic certification|food safety|gap certification|traceability|regulat\w*)\b/i.test(input),
     },
+    {
+      field: 'automation-level',
+      description: 'Whether the system only monitors/advises or actively controls field equipment (irrigation, feeding, spraying) is unspecified',
+      isResolved: (input) => /\b(monitor(?:ing)?[- ]only|advisory|recommendations? only|manual control|automat\w*|autonomous|actuator|remote control|human[- ]in[- ]the[- ]loop)\b/i.test(input),
+    },
   ],
   architectureTemplate: [
     { component: 'field data ingestion', dependsOn: [], note: 'Collects sensor telemetry (soil moisture, temperature, weather) and manual field entries' },
@@ -91,6 +100,9 @@ export const agricultureDomain: DomainModule = {
     { aspect: 'weather API integration', note: 'Integrate external weather/climate forecast data to drive irrigation and spraying decisions', category: 'functionalRequirements' },
     { aspect: 'actuator control safety', note: 'Define fail-safe behavior for automated irrigation/feeding systems if connectivity or sensors fail mid-cycle', category: 'constraints' },
     { aspect: 'seasonal scalability', note: 'Handle sharp seasonal spikes in data volume and user activity around planting and harvest windows', category: 'preferences' },
+    { aspect: 'equipment telematics integration', note: 'Define whether the system ingests machine data from tractors/combines/sprayers via ISOBUS, CAN bus, or vendor telematics APIs (e.g. John Deere Operations Center, Climate FieldView), and how conflicting formats are normalized', category: 'functionalRequirements' },
+    { aspect: 'variable-rate prescription maps', note: 'Support generating and exporting variable-rate application (VRA) prescription maps (seeding, fertilizer, spray) in formats field equipment can consume (shapefile, ISO-XML)', category: 'functionalRequirements' },
+    { aspect: 'satellite/aerial imagery latency', note: 'Clarify the refresh cadence of NDVI/multispectral imagery (daily satellite pass vs on-demand drone flight) since stale imagery can silently undermine "real-time" crop health claims', category: 'constraints' },
   ],
   uxConsiderations: [
     { aspect: 'field-usable interface', note: 'Design for outdoor use in bright sunlight, gloved hands, and mobile-first field workers rather than desk-bound office staff', category: 'functionalRequirements' },
@@ -100,6 +112,8 @@ export const agricultureDomain: DomainModule = {
     { aspect: 'seasonal workflow guidance', note: 'Adapt UI/task prompts to the current stage of the crop or livestock cycle (planting, growing, harvest, dormancy)', category: 'preferences' },
     { aspect: 'map-based navigation', note: 'Use field/plot maps as a primary navigation metaphor rather than lists, since farmers think spatially about land', category: 'preferences' },
     { aspect: 'device durability context', note: 'Account for rugged/ruggedized device usage (dust, moisture, drops) affecting touch-target sizing and input methods', category: 'preferences' },
+    { aspect: 'multi-generational users', note: 'Design for a wide skill/age range on the same farm, from long-time operators unfamiliar with apps to younger tech-savvy staff, without dumbing down the tool for either group', category: 'preferences' },
+    { aspect: 'task-list vs monitoring modes', note: 'Distinguish a discrete scheduled task-list workflow (e.g. daily chores, spray schedule) from continuous ambient monitoring, since farmers open the app differently for each', category: 'functionalRequirements' },
   ],
   securityConsiderations: [
     { aspect: 'field device authentication', note: 'Ensure IoT sensors and actuators authenticate to the backend (device certificates or signed tokens) to prevent spoofed telemetry or unauthorized irrigation/feeding triggers', category: 'constraints' },
@@ -108,6 +122,8 @@ export const agricultureDomain: DomainModule = {
     { aspect: 'network exposure of control systems', note: 'Isolate irrigation/actuator control networks from general internet exposure to prevent remote hijacking of physical equipment', category: 'constraints' },
     { aspect: 'GPS/location privacy', note: 'Treat precise field/farm location and yield data as sensitive competitive/business information, not casually shared or exported', category: 'constraints' },
     { aspect: 'firmware update integrity', note: 'Require signed firmware updates for field sensors/controllers to prevent malicious over-the-air tampering', category: 'functionalRequirements' },
+    { aspect: 'application record liability', note: 'Protect pesticide/fertilizer application logs from post-hoc editing, since they can become evidence in drift-damage or contamination liability disputes with neighboring growers', category: 'constraints' },
+    { aspect: 'imagery and telematics vendor lock-in', note: 'Clarify data export rights for satellite/drone imagery and machine telematics pulled from third-party platforms, since some vendor agreements restrict re-sharing or long-term retention', category: 'constraints' },
   ],
   creativeConsiderations: [
     { aspect: 'visual data density', note: 'Balance rich agronomic data (soil charts, NDVI maps, yield heatmaps) with clarity so dashboards read fast in the field, not as a data dump', category: 'preferences' },
@@ -123,6 +139,8 @@ export const agricultureDomain: DomainModule = {
     { aspect: 'extreme weather scenarios', note: 'Generate test cases for extreme conditions: drought, flood, frost, or hail events affecting sensor readings and automation triggers', category: 'preferences' },
     { aspect: 'acceptance criteria', note: 'Define concrete testable criteria per core flow (e.g. "irrigation triggers within 5 minutes of soil moisture dropping below threshold")', category: 'functionalRequirements' },
     { aspect: 'multi-field scaling', note: 'Verify the system behaves correctly when scaled from a single test plot to hundreds of fields/herds', category: 'preferences' },
+    { aspect: 'unit conversion accuracy', note: 'Test acre/hectare, imperial/metric, and bushel/tonne conversions at their edges, since a silent rounding error compounds across large-acreage yield reports', category: 'functionalRequirements' },
+    { aspect: 'cross-field data isolation', note: 'Verify that one field/herd/customer\'s data cannot leak into another\'s analytics or reports in a multi-tenant deployment', category: 'constraints' },
   ],
   constraintConsiderations: [
     {
@@ -145,6 +163,13 @@ export const agricultureDomain: DomainModule = {
       category: 'constraints',
       triggerA: /\b(fully autonomous|no human (?:oversight|intervention)|unattended)\b/i,
       triggerB: /\b(irrigation|feeding|actuator|automated control)\b/i,
+    },
+    {
+      aspect: 'organic certification vs synthetic inputs',
+      note: 'Requesting "organic certified" alongside synthetic pesticide/herbicide or synthetic fertilizer use is an infeasible combination — organic certification standards (e.g. USDA NOP) prohibit most synthetic input applications.',
+      category: 'constraints',
+      triggerA: /\b(organic certif\w*|certified organic)\b/i,
+      triggerB: /\b(synthetic (?:pesticide|herbicide|fertilizer)s?)\b/i,
     },
   ],
 };

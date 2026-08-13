@@ -20,7 +20,11 @@ const KEYWORDS = [
   'trifold brochure', 'tri-fold brochure', 'bi-fold brochure', 'direct mail',
   'mailer', 'commercial printer', 'offset printing', 'digital printing',
   'foil stamping', 'spot uv', 'die-cut', 'die cut', 'print vendor',
-  'print shop',
+  'print shop', 'presentation folder', 'sell sheet', 'table tent',
+  'yard sign', 'vinyl banner', 'banner printing', 'large format printing',
+  'notepad printing', 'print proof', 'print-ready file', 'print ready file',
+  'booklet printing', 'catalog printing', 'envelope printing',
+  'permit imprint', 'mailing indicia',
 ];
 
 function wordBoundaryRegex(keyword: string): RegExp {
@@ -47,6 +51,7 @@ export const printCollateralDomain: DomainModule = {
     { text: 'Deliver source files in an editable format alongside the print-ready export (PDF/X preferred)', category: 'constraint' },
     { text: 'Specify the intended paper stock/weight and finish (matte, gloss, uncoated) appropriate to the piece', category: 'preference' },
     { text: 'Define the distribution method (mail, in-store display, hand-to-hand, event) the piece is designed for', category: 'preference' },
+    { text: 'If the piece will be mailed, confirm its dimensions and weight against postal machinable-mail size limits to avoid surcharge postage', category: 'constraint' },
   ],
   ambiguityChecklist: [
     {
@@ -79,6 +84,11 @@ export const printCollateralDomain: DomainModule = {
       description: 'The needed turnaround time before the print run must ship or arrive is unspecified',
       isResolved: (input) => /\b(rush\s*order|turnaround|by\s+\w+day|need\w*\s+it\s+by|deadline)\b/i.test(input),
     },
+    {
+      field: 'budget/cost target',
+      description: 'The budget or target cost per unit for the print run is unspecified',
+      isResolved: (input) => /\b(budget|cost\s*per\s*(unit|piece|card)|price\s*point|\$\d)/i.test(input),
+    },
   ],
   architectureTemplate: [
     { component: 'collateral piece inventory', dependsOn: [], note: 'List of distinct pieces required (business card, flyer, postcard, etc.) and their individual specs (size, orientation, sides)' },
@@ -98,6 +108,8 @@ export const printCollateralDomain: DomainModule = {
     { aspect: 'paper stock selection', note: 'Match stock weight and finish to the piece\'s handling and lifespan (heavier/coated stock for business cards that get handled repeatedly, lighter stock for mass-distributed flyers)', category: 'preferences' },
     { aspect: 'print quantity economics', note: 'Confirm the requested quantity against print-run cost curves — very small digital-print runs and very large offset runs have different per-unit cost breakpoints', category: 'functionalRequirements' },
     { aspect: 'vendor file specifications', note: 'Confirm the chosen print vendor\'s specific submission requirements (color profile, file size limits, template dimensions) before final export, since they vary by vendor', category: 'constraints' },
+    { aspect: 'large-format output prep', note: 'For banners, yard signs, and posters, use vector artwork or very high native-resolution raster (not scaled-up small images) since large-format printers render at low viewing-distance dpi but the file still cracks visibly if upscaled from a small source', category: 'constraints' },
+    { aspect: 'postal mail-piece format', note: 'If the piece is a mailer, confirm its dimensions and paper weight fall within USPS (or local postal authority) machinable-mail size and thickness limits, and that a permit imprint or indicia area is reserved in the layout if using a mail permit', category: 'constraints' },
   ],
   uxConsiderations: [
     { aspect: 'scan/read hierarchy', note: 'Prioritize the single most important message or call to action visually, since print collateral is typically viewed for only a few seconds', category: 'preferences' },
@@ -125,6 +137,7 @@ export const printCollateralDomain: DomainModule = {
     { aspect: 'cross-piece consistency check', note: 'Verify consistent branding, contact info, and messaging across all pieces in a multi-piece collateral set', category: 'functionalRequirements' },
     { aspect: 'color accuracy test', note: 'Check printed proof colors against brand color specifications (Pantone/CMYK) since screen preview and final print output can differ', category: 'functionalRequirements' },
     { aspect: 'quantity/budget reconciliation', note: 'Verify the final quoted print run quantity and cost match what was actually approved before authorizing the full run', category: 'preferences' },
+    { aspect: 'postal compliance check', note: 'For any mailed piece, verify size, weight, and aspect ratio against postal-authority machinable-mail rules before the run ships, since a non-compliant piece can incur surcharge postage or get rejected at the mail house', category: 'constraints' },
   ],
   constraintConsiderations: [
     {
@@ -147,6 +160,13 @@ export const printCollateralDomain: DomainModule = {
       category: 'constraints',
       triggerA: /\bdigital[- ]only\b/i,
       triggerB: /\b(direct\s*mail|in-?store\s*display|hand\w*\s*out|mail\s*house)\b/i,
+    },
+    {
+      aspect: 'oversized mailer vs standard postal rate',
+      note: 'An oversized or non-standard-shaped mailer (large poster-sized mailer, die-cut/irregular shape) combined with an expectation of standard first-class/postcard postage rates is infeasible — non-machinable dimensions and irregular shapes trigger postal surcharges or require a different mail class entirely.',
+      category: 'constraints',
+      triggerA: /\b(oversized|large[- ]format|irregular(ly)?[- ]shaped)\s*mailer\b/i,
+      triggerB: /\b(standard\s*postage|first[- ]class\s*rate|postcard\s*rate)\b/i,
     },
   ],
 };

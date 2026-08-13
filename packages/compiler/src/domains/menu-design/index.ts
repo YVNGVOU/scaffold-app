@@ -19,6 +19,8 @@ const KEYWORDS = [
   'menu pricing', 'menu section', 'specials board', 'table tent',
   'dietary tag', 'dietary tags', 'allergen menu', 'allergen tagging',
   'seasonal menu', 'menu insert', 'menu item description',
+  'kids menu', 'happy hour menu', 'takeout menu', 'to-go menu',
+  'menu redesign', 'combo menu', 'catering menu', 'dessert menu',
 ];
 
 function wordBoundaryRegex(keyword: string): RegExp {
@@ -89,7 +91,7 @@ export const menuDesignDomain: DomainModule = {
     {
       field: 'update frequency',
       description: 'How often the menu changes (static, seasonal rotation, daily specials) is unspecified',
-      isResolved: (input) => /\b(seasonal|daily\s+special|rotat\w*|static\s+menu|permanent\s+menu|weekly\s+special)\b/i.test(input),
+      isResolved: (input) => /\b(seasonal|daily\s+special|rotat\w*|static\s+menu|permanent\s+menu|weekly\s+special|weekly|monthly|quarterly)\b/i.test(input),
     },
     {
       field: 'dietary/allergen scope',
@@ -100,6 +102,11 @@ export const menuDesignDomain: DomainModule = {
       field: 'photography inclusion',
       description: 'Whether the menu includes food photography or is text-only is unspecified',
       isResolved: (input) => /\b(photo\w*|photography|images?\s+of\s+(food|dishes)|picture\s+menu)\b/i.test(input),
+    },
+    {
+      field: 'menu scope/item count',
+      description: 'Whether the menu is compact/limited or full/extensive, and roughly how many items or sections it covers, is unspecified',
+      isResolved: (input) => /\b(\d+\s*(items?|sections?|dishes)|compact\s+menu|extensive\s+menu|full\s+menu|limited\s+menu|short\s+menu|single[- ]page\s+menu)\b/i.test(input),
     },
   ],
   architectureTemplate: [
@@ -121,6 +128,7 @@ export const menuDesignDomain: DomainModule = {
     { aspect: 'accessible file formats', note: 'Deliver editable source files (e.g. InDesign/Illustrator/Figma) alongside export-ready PDF/PNG so future edits do not require rebuilding from scratch', category: 'constraints' },
     { aspect: 'multi-language support', note: 'Confirm whether the menu needs to support multiple languages, which affects layout space and text expansion planning', category: 'functionalRequirements' },
     { aspect: 'point-of-sale consistency', note: 'Confirm item names and prices match the POS system exactly to avoid till/menu price mismatches', category: 'constraints' },
+    { aspect: 'font licensing for print', note: 'Confirm the chosen typefaces carry a commercial/print-production license, not just a free desktop or web-preview license, before finalizing print files', category: 'constraints' },
   ],
   uxConsiderations: [
     { aspect: 'scanability/eye flow', note: 'Structure sections and item placement around known menu-reading eye-flow patterns so high-margin or signature items get visual priority', category: 'preferences' },
@@ -129,6 +137,7 @@ export const menuDesignDomain: DomainModule = {
     { aspect: 'dietary/allergen visibility', note: 'Make dietary and allergen tags visually consistent and easy to spot per item rather than buried in a separate footnote-only key', category: 'functionalRequirements' },
     { aspect: 'digital menu usability', note: 'If digital/QR, ensure the page loads fast on mobile data and is usable one-handed (large tap targets, no horizontal scrolling)', category: 'constraints' },
     { aspect: 'lighting/venue readability', note: 'Consider ambient lighting conditions of the venue (dim bar vs. bright cafe) when choosing font size, weight, and contrast', category: 'preferences' },
+    { aspect: 'combo/bundle clarity', note: 'Present combo meals and bundles with clearly itemized savings or contents so customers understand the value without needing to cross-reference other sections', category: 'preferences' },
   ],
   securityConsiderations: [
     { aspect: 'pricing data integrity', note: 'Guard against outdated cached prices on a digital/QR menu showing different prices than the till charges', category: 'constraints' },
@@ -136,6 +145,7 @@ export const menuDesignDomain: DomainModule = {
     { aspect: 'digital menu link security', note: 'If hosting a digital menu at a public URL, ensure the page cannot be tampered with or spoofed (e.g. no user-editable public CMS access) since a fake menu could mislead customers on price or allergens', category: 'constraints' },
     { aspect: 'unreleased menu exposure', note: 'Avoid exposing draft/unreleased seasonal menus (with unfinalized pricing) via publicly accessible links before launch', category: 'preferences' },
     { aspect: 'ip/recipe exposure', note: 'Confirm how much preparation detail is safe to disclose in item descriptions without giving away proprietary recipes/techniques', category: 'preferences' },
+    { aspect: 'ordering-form data collection', note: 'If the digital menu links to an online ordering, reservation, or feedback form collecting customer details (name, phone, payment), confirm the form uses secure handling rather than an unsecured or publicly-editable submission endpoint', category: 'constraints' },
   ],
   creativeConsiderations: [
     { aspect: 'brand consistency', note: 'Align menu typography, color, and imagery with the venue\'s existing brand identity so the menu reads as part of the same brand, not a disconnected document', category: 'constraints' },
@@ -143,6 +153,7 @@ export const menuDesignDomain: DomainModule = {
     { aspect: 'visual hierarchy for margin items', note: 'Use design emphasis (boxes, photos, placement) deliberately to draw attention to signature or higher-margin items, a core menu-engineering technique', category: 'preferences' },
     { aspect: 'material/format choice', note: 'Choose paper stock, lamination, or digital styling appropriate to venue tone (e.g. rustic kraft paper for a casual cafe vs. glossy card stock for upscale dining)', category: 'preferences' },
     { aspect: 'photography style consistency', note: 'If food photography is included, keep lighting, angle, and styling consistent across all shots rather than mixing stock photos with original photography', category: 'preferences' },
+    { aspect: 'eye-path item placement', note: 'Use the well-documented menu-reading eye path (upper-right/center "Golden Triangle" on print menus, top of each digital section) to place hero or high-margin items where attention lands first', category: 'preferences' },
   ],
   qaConsiderations: [
     { aspect: 'price/description accuracy', note: 'Cross-check every listed price and description against the current POS/kitchen data before publishing to avoid customer-facing pricing errors', category: 'constraints' },
@@ -151,6 +162,7 @@ export const menuDesignDomain: DomainModule = {
     { aspect: 'print proof review', note: 'Review a physical print proof (not just a screen preview) for color accuracy, legibility, and layout before full print production', category: 'functionalRequirements' },
     { aspect: 'digital menu link testing', note: 'Test the QR code and digital menu link on multiple real devices and network conditions before launch', category: 'functionalRequirements' },
     { aspect: 'seasonal update process test', note: 'Verify the update workflow for seasonal/rotating items actually works end-to-end (edit, re-export, reprint or re-publish) before relying on it for the first real update', category: 'preferences' },
+    { aspect: 'nutrition/calorie labeling accuracy', note: 'Where calorie counts or nutritional information is included (sometimes legally mandated for chains), verify figures against actual recipe/kitchen data rather than rough estimates', category: 'constraints' },
   ],
   constraintConsiderations: [
     {
@@ -173,6 +185,13 @@ export const menuDesignDomain: DomainModule = {
       category: 'constraints',
       triggerA: /\b(one[- ]time\s+print|laminated\s+menu|static\s+menu|no\s+reprint)\b/i,
       triggerB: /\b(daily\s+special\w*|changes?\s+daily|rotat\w*\s+daily)\b/i,
+    },
+    {
+      aspect: 'nutrition labeling requirement vs. no kitchen data',
+      note: 'A requirement for calorie counts or nutritional labeling alongside an explicit absence of recipe/kitchen data is infeasible as stated — accurate nutritional figures cannot be produced without ingredient/portion data from the kitchen.',
+      category: 'constraints',
+      triggerA: /\b(calorie\s*count\w*|nutrition(al)?\s+info(rmation)?|nutrition\s+label\w*)\b/i,
+      triggerB: /\b(no\s+(kitchen|nutrition\w*|recipe)\s+data|don't\s+have\s+(the\s+)?recipes?|no\s+recipe\s+data)\b/i,
     },
   ],
 };

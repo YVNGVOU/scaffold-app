@@ -52,4 +52,34 @@ describe('print-collateral domain', () => {
     const compiledText = JSON.stringify(compiled);
     expect(compiledText).toMatch(/bleed and trim|color mode conversion|print quantity economics|vendor file specifications/i);
   });
+
+  it('detects print-collateral domain via large-format and mailer-specific phrasings', () => {
+    const compiled = compileArchitect(
+      'Need banner printing for a yard sign and a vinyl banner for our storefront, plus a sell sheet and presentation folder for a trade show'
+    );
+    expect(compiled.domain).toBe('print-collateral');
+  });
+
+  it('word-boundary regression: bare "banner" and "folder" alone do not trigger print-collateral keywords', () => {
+    const state = runArchitectPipeline('Update the banner ad component and the file folder icon in the settings panel of the app');
+    expect(state.domain).not.toBe('print-collateral');
+  });
+
+  it('ambiguity checklist recognizes a short bare answer for budget/cost target', () => {
+    const compiled = compileArchitect(
+      'Design business cards for a plumbing company, print run of 500, budget is around $200'
+    );
+    const unresolved = JSON.stringify(compiled);
+    // budget field should be considered resolved and thus not appear as an outstanding "budget/cost target" gap
+    expect(unresolved).not.toMatch(/budget\/cost target/i);
+  });
+
+  it('surfaces the postal mail-piece/large-format consideration for a mailer request', () => {
+    const compiled = compileArchitect(
+      'Design an oversized direct mail postcard mailer for a landscaping company, print run of 3000, standard postage rate'
+    );
+    expect(compiled.domain).toBe('print-collateral');
+    const compiledText = JSON.stringify(compiled);
+    expect(compiledText).toMatch(/postal|machinable-mail|permit imprint/i);
+  });
 });

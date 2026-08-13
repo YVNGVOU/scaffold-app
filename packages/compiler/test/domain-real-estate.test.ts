@@ -2,42 +2,58 @@ import { describe, it, expect } from 'vitest';
 import { compileArchitect, runArchitectPipeline } from '../src/index.js';
 
 describe('real-estate domain', () => {
-  it('detects real-estate domain on a realistic real estate request', () => {
+  it('detects real-estate domain on a realistic property listing platform request', () => {
     const compiled = compileArchitect(
-      'Build a real estate listing platform with MLS/IDX integration, map-based property search, listing detail pages with square footage and price history, and fair housing-compliant filtering'
+      'Build a real estate listing platform with MLS feed integration, map-based property search, and lead capture routed to agents'
     );
     expect(compiled.domain).toBe('real-estate');
   });
 
-  it('negative control: an unrelated finance-focused request does not misclassify as real-estate', () => {
+  it('negative control: an unrelated software-development request does not misclassify as real-estate', () => {
     const compiled = compileArchitect(
-      'Build a personal budgeting app that tracks expenses, categorizes transactions, and shows spending trends against a monthly budget'
+      'Build a CLI tool in Rust that parses log files and outputs aggregated metrics to a local SQLite database'
     );
     expect(compiled.domain).not.toBe('real-estate');
   });
 
-  it('word-boundary regression: unrelated words do not falsely trigger real-estate keywords', () => {
-    const state = runArchitectPipeline('The tenants of good software design include modularity and testability, please help me lease out my API rate limits appropriately');
-    // "tenants" and "lease" as generic English words should not on their own force real-estate domain
-    // over a stronger-signal domain; this just confirms no crash/false-positive lock on unrelated software input
-    expect(state.domain).not.toBe('unknown');
+  it('word-boundary regression: new keywords do not falsely trigger on unrelated substrings', () => {
+    const state = runArchitectPipeline(
+      'The handicap rate for accessibility parking was reviewed by the subfloor planning committee for the new gymnasium'
+    );
+    expect(state.domain).not.toBe('real-estate');
   });
 
-  it('architect specialist produces real-estate-appropriate architecture output', () => {
+  it('word-boundary regression: showings/floor plan/cap rate correctly score real-estate when used in context', () => {
     const compiled = compileArchitect(
-      'Build a real estate brokerage platform with MLS listing ingestion, geospatial search, an agent dashboard for managing listings and leads, and a compliance layer for fair housing rules'
+      'Schedule showings for the listing, prepare the floor plan and CMA report, and calculate the cap rate for this commercial real estate property'
     );
     expect(compiled.domain).toBe('real-estate');
-    const architectureText = JSON.stringify(compiled.architecture);
-    expect(architectureText).toMatch(/listing ingestion|geospatial search|agent\/broker dashboard|compliance layer/i);
   });
 
-  it('technical specialist surfaces a real-estate-specific consideration', () => {
+  it('ambiguity checklist recognizes bare short answers for property type coverage', () => {
     const compiled = compileArchitect(
-      'Build a real estate brokerage platform with MLS listing ingestion, geospatial search, an agent dashboard for managing listings and leads, and a compliance layer for fair housing rules'
+      'Build a real estate platform for condos and commercial properties with MLS integration and lead capture'
     );
     expect(compiled.domain).toBe('real-estate');
     const compiledText = JSON.stringify(compiled);
-    expect(compiledText).toMatch(/MLS integration|geocoding|data freshness|fair housing/i);
+    expect(compiledText).not.toMatch(/property type coverage/i);
+  });
+
+  it('surfaces the wire fraud / BEC security consideration', () => {
+    const compiled = compileArchitect(
+      'Build a real estate transaction platform with escrow, earnest money handling, and closing document workflow for a single-family sales market'
+    );
+    expect(compiled.domain).toBe('real-estate');
+    const compiledText = JSON.stringify(compiled);
+    expect(compiledText).toMatch(/wire fraud|wiring instructions/i);
+  });
+
+  it('flags the nationwide-coverage-vs-solo-developer constraint tension', () => {
+    const compiled = compileArchitect(
+      'I am a solo developer building a nationwide real estate listing platform covering all 50 states with MLS integration'
+    );
+    expect(compiled.domain).toBe('real-estate');
+    const compiledText = JSON.stringify(compiled);
+    expect(compiledText).toMatch(/single market|near term/i);
   });
 });

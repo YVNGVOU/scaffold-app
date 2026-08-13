@@ -7,11 +7,15 @@ import type { DomainModule } from '../types.js';
 // acronyms are especially prone to false positives, so every keyword is
 // tested via a `\b`-delimited regex, never `.includes()`.
 const KEYWORDS = [
-  'healthcare', 'health care', 'patient', 'clinical', 'clinician', 'HIPAA',
+  'healthcare', 'health care', 'patient', 'clinician', 'HIPAA',
   'EHR', 'EMR', 'telehealth', 'telemedicine', 'diagnosis', 'diagnostic',
   'medical record', 'prescription', 'medication', 'HL7', 'FHIR', 'ICD-10',
   'CPT code', 'provider portal', 'care plan', 'symptom checker', 'PHI',
   'protected health information', 'triage', 'appointment scheduling',
+  'hospital', 'medical clinic', 'pharmacy prescription', 'health insurance', 'medical billing',
+  'remote patient monitoring', 'wearable device', 'population health',
+  'care coordination', 'urgent care', 'chronic disease management',
+  'claims processing', 'nurse', 'physician', 'lab results',
 ];
 
 function wordBoundaryRegex(keyword: string): RegExp {
@@ -63,12 +67,22 @@ export const healthcareDomain: DomainModule = {
     {
       field: 'data integration',
       description: 'Whether the system needs to integrate with existing EHR/EMR systems or health data standards (HL7/FHIR) is unspecified',
-      isResolved: (input) => /\b(EHR|EMR|HL7|FHIR|integration|interoperab)/i.test(input),
+      isResolved: (input) => /\b(EHR|EMR|HL7|FHIR|integration|interoperab\w*)\b/i.test(input),
     },
     {
       field: 'emergency handling',
       description: 'How the product handles or escalates emergency/urgent symptoms is unspecified',
       isResolved: (input) => /\b(emergency|urgent|911|escalat|red flag|crisis)\b/i.test(input),
+    },
+    {
+      field: 'reimbursement model',
+      description: 'How the product is paid for (fee-for-service, value-based care, self-pay, insurance billing) is unspecified',
+      isResolved: (input) => /\b(fee-for-service|value-based care|self-?pay|insurance billing|reimbursement|billing model|cash pay|out-of-pocket|claims)\b/i.test(input),
+    },
+    {
+      field: 'remote monitoring data source',
+      description: 'Whether patient data originates from remote monitoring devices/wearables, and how that device data is ingested, is unspecified',
+      isResolved: (input) => /\b(remote patient monitoring|RPM|wearables?|device data|bluetooth|continuous monitoring)\b/i.test(input),
     },
   ],
   architectureTemplate: [
@@ -81,6 +95,8 @@ export const healthcareDomain: DomainModule = {
     { component: 'audit and compliance logging', dependsOn: ['clinical data layer'], note: 'Immutable access logs for HIPAA audit trails and breach investigation' },
     { component: 'consent management', dependsOn: ['patient intake'], note: 'Tracks and enforces patient consent scope for data use and sharing' },
     { component: 'notification/escalation service', dependsOn: ['clinical decision support'], note: 'Routes urgent findings to on-call clinicians or emergency guidance' },
+    { component: 'billing and claims module', dependsOn: ['clinical data layer'], note: 'Generates and tracks insurance claims (X12 837/835 transactions via a clearinghouse) or self-pay invoicing' },
+    { component: 'remote monitoring ingestion service', dependsOn: ['clinical data layer'], note: 'Receives and normalizes data streams from wearables/RPM devices, flagging gaps in expected reporting cadence' },
     { component: 'deployment', dependsOn: ['clinical data layer', 'audit and compliance logging'], note: 'Hosting environment with a signed Business Associate Agreement (BAA) where PHI is involved' },
   ],
   technicalConsiderations: [
@@ -92,6 +108,9 @@ export const healthcareDomain: DomainModule = {
     { aspect: 'EHR integration', note: 'If integrating with an existing EHR (Epic, Cerner/Oracle Health, Athenahealth), account for that vendor\'s API limitations and certification requirements', category: 'functionalRequirements' },
     { aspect: 'uptime/reliability', note: 'Define availability SLA appropriate to clinical use — a scheduling tool tolerates more downtime than a bedside monitoring system', category: 'preferences' },
     { aspect: 'de-identification', note: 'Where data is used for analytics/research, apply a recognized de-identification method (Safe Harbor or Expert Determination) rather than ad-hoc redaction', category: 'preferences' },
+    { aspect: 'claims transaction format', note: 'Insurance billing must use ANSI X12 837 (claim submission) and 835 (remittance advice) transaction sets through a clearinghouse, not a custom billing schema', category: 'functionalRequirements' },
+    { aspect: 'pharmacy interoperability', note: 'E-prescribing or medication-list features should use NCPDP SCRIPT standard messaging to interoperate with pharmacy systems, not a proprietary format', category: 'functionalRequirements' },
+    { aspect: 'RPM device data trust boundary', note: 'Treat data from consumer wearables (step counts, heart rate) as lower-confidence signal distinct from FDA-cleared medical devices; do not silently merge the two into one clinical data stream', category: 'constraints' },
   ],
   uxConsiderations: [
     { aspect: 'health literacy', note: 'Write patient-facing copy at a widely accessible reading level (roughly 6th-8th grade) and avoid unexplained clinical jargon', category: 'preferences' },
@@ -101,6 +120,8 @@ export const healthcareDomain: DomainModule = {
     { aspect: 'multilingual support', note: 'Consider language access needs (interpreter integration, translated content) for diverse patient populations', category: 'preferences' },
     { aspect: 'anxiety-aware design', note: 'Present sensitive results (abnormal labs, diagnoses) with calm, clear framing and a clear next step rather than raw clinical output', category: 'preferences' },
     { aspect: 'caregiver access', note: 'Support proxy/caregiver access flows (parents, guardians, powers of attorney) distinct from the patient\'s own account', category: 'functionalRequirements' },
+    { aspect: 'telehealth session reliability', note: 'Design graceful degradation for video visits on poor bandwidth (audio-only fallback, reconnect without losing session state) rather than assuming reliable broadband', category: 'functionalRequirements' },
+    { aspect: 'medication adherence nudges', note: 'Reminder/nudge cadence for medication or monitoring adherence should be configurable per care plan, not a single fixed schedule for every condition', category: 'preferences' },
   ],
   securityConsiderations: [
     { aspect: 'PHI access control', note: 'Enforce role-based access control (RBAC) so only authorized clinical staff can view a given patient\'s records, on a minimum-necessary basis', category: 'constraints' },
@@ -110,6 +131,8 @@ export const healthcareDomain: DomainModule = {
     { aspect: 'third-party data sharing', note: 'Document any PHI shared with analytics, ad, or AI vendors, and confirm each has a signed BAA or the data is properly de-identified first', category: 'constraints' },
     { aspect: 'device security', note: 'Address security for clinical/mobile devices accessing patient data (auto-lock, remote wipe, no PHI in local caches)', category: 'functionalRequirements' },
     { aspect: 'minors and sensitive categories', note: 'Apply extra protection to sensitive categories (mental health, substance use, reproductive health, minors\' records) per applicable heightened-confidentiality laws (e.g. 42 CFR Part 2)', category: 'constraints' },
+    { aspect: 'RPM/wearable transmission security', note: 'Secure the device-to-cloud channel for remote monitoring hardware (paired-device authentication, encrypted transport) since these endpoints are a common weak link outside the main application perimeter', category: 'constraints' },
+    { aspect: 'billing data overlap', note: 'Insurance/payment data alongside PHI creates overlapping PCI-DSS and HIPAA obligations; do not assume PHI safeguards alone cover stored payment card data', category: 'constraints' },
   ],
   creativeConsiderations: [
     { aspect: 'clinical trust signaling', note: 'Use a visual language (typography, color, iconography) that reads as credible and calm rather than gimmicky, to build trust with patients and clinicians', category: 'preferences' },
@@ -126,6 +149,8 @@ export const healthcareDomain: DomainModule = {
     { aspect: 'data validation', note: 'Test boundary and malformed inputs for clinical fields (dosage units, dates of birth, lab values) that could otherwise silently corrupt a record', category: 'functionalRequirements' },
     { aspect: 'access control testing', note: 'Test that a user account cannot access another patient\'s records via ID manipulation or insufficiently scoped queries', category: 'constraints' },
     { aspect: 'acceptance criteria', note: 'Define testable acceptance criteria for core clinical flows (e.g. "a provider can review and approve a care plan in under 2 minutes")', category: 'preferences' },
+    { aspect: 'billing code accuracy', note: 'Test claims generation against known ICD-10/CPT code pairs to confirm no mismatched or unbillable code combinations reach the clearinghouse', category: 'functionalRequirements' },
+    { aspect: 'RPM data gap handling', note: 'Test behavior when a monitoring device stops reporting (battery death, connectivity loss) — confirm the system flags the gap rather than treating "no data" as "no symptoms"', category: 'constraints' },
   ],
   constraintConsiderations: [
     {
@@ -148,6 +173,13 @@ export const healthcareDomain: DomainModule = {
       category: 'constraints',
       triggerA: /\b(by tomorrow|this week|in (?:a|one) day|overnight|asap)\b/i,
       triggerB: /\b(EHR|EMR|HL7|FHIR)\s+integration\b/i,
+    },
+    {
+      aspect: 'consumer wearable data vs clinical-grade claims',
+      note: 'Sourcing vitals from consumer wearables (Fitbit, Apple Watch, off-the-shelf trackers) while claiming FDA-cleared or diagnostic-grade accuracy is infeasible — consumer wearables are not cleared for diagnostic use and the accuracy claim would misrepresent the underlying hardware.',
+      category: 'constraints',
+      triggerA: /\b(consumer wearable|fitbit|apple watch|off-the-shelf (?:wearable|tracker))\b/i,
+      triggerB: /\b(FDA[- ]clear(?:ed|ance)|diagnostic[- ]grade|clinical[- ]grade accuracy)\b/i,
     },
   ],
 };

@@ -13,6 +13,11 @@ const KEYWORDS = [
   'shipping rates', 'point of sale', 'pos system', 'marketplace listing',
   'abandoned cart', 'subscription billing', 'wishlist', 'coupon code',
   'shopping cart abandonment', 'return policy', 'refund processing',
+  'add to cart', 'buy now', 'product variants', 'product listing',
+  'digital storefront', 'online marketplace', 'order tracking',
+  'gift card', 'loyalty program', 'upsell', 'cross-sell', 'flash sale',
+  'multi-vendor marketplace', 'dropshipping', 'order management system',
+  'product recommendations', 'cart recovery',
 ];
 
 function wordBoundaryRegex(keyword: string): RegExp {
@@ -44,7 +49,7 @@ export const eCommerceDomain: DomainModule = {
     {
       field: 'payment processor',
       description: 'Payment gateway/processor (Stripe, PayPal, Shopify Payments, etc.) is unspecified',
-      isResolved: (input) => /(stripe|paypal|braintree|square|adyen|shopify payments|payment gateway|payment processor)/i.test(input),
+      isResolved: (input) => /\b(stripe|paypal|braintree|square|adyen|shopify payments|payment gateway|payment processor)\b/i.test(input),
     },
     {
       field: 'catalog scale',
@@ -54,22 +59,32 @@ export const eCommerceDomain: DomainModule = {
     {
       field: 'inventory source of truth',
       description: 'Whether inventory is managed in-app or synced from an external system (POS, ERP, warehouse) is unspecified',
-      isResolved: (input) => /(inventory sync|erp|pos system|point of sale|warehouse management|external inventory|sync inventory)/i.test(input),
+      isResolved: (input) => /\b(inventory sync|erp|pos system|point of sale|warehouse management|external inventory|sync inventory)\b/i.test(input),
     },
     {
       field: 'shipping scope',
       description: 'Shipping regions/countries served and carrier integrations are unspecified',
-      isResolved: (input) => /(shipping|domestic|international|carrier|fedex|ups|usps|dhl|fulfillment)/i.test(input),
+      isResolved: (input) => /\b(shipping|domestic|international|carrier|fedex|ups|usps|dhl|fulfillment)\b/i.test(input),
     },
     {
       field: 'platform vs custom-built',
       description: 'Whether this runs on an existing platform (Shopify, WooCommerce, Magento) or is custom-built is unspecified',
-      isResolved: (input) => /(shopify|woocommerce|magento|bigcommerce|custom[- ]built|headless commerce|custom platform)/i.test(input),
+      isResolved: (input) => /\b(shopify|woocommerce|magento|bigcommerce|custom[- ]built|headless commerce|custom platform)\b/i.test(input),
     },
     {
       field: 'return/refund policy',
       description: 'Return, refund, and exchange policy handling is unspecified',
-      isResolved: (input) => /(return policy|refund|exchange|rma|money[- ]back)/i.test(input),
+      isResolved: (input) => /\b(return policy|refund|exchange|rma|money[- ]back)\b/i.test(input),
+    },
+    {
+      field: 'vendor model',
+      description: 'Whether this is a single-seller store or a multi-vendor marketplace with third-party sellers is unspecified',
+      isResolved: (input) => /\b(single[- ]seller|single[- ]vendor|multi[- ]vendor|marketplace|third[- ]party sellers?|dropship\w*)\b/i.test(input),
+    },
+    {
+      field: 'promotions and loyalty',
+      description: 'Whether discount codes, gift cards, or a loyalty/rewards program are needed is unspecified',
+      isResolved: (input) => /\b(coupon|discount code|gift card|loyalty|rewards program|promo code)\b/i.test(input),
     },
   ],
   architectureTemplate: [
@@ -93,6 +108,9 @@ export const eCommerceDomain: DomainModule = {
     { aspect: 'catalog search and indexing', note: 'Choose a search/indexing solution (Algolia, Elasticsearch, platform-native) suited to catalog size and faceted filtering needs', category: 'preferences' },
     { aspect: 'performance under load', note: 'Plan for traffic spikes (sales events, product launches) with caching, CDN, and checkout queueing to prevent downtime during peak demand', category: 'preferences' },
     { aspect: 'currency and locale', note: 'Define multi-currency/multi-language support if selling internationally, including pricing display and conversion strategy', category: 'preferences' },
+    { aspect: 'product variant modeling', note: 'Model size/color/material variants as distinct SKUs with their own stock, price, and image sets rather than bolting variant selection onto a single product record, which breaks inventory accuracy', category: 'functionalRequirements' },
+    { aspect: 'multi-vendor settlement', note: 'If supporting a marketplace with third-party sellers, define commission splitting, payout scheduling, and per-vendor tax/1099 reporting up front — retrofitting split payments onto a single-seller payment flow is a major rework', category: 'constraints' },
+    { aspect: 'cart/session persistence', note: 'Decide whether cart state persists server-side (survives device switch, recoverable for abandoned-cart email) or only in local/session storage, since this affects abandoned-cart recovery and guest-to-account merge logic', category: 'functionalRequirements' },
   ],
   uxConsiderations: [
     { aspect: 'checkout friction', note: 'Minimize checkout steps (guest checkout, saved payment methods, autofill) since each added step increases cart abandonment', category: 'functionalRequirements' },
@@ -102,6 +120,8 @@ export const eCommerceDomain: DomainModule = {
     { aspect: 'mobile checkout', note: 'Optimize checkout for mobile (large tap targets, mobile wallet support like Apple Pay/Google Pay) given majority mobile traffic on most storefronts', category: 'functionalRequirements' },
     { aspect: 'order status transparency', note: 'Give customers clear, self-service visibility into order status and shipment tracking to reduce support inquiries', category: 'preferences' },
     { aspect: 'abandoned cart recovery', note: 'Design a non-intrusive abandoned-cart recovery flow (email/SMS reminder) that respects opt-in preferences', category: 'preferences' },
+    { aspect: 'out-of-stock handling', note: 'Show clear out-of-stock and low-stock states on product and cart pages (with restock notify-me options) instead of letting customers reach a payment-declined-style surprise at checkout', category: 'functionalRequirements' },
+    { aspect: 'price and total transparency', note: 'Show tax, shipping estimate, and any fees as early as possible in the flow (ideally on the product/cart page) rather than surprising customers only at the final checkout step', category: 'preferences' },
   ],
   securityConsiderations: [
     { aspect: 'PCI compliance', note: 'Never store raw card numbers/CVV; use tokenization and a PCI DSS-compliant processor, and scope PCI SAQ level correctly for the integration method chosen', category: 'constraints' },
@@ -111,6 +131,8 @@ export const eCommerceDomain: DomainModule = {
     { aspect: 'webhook verification', note: 'Verify payment/shipping webhook signatures (e.g. Stripe webhook secrets) to prevent spoofed order or refund events', category: 'functionalRequirements' },
     { aspect: 'admin access control', note: 'Restrict back-office/admin dashboard access with role-based permissions so staff cannot view or export more customer data than their role requires', category: 'constraints' },
     { aspect: 'unsafe assumptions', note: 'Flag any implicit assumption that discount codes, prices, or cart totals are trusted from the client without server-side revalidation', category: 'preferences' },
+    { aspect: 'gift card / coupon abuse', note: 'Rate-limit and log gift card and coupon code redemption attempts to prevent brute-force guessing of valid codes or balances', category: 'constraints' },
+    { aspect: 'marketplace seller vetting', note: 'If third-party sellers can list products, define seller verification and payout-fraud controls (e.g. delayed first payout, listing review) since marketplaces are a common target for fraudulent seller accounts', category: 'constraints' },
   ],
   creativeConsiderations: [
     { aspect: 'brand-consistent merchandising', note: 'Use product photography, layout, and imagery style consistent with brand identity so the storefront does not read as a generic template', category: 'preferences' },
@@ -128,6 +150,8 @@ export const eCommerceDomain: DomainModule = {
     { aspect: 'shipping calculation accuracy', note: 'Test shipping rate calculation across weight/dimension edge cases and unsupported destination addresses', category: 'preferences' },
     { aspect: 'order lifecycle contradictions', note: 'Check for contradictions such as "no accounts required" alongside "customers can view order history"', category: 'constraints' },
     { aspect: 'refund/cancellation flow', note: 'Define acceptance criteria for order cancellation and refund flows, including partial refunds and post-fulfillment returns', category: 'functionalRequirements' },
+    { aspect: 'variant/inventory drift', note: 'Test that editing a product variant (e.g. changing size options) does not orphan existing cart items or historical order line items referencing the old variant', category: 'functionalRequirements' },
+    { aspect: 'multi-currency rounding', note: 'Test price display and total calculation for rounding/conversion discrepancies when multi-currency is enabled, including totals that cross currency-minor-unit boundaries', category: 'constraints' },
   ],
   constraintConsiderations: [
     {
@@ -150,6 +174,13 @@ export const eCommerceDomain: DomainModule = {
       category: 'constraints',
       triggerA: /\b(guest[- ]only|no (?:customer )?accounts?|without (?:an? )?account)\b/i,
       triggerB: /\b(order history|saved payment methods?|view (?:past|previous) orders?)\b/i,
+    },
+    {
+      aspect: 'small team vs multi-vendor marketplace',
+      note: 'A solo founder or very small team building a multi-vendor marketplace is a high-risk combination — split payments, seller onboarding/KYC, per-vendor payouts, and multi-seller order fulfillment add substantial engineering and compliance scope beyond a single-seller store.',
+      category: 'constraints',
+      triggerA: /\b(solo founder|one[- ]person team|small team|just me|by myself)\b/i,
+      triggerB: /\b(multi[- ]vendor|marketplace|third[- ]party sellers?)\b/i,
     },
   ],
 };

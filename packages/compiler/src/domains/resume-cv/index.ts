@@ -21,6 +21,10 @@ const KEYWORDS = [
   'references available', 'chronological resume', 'functional resume',
   'hybrid resume', 'skills section', 'job hunt', 'job search',
   'one-page resume', 'resume format', 'resume template',
+  'resume bullet points', 'resume rewrite', 'resume review',
+  'career summary', 'personal statement', 'job description keywords',
+  'cover letter template', 'interview follow-up letter', 'gap in employment',
+  'career change resume', 'resignation letter', 'linkedin summary',
 ];
 
 function wordBoundaryRegex(keyword: string): RegExp {
@@ -96,6 +100,16 @@ export const resumeCvDomain: DomainModule = {
       description: 'Whether a cover letter is needed alongside the resume/CV is unspecified',
       isResolved: (input) => /\b(cover\s+letter)\b/i.test(input),
     },
+    {
+      field: 'employment gap handling',
+      description: 'Whether there are employment gaps that need to be addressed/explained in the document is unspecified',
+      isResolved: (input) => /\b(employment\s+gap|gap\s+in\s+(my\s+)?employment|career\s+break|career\s+gap|took\s+time\s+off|explain\w*\s+(a\s+)?gap)\b/i.test(input),
+    },
+    {
+      field: 'submission channel',
+      description: 'Where the document will be submitted (online portal upload, email attachment, LinkedIn, printed/in-person) is unspecified, which affects format/file-type choices',
+      isResolved: (input) => /\b(job\s+portal|online\s+application|email\s+attachment|linkedin|printed|in[- ]person|upload\w*|submit\w*\s+(online|via))\b/i.test(input),
+    },
   ],
   architectureTemplate: [
     { component: 'header/contact block', dependsOn: [], note: 'Name, contact info, location, LinkedIn/portfolio links — kept in plain parseable text, not an image or text box' },
@@ -114,6 +128,8 @@ export const resumeCvDomain: DomainModule = {
     { aspect: 'font and layout constraints', note: 'Use standard, widely-supported fonts (Arial, Calibri, Georgia) and avoid unusual Unicode characters/icons that can render as garbled text in some parsers', category: 'preferences' },
     { aspect: 'section header naming', note: 'Use conventional section headers ("Work Experience", "Education", "Skills") rather than creative labels, since ATS parsers pattern-match on standard headers', category: 'functionalRequirements' },
     { aspect: 'file naming convention', note: 'Name exported files predictably (e.g. FirstName_LastName_Resume.pdf) since some employer portals sort/display by filename', category: 'preferences' },
+    { aspect: 'employment gap framing', note: 'If gaps exist, decide up front whether to address them with a brief neutral line (e.g. "Career break — caregiving") or omit and rely on the interview, rather than leaving an unexplained date discontinuity that invites reviewer speculation', category: 'preferences' },
+    { aspect: 'portal upload field limits', note: 'Some job-portal upload systems auto-parse the file into separate name/email/experience form fields — verify the source document structure survives that re-parsing without garbling dates or splitting bullet text mid-sentence', category: 'constraints' },
   ],
   uxConsiderations: [
     { aspect: 'scannability', note: 'Structure content so a human reviewer skimming for 6-10 seconds can find role, company, dates, and top accomplishments immediately', category: 'functionalRequirements' },
@@ -163,6 +179,13 @@ export const resumeCvDomain: DomainModule = {
       category: 'constraints',
       triggerA: /\b(make\s+up|fabricat\w*|invent\w*|pretend\s+i\s+(have|had|worked))\b/i,
       triggerB: /\b(title|degree|experience|certification|job\s+history)\b/i,
+    },
+    {
+      aspect: 'entry-level candidate vs senior-only requirement',
+      note: 'Requesting resume content pitched at entry-level/first-job career stage while also demanding extensive quantified leadership accomplishments and years of managerial experience is infeasible — that content simply does not exist yet for a candidate at that stage; the fix is emphasizing transferable skills, coursework, and internships instead.',
+      category: 'constraints',
+      triggerA: /\b(entry[- ]level|first\s+job|new\s+grad(?:uate)?|no\s+(prior\s+)?experience)\b/i,
+      triggerB: /\b(years?\s+of\s+(managerial|leadership)\s+experience|led\s+a\s+team\s+of|managed\s+a\s+budget\s+of)\b/i,
     },
   ],
 };

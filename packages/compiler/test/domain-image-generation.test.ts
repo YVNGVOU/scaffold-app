@@ -38,4 +38,32 @@ describe('image-generation domain', () => {
     const architectureItems = state.requirements.filter((r) => r.source === 'architect-specialist');
     expect(architectureItems.length).toBeGreaterThan(0);
   });
+
+  it('detects image-generation domain on newer tool/technique phrasing (ControlNet, LoRA, SDXL)', () => {
+    const compiled = compileArchitect(
+      'Using SDXL with a character LoRA and ControlNet pose reference, generate a consistent character across several poses'
+    );
+    expect(compiled.domain).toBe('image-generation');
+  });
+
+  it('word-boundary regression: unrelated words do not falsely trigger new image-generation keywords', () => {
+    const state = runArchitectPipeline('The photobooth rental company has a flux capacitor prop and an ideogrammatic puzzle for the party');
+    expect(state.domain).not.toBe('image-generation');
+  });
+
+  it('ambiguity checklist flags missing target tool/model and color palette on a vague request', () => {
+    const state = runArchitectPipeline('Generate an image of a cat');
+    expect(state.domain).toBe('image-generation');
+    const unresolvedText = JSON.stringify(state.requirements);
+    expect(unresolvedText).toMatch(/target tool|model|color palette|colou?r/i);
+  });
+
+  it('constraint specialist flags exact legible text vs text-to-image generation as high-risk', () => {
+    const compiled = compileArchitect(
+      'Using Midjourney text-to-image generation, create packaging art with exact text and correct spelling of the product name'
+    );
+    expect(compiled.domain).toBe('image-generation');
+    const compiledText = JSON.stringify(compiled);
+    expect(compiledText).toMatch(/legible|text rendering|diffusion models render text unreliably/i);
+  });
 });

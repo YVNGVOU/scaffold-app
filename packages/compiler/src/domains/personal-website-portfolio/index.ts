@@ -14,7 +14,10 @@ const KEYWORDS = [
   'personal domain', 'squarespace', 'wix', 'about me page', 'personal blog',
   'showcase my work', 'freelance portfolio', 'design portfolio site',
   'photography portfolio', 'developer portfolio', 'personal homepage',
-  'link in bio page', 'linktree', 'carrd',
+  'link in bio page', 'linktree', 'carrd', 'personal web page',
+  'artist portfolio', 'writer portfolio', 'illustrator portfolio',
+  'portfolio for job hunting', 'digital resume site', 'about me website',
+  'vcard site', 'bio.link', 'personal splash page',
 ];
 
 function wordBoundaryRegex(keyword: string): RegExp {
@@ -46,12 +49,12 @@ export const personalWebsitePortfolioDomain: DomainModule = {
     {
       field: 'platform',
       description: 'Target platform/builder (Squarespace, Wix, custom code, static site generator) is unspecified',
-      isResolved: (input) => /\b(squarespace|wix|webflow|carrd|framer|wordpress|custom[- ]coded|static site|hand-?coded|next\.?js|astro)\b/i.test(input),
+      isResolved: (input) => /\b(squarespace|wix|webflow|carrd|framer|wordpress|custom[- ]coded|static site|hand-?coded|next\.?js|astro|gatsby|hugo|jekyll)\b/i.test(input),
     },
     {
       field: 'purpose',
       description: 'Primary purpose (job hunting, freelance client acquisition, personal brand/blog, creative showcase) is unspecified',
-      isResolved: (input) => /\b(job\s+hunt|hire\s+me|freelance|clients?|personal\s+brand|showcase|creative\s+work|land\s+a\s+job)\b/i.test(input),
+      isResolved: (input) => /\b(job\s+hunt|hire\s+me|freelance|clients?|personal\s+brand|showcase|creative\s+work|land\s+a\s+job|job\s+search|recruiters?|networking|grad\s+school|applications?)\b/i.test(input),
     },
     {
       field: 'content sections',
@@ -71,7 +74,17 @@ export const personalWebsitePortfolioDomain: DomainModule = {
     {
       field: 'update frequency',
       description: 'How often content (new projects, blog posts) will be updated is unspecified',
-      isResolved: (input) => /\b(update\w*\s+(regularly|often|monthly|weekly)|add\s+new\s+(projects?|posts?)|ongoing|static|one-?time)\b/i.test(input),
+      isResolved: (input) => /\b(update\w*\s+(regularly|often|monthly|weekly|quarterly)|add\s+new\s+(projects?|posts?)|ongoing|static|one-?time|quarterly|as[- ]needed|set\s+it\s+and\s+forget\s+it)\b/i.test(input),
+    },
+    {
+      field: 'target audience',
+      description: 'Who the site is primarily written for (hiring managers, prospective clients, general public, industry peers) is unspecified',
+      isResolved: (input) => /\b(hiring\s+managers?|recruiters?|prospective\s+clients?|general\s+public|industry\s+peers?|potential\s+employers?|target\s+audience)\b/i.test(input),
+    },
+    {
+      field: 'multimedia handling',
+      description: 'Whether the portfolio needs to embed heavier media (video reels, audio, large image galleries, interactive demos) beyond static text/images is unspecified',
+      isResolved: (input) => /\b(video\s+reel|showreel|demo\s+reel|audio\s+samples?|large\s+galler(y|ies)|interactive\s+demos?|embedded\s+video|playable\s+demo)\b/i.test(input),
     },
   ],
   architectureTemplate: [
@@ -93,6 +106,7 @@ export const personalWebsitePortfolioDomain: DomainModule = {
     { aspect: 'SEO basics', note: 'Set page titles, meta descriptions, and a favicon so the site is discoverable when the owner\'s name is searched', category: 'functionalRequirements' },
     { aspect: 'analytics', note: 'Consider a lightweight, privacy-respecting analytics tool (Plausible, Fathom, or platform-native analytics) to see whether the site is being visited', category: 'preferences' },
     { aspect: 'resume file sync', note: 'If a downloadable resume PDF is offered alongside on-page content, establish a process to keep both in sync as experience changes', category: 'functionalRequirements' },
+    { aspect: 'video/media hosting', note: 'Host video reels and large audio/media files on an external platform (YouTube/Vimeo unlisted, SoundCloud) rather than uploading raw files to the site host, which quickly blows through free-tier bandwidth/storage limits', category: 'constraints' },
   ],
   uxConsiderations: [
     { aspect: 'first-impression clarity', note: 'The hero/landing area should communicate who the person is and what they do within a few seconds of arrival', category: 'functionalRequirements' },
@@ -108,6 +122,7 @@ export const personalWebsitePortfolioDomain: DomainModule = {
     { aspect: 'platform account security', note: 'Use a strong, unique password and available 2FA on the builder/hosting account, since it is often a single point of failure for a solo-maintained site', category: 'preferences' },
     { aspect: 'third-party embed risk', note: 'Vet any embedded widgets/scripts (analytics, forms, social feeds) for what data they collect before adding them to the page', category: 'preferences' },
     { aspect: 'domain/DNS control', note: 'Ensure the owner (not an agency or ex-collaborator) retains registrar/DNS control of the personal domain', category: 'constraints' },
+    { aspect: 'form/email submission retention', note: 'Check what a third-party form service (Formspree, Netlify Forms, Google Forms) does with submitted contact data — where it is stored, for how long, and who besides the owner can access it', category: 'preferences' },
   ],
   creativeConsiderations: [
     { aspect: 'personal voice', note: 'Write bio and project copy in a voice that reads as the individual, not generic corporate copy — this is a personal site, not a company site', category: 'preferences' },
@@ -138,6 +153,13 @@ export const personalWebsitePortfolioDomain: DomainModule = {
       category: 'constraints',
       triggerA: /\b(by tomorrow|overnight|in (?:a|one) day|this afternoon|asap)\b/i,
       triggerB: /\b(case\s+stud(y|ies)|in-?depth\s+project\s+pages?|detailed\s+write-?ups?)\b/i,
+    },
+    {
+      aspect: 'free-tier hosting vs heavy media portfolio',
+      note: 'A free-tier no-code builder or free static host combined with heavy embedded media (video showreels, large hi-res image galleries, audio samples) is a mismatch — free tiers typically cap bandwidth/storage, so heavy media needs external hosting (YouTube/Vimeo) or a paid plan.',
+      category: 'constraints',
+      triggerA: /\b(free\s+tier|free\s+plan|free\s+hosting|github\s+pages)\b/i,
+      triggerB: /\b(video\s+reel|showreel|demo\s+reel|large\s+galler(y|ies)|hi-?res\s+images?|audio\s+samples?)\b/i,
     },
     {
       aspect: 'no budget vs custom-coded build',

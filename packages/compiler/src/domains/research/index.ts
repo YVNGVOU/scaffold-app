@@ -12,6 +12,11 @@ const KEYWORDS = [
   'methodology', 'survey', 'dataset', 'data set', 'whitepaper', 'white paper',
   'fact-find', 'fact find', 'due diligence', 'research summary', 'annotated bibliography',
   'peer-reviewed', 'peer reviewed', 'secondary research', 'primary research',
+  'meta-analysis', 'meta analysis', 'systematic review', 'lit review',
+  'research paper', 'academic sources', 'scholarly sources', 'evidence synthesis',
+  'benchmark research', 'landscape analysis', 'landscape report', 'desk research',
+  'background research', 'exploratory research', 'research brief', 'research memo',
+  'gather sources', 'compile sources',
 ];
 
 function wordBoundaryRegex(keyword: string): RegExp {
@@ -41,22 +46,32 @@ export const researchDomain: DomainModule = {
     {
       field: 'scope',
       description: 'The scope/boundaries of the research question (what is in vs. out of scope) is unspecified',
-      isResolved: (input) => /(scope|focus on|limited to|exclude|out of scope|boundar(y|ies))/i.test(input),
+      isResolved: (input) => /\b(scope|focus on|limited to|exclude|out of scope|boundar(?:y|ies))\b/i.test(input),
     },
     {
       field: 'sourcing',
       description: 'Sourcing/citation requirements (source types, recency, credibility bar) are unspecified',
-      isResolved: (input) => /(peer-?reviewed|primary source|secondary source|citation|cite|academic|credible source|source requirement)/i.test(input),
+      isResolved: (input) => /\b(peer-?reviewed|primary source|secondary source|citations?|cite|academic|credible source|source requirement)\b/i.test(input),
     },
     {
       field: 'methodology',
       description: 'The research methodology (qualitative, quantitative, systematic review, survey) is unspecified',
-      isResolved: (input) => /(qualitative|quantitative|systematic review|survey method|methodology|interview|case study)/i.test(input),
+      isResolved: (input) => /\b(qualitative|quantitative|systematic review|survey method|methodology|interview|case study)\b/i.test(input),
     },
     {
       field: 'deliverable format',
       description: 'The expected deliverable format (report, summary, dataset, presentation) is unspecified',
-      isResolved: (input) => /(report|summary|dataset|data set|slide deck|presentation|memo|brief|spreadsheet)/i.test(input),
+      isResolved: (input) => /\b(report|summary|dataset|data set|slide deck|presentation|memo|brief|spreadsheet)\b/i.test(input),
+    },
+    {
+      field: 'audience',
+      description: 'The intended audience/reader for the findings (executive, technical, general public, internal team) is unspecified',
+      isResolved: (input) => /\b(audience|reader|stakeholder|for (?:the )?(?:executive|leadership|board|engineer|investor|general public)|internal team|non-technical|technical audience)\b/i.test(input),
+    },
+    {
+      field: 'recency window',
+      description: 'How recent sources must be (e.g. last N years, current data only, historical context allowed) is unspecified',
+      isResolved: (input) => /\b(recency|up[- ]to[- ]date|last \d+ years?|past \d+ years?|current data|latest data|historical context|as of \d{4})\b/i.test(input),
     },
   ],
   architectureTemplate: [
@@ -73,6 +88,8 @@ export const researchDomain: DomainModule = {
     { aspect: 'data collection tooling', note: 'Determine what tools/databases are needed to gather data (academic databases, market data providers, internal records)', category: 'functionalRequirements' },
     { aspect: 'citation format', note: 'Specify a citation style (APA, MLA, Chicago, or informal linked references) and apply it consistently', category: 'preferences' },
     { aspect: 'reproducibility', note: 'Document search terms, filters, and inclusion/exclusion criteria so findings can be reproduced or audited', category: 'preferences' },
+    { aspect: 'paywall access', note: 'Identify sources behind paywalls (journals, industry reports, subscription databases) and confirm whether the requester has access or an alternative open-access equivalent is acceptable', category: 'constraints' },
+    { aspect: 'sample size and statistical validity', note: 'When synthesizing quantitative studies, check sample sizes and confidence intervals before treating results as generalizable, especially in meta-analyses combining studies of very different scale', category: 'functionalRequirements' },
   ],
   uxConsiderations: [
     { aspect: 'readability', note: 'Structure findings with clear headings, executive summary, and progressive detail so a time-pressed reader can skim to the conclusion', category: 'functionalRequirements' },
@@ -85,6 +102,8 @@ export const researchDomain: DomainModule = {
     { aspect: 'data privacy', note: 'If the research involves personal or proprietary data, confirm handling/retention rules before collection begins', category: 'constraints' },
     { aspect: 'confidentiality', note: 'Determine whether findings (e.g. competitive analysis) are confidential and restrict distribution accordingly', category: 'preferences' },
     { aspect: 'bias disclosure', note: 'Disclose conflicts of interest or funding sources behind cited studies where relevant to interpretation', category: 'preferences' },
+    { aspect: 'copyright and licensing', note: 'Do not reproduce large verbatim excerpts of copyrighted reports or paywalled articles in the deliverable; summarize and cite instead of quoting at length', category: 'constraints' },
+    { aspect: 'personally identifiable survey data', note: 'If primary research involves survey respondents or interview subjects, confirm consent and anonymization before including quotes or demographic detail that could identify them', category: 'constraints' },
   ],
   creativeConsiderations: [
     { aspect: 'narrative framing', note: 'Frame findings around the decision the research is meant to inform, not just a list of facts', category: 'preferences' },
@@ -97,6 +116,7 @@ export const researchDomain: DomainModule = {
     { aspect: 'completeness', note: 'Verify the research question as scoped has actually been answered, not just adjacent topics covered', category: 'functionalRequirements' },
     { aspect: 'recency check', note: 'Flag sources that may be outdated relative to the stated recency requirement', category: 'preferences' },
     { aspect: 'sample/evidence strength', note: 'Note where conclusions rest on thin evidence (single source, small sample) so confidence is not overstated', category: 'preferences' },
+    { aspect: 'source diversity', note: 'Check that findings are not derived from a single outlet or a cluster of sources that all cite the same original claim, which would create false corroboration', category: 'constraints' },
   ],
   constraintConsiderations: [
     {
@@ -112,6 +132,13 @@ export const researchDomain: DomainModule = {
       category: 'constraints',
       triggerA: /\b(no internet access|offline only|single source only|one source only)\b/i,
       triggerB: /\b(comprehensive|exhaustive|broad|industry-wide)\s+(research|analysis|review)\b/i,
+    },
+    {
+      aspect: 'peer-review-only vs cutting-edge topic',
+      note: 'Requiring peer-reviewed-only sources on a fast-moving or very recent topic is a high-risk combination — peer review lag typically runs months to years, so little or no peer-reviewed literature may exist yet on emerging developments.',
+      category: 'constraints',
+      triggerA: /\b(peer-?reviewed only|only peer-?reviewed|academic sources only)\b/i,
+      triggerB: /\b(latest|newest|emerging|cutting-edge|breaking|this (?:week|month))\b/i,
     },
   ],
 };

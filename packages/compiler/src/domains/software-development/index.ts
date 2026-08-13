@@ -15,6 +15,17 @@ const KEYWORDS = [
   'ci/cd', 'containerize', 'dockerize', 'kubernetes', 'unit tests', 'refactor',
   'algorithm', 'data structure', 'compiler', 'interpreter', 'multithreading',
   'concurrency', 'distributed system', 'message queue', 'orm',
+  'sdk package', 'monorepo', 'code generator', 'linter', 'static analysis',
+  'type checker', 'build system', 'package manager', 'dependency injection',
+  'design pattern', 'unit test', 'integration test', 'test suite',
+  'code review', 'pull request', 'git hook', 'webhook handler',
+  'event-driven', 'pub/sub', 'worker pool', 'thread pool', 'race condition',
+  'deadlock', 'memory leak', 'garbage collection', 'binary search',
+  'hash table', 'linked list', 'recursion', 'parser', 'lexer',
+  'abstract syntax tree', 'bytecode', 'virtual machine', 'shared library', 'dynamic library',
+  'static library', 'header file', 'makefile', 'build script',
+  'source control', 'version control', 'feature branch', 'code coverage',
+  'stack trace', 'exception handling', 'null pointer', 'buffer overflow',
 ];
 
 function wordBoundaryRegex(keyword: string): RegExp {
@@ -54,12 +65,27 @@ export const softwareDevelopmentDomain: DomainModule = {
     {
       field: 'persistence',
       description: 'Whether the system needs to persist data (and to what store) is unspecified',
-      isResolved: (input) => /\b(database|persist|storage|file system|in-memory|stateless)\b/i.test(input),
+      isResolved: (input) => /\b(database|persist|storage|file system|in-memory|stateless|sqlite|postgres|mysql|redis)\b/i.test(input),
     },
     {
       field: 'deployment target',
       description: 'How/where the software will be deployed or distributed is unspecified',
       isResolved: (input) => /\b(deploy|package|docker|kubernetes|cloud|on-premise|self-hosted|npm|pip|cargo|distribute)\b/i.test(input),
+    },
+    {
+      field: 'concurrency needs',
+      description: 'Whether the system must handle concurrent/parallel work (and how much) is unspecified',
+      isResolved: (input) => /\b(concurrent|concurrency|parallel|single[- ]threaded|multi[- ]threaded|async(?:hronous)?|synchronous|sequential)\b/i.test(input),
+    },
+    {
+      field: 'error handling strategy',
+      description: 'How the system should behave on failure (retry, fail fast, exit codes) is unspecified',
+      isResolved: (input) => /\b(retry|retries|fail[- ]fast|fail[- ]safe|graceful(?:ly)? degrad\w*|exit code|error handling|exception)\b/i.test(input),
+    },
+    {
+      field: 'authentication/authorization',
+      description: 'Whether the software needs auth (and what kind) is unspecified',
+      isResolved: (input) => /\b(auth(?:entication|orization)?|oauth|api key|jwt|no auth|public access|open access)\b/i.test(input),
     },
   ],
   architectureTemplate: [
@@ -77,6 +103,8 @@ export const softwareDevelopmentDomain: DomainModule = {
     { aspect: 'concurrency model', note: 'Decide on a concurrency/parallelism model (threads, async I/O, worker processes) appropriate to the workload', category: 'preferences' },
     { aspect: 'versioning', note: 'Define a versioning/release strategy (semver, changelog) especially if this is a published library', category: 'preferences' },
     { aspect: 'observability', note: 'Add structured logging, metrics, and/or tracing so failures in production are diagnosable', category: 'constraints' },
+    { aspect: 'idempotency', note: 'For operations that may be retried (message handlers, job processors, API writes), design them to be idempotent so retries and duplicate deliveries do not corrupt state', category: 'functionalRequirements' },
+    { aspect: 'backward-incompatible migrations', note: 'If a database schema or on-disk data format is changing, plan a migration path (dual-write, versioned schema, migration script) rather than a breaking cutover', category: 'constraints' },
   ],
   uxConsiderations: [
     { aspect: 'developer experience', note: 'Design a clear, discoverable interface (CLI flags/help text, API signatures, error messages) for the people who will actually call this code', category: 'functionalRequirements' },
@@ -90,6 +118,8 @@ export const softwareDevelopmentDomain: DomainModule = {
     { aspect: 'dependency risk', note: 'Audit third-party dependencies for known vulnerabilities and pin versions to avoid supply-chain surprises', category: 'constraints' },
     { aspect: 'least privilege', note: 'Run processes and access external resources (files, databases, network) with the minimum permissions required', category: 'constraints' },
     { aspect: 'injection risk', note: 'Avoid constructing shell commands or queries via string concatenation of untrusted input', category: 'functionalRequirements' },
+    { aspect: 'deserialization', note: 'Avoid deserializing untrusted data with unsafe/reflective mechanisms (e.g. pickle, unchecked YAML/XML loaders) that can lead to remote code execution', category: 'constraints' },
+    { aspect: 'rate limiting/abuse', note: 'If the software exposes an API or public entry point, define rate limiting and abuse-prevention so a single caller cannot exhaust resources', category: 'functionalRequirements' },
   ],
   creativeConsiderations: [
     { aspect: 'API ergonomics', note: 'Favor a small, composable, well-named public interface over a sprawling one so the software is pleasant to build on top of', category: 'preferences' },
@@ -103,6 +133,8 @@ export const softwareDevelopmentDomain: DomainModule = {
     { aspect: 'edge cases', note: 'Enumerate edge cases: empty input, malformed input, network/dependency failure, concurrent access, resource exhaustion', category: 'preferences' },
     { aspect: 'failure states', note: 'Identify failure states the spec does not address: process crash mid-operation, partial writes, upstream API timeout', category: 'constraints' },
     { aspect: 'backward compatibility', note: 'If this is a library/API, define what breaking a public contract means and how changes will be versioned', category: 'preferences' },
+    { aspect: 'flaky test risk', note: 'Flag tests likely to be flaky (time-based assertions, network calls, shared global state, race conditions) before they erode trust in the suite', category: 'constraints' },
+    { aspect: 'idempotency verification', note: 'For retryable operations, add a test that runs the operation twice with the same input and asserts no duplicate side effects', category: 'functionalRequirements' },
   ],
   constraintConsiderations: [
     {
@@ -118,6 +150,13 @@ export const softwareDevelopmentDomain: DomainModule = {
       category: 'constraints',
       triggerA: /\b(no tests?|skip tests?|without tests?)\b/i,
       triggerB: /\b(production|live deployment|go live|ship to users)\b/i,
+    },
+    {
+      aspect: 'stateless requirement vs in-memory session state',
+      note: 'Requiring the service to be stateless/horizontally scalable while also relying on in-memory session or cache state is contradictory — state kept in process memory will not survive across instances or restarts.',
+      category: 'constraints',
+      triggerA: /\b(stateless|horizontally scalable|scale out)\b/i,
+      triggerB: /\b(in-memory session|in-memory cache|in-memory state)\b/i,
     },
   ],
 };

@@ -39,4 +39,39 @@ describe('agriculture domain', () => {
     const compiledText = JSON.stringify(compiled);
     expect(compiledText).toMatch(/sensor integration|offline operation|weather API|geospatial data/i);
   });
+
+  it('detects agriculture domain on newly-added realistic phrasings (ranching, hydroponics, variable rate)', () => {
+    const compiled = compileArchitect(
+      'Build a ranch management app for beef cattle with field scouting checklists, and a hydroponics module for vertical farming with a yield monitor and variable rate fertilizer recommendations'
+    );
+    expect(compiled.domain).toBe('agriculture');
+  });
+
+  it('word-boundary regression: new keywords do not false-positive inside unrelated words', () => {
+    // "ranch" inside "branching", "grain" inside "grainy", "till" inside "until",
+    // "cattle" inside "cattleman's day off at the fair", "hydroponic" only matches whole word.
+    const state = runArchitectPipeline(
+      'The branching strategy for the fairgrounds website looks grainy until we redesign it; the mattermost chat has a fair amount of noise'
+    );
+    expect(state.domain).not.toBe('agriculture');
+  });
+
+  it('ambiguity checklist recognizes a bare short answer for automation-level', () => {
+    const compiled = compileArchitect(
+      'Build a farm irrigation system that is advisory only, does not control any actuators, and tracks soil moisture for a commercial vegetable farm in a temperate climate with usda organic certification and cellular connectivity'
+    );
+    expect(compiled.domain).toBe('agriculture');
+    // Should not flag automation-level as an unresolved ambiguity since "advisory" was given.
+    const unresolvedFields = (compiled.ambiguities ?? []).map((a: { field: string }) => a.field);
+    expect(unresolvedFields).not.toContain('automation-level');
+  });
+
+  it('constraint specialist flags organic certification combined with synthetic pesticide use as infeasible', () => {
+    const compiled = compileArchitect(
+      'Build a farm management app for a certified organic vegetable operation that also schedules synthetic pesticide applications across all fields'
+    );
+    expect(compiled.domain).toBe('agriculture');
+    const compiledText = JSON.stringify(compiled);
+    expect(compiledText).toMatch(/organic certif|synthetic pesticide/i);
+  });
 });

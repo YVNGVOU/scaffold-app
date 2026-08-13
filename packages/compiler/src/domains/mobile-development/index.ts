@@ -10,7 +10,12 @@ const KEYWORDS = [
   'kotlin', 'react native', 'flutter', 'app store', 'play store',
   'push notification', 'push notifications', 'objective-c', 'xcode',
   'android studio', 'native app', 'cross-platform app', 'iphone', 'ipad',
-  'apk', 'testflight',
+  'apk', 'testflight', 'jetpack compose', 'kotlin multiplatform',
+  'expo', 'app clip', 'instant app', 'in-app purchase', 'in-app purchases',
+  'deep link', 'deep linking', 'universal link', 'biometric login',
+  'face id', 'touch id', 'google play', 'app bundle', 'aab',
+  'mobile ui', 'mobile ux', 'tablet app', 'wear os', 'watchos',
+  'app permissions', 'background fetch', 'widget extension',
 ];
 
 function wordBoundaryRegex(keyword: string): RegExp {
@@ -40,22 +45,32 @@ export const mobileDevelopmentDomain: DomainModule = {
     {
       field: 'platform target',
       description: 'Whether the app targets iOS, Android, or both (native vs. cross-platform) is unspecified',
-      isResolved: (input) => /\b(ios|android|iphone|ipad|cross-platform|react native|flutter|both platforms)\b/i.test(input),
+      isResolved: (input) => /\b(ios|android|iphone|ipad|cross-platform|react native|flutter|both platforms|native app|kotlin multiplatform|expo)\b/i.test(input),
     },
     {
       field: 'distribution',
       description: 'Distribution channel (App Store / Play Store public release vs. internal/enterprise distribution) is unspecified',
-      isResolved: (input) => /\b(app store|play store|testflight|enterprise distribution|internal (?:app|release)|sideload)\b/i.test(input),
+      isResolved: (input) => /\b(app store|play store|testflight|enterprise distribution|internal (?:app|release)|sideload|public release|enterprise|internal only)\b/i.test(input),
     },
     {
       field: 'offline behavior',
       description: 'Expected offline/connectivity behavior (fully offline-capable vs. requires constant connection) is unspecified',
-      isResolved: (input) => /\b(offline|no (?:internet|connection|network)|sync when|cached data|airplane mode)\b/i.test(input),
+      isResolved: (input) => /\b(offline|no (?:internet|connection|network)|sync when|cached data|airplane mode|always online|requires connection)\b/i.test(input),
     },
     {
       field: 'device permissions',
       description: 'Which device permissions (camera, location, contacts, notifications, etc.) the app needs is unspecified',
-      isResolved: (input) => /\b(permission|camera access|location access|contacts access|push notification|microphone access)\b/i.test(input),
+      isResolved: (input) => /\b(permission|camera access|location access|contacts access|push notification|microphone access|app permissions)\b/i.test(input),
+    },
+    {
+      field: 'monetization model',
+      description: 'How the app makes money (free, paid download, in-app purchases, subscription, ads) is unspecified',
+      isResolved: (input) => /\b(in-app purchase|in-app purchases|subscription|freemium|paid app|free app|ad-supported|ads|one-time purchase)\b/i.test(input),
+    },
+    {
+      field: 'authentication approach',
+      description: 'How users sign in (email/password, social login, biometric, guest mode) is unspecified',
+      isResolved: (input) => /\b(sign in|sign-in|login|log in|face id|touch id|biometric|social login|guest mode|sso|oauth)\b/i.test(input),
     },
   ],
   architectureTemplate: [
@@ -73,6 +88,10 @@ export const mobileDevelopmentDomain: DomainModule = {
     { aspect: 'app size and performance', note: 'Monitor app bundle size, cold-start time, and memory usage against platform-typical benchmarks', category: 'preferences' },
     { aspect: 'OS version support', note: 'Define minimum supported iOS/Android OS versions and the resulting feature/API constraints', category: 'constraints' },
     { aspect: 'device fragmentation', note: 'Account for varying screen sizes, aspect ratios, and hardware capabilities across the target device range', category: 'preferences' },
+    { aspect: 'app store binary format', note: 'Plan for required binary formats (Android App Bundle over raw APK for Play Store, App Store Connect signing for iOS) rather than assuming a single build artifact covers both stores', category: 'constraints' },
+    { aspect: 'deep linking and universal links', note: 'Define deep-link/universal-link routes needed for notification taps, marketing campaigns, and cross-app handoff, including cold-start vs. warm-start routing behavior', category: 'functionalRequirements' },
+    { aspect: 'background execution limits', note: 'Account for OS-imposed background execution limits (iOS background task budgets, Android Doze/App Standby) when relying on background fetch or long-running sync', category: 'constraints' },
+    { aspect: 'in-app purchase plumbing', note: 'If monetized via in-app purchases or subscriptions, integrate StoreKit/Google Play Billing receipt validation server-side rather than trusting client-reported purchase state', category: 'functionalRequirements' },
   ],
   uxConsiderations: [
     { aspect: 'platform conventions', note: 'Follow platform-native interaction patterns (iOS Human Interface Guidelines vs. Android Material Design) rather than a one-size-fits-all UI', category: 'functionalRequirements' },
@@ -80,6 +99,9 @@ export const mobileDevelopmentDomain: DomainModule = {
     { aspect: 'gesture and touch targets', note: 'Ensure touch targets meet platform minimum sizes and gestures do not conflict with system-level gestures (back-swipe, notification pull-down)', category: 'constraints' },
     { aspect: 'offline UX', note: 'Clearly communicate offline/degraded-connectivity state to the user rather than silently failing or spinning indefinitely', category: 'functionalRequirements' },
     { aspect: 'notification tone', note: 'Design push notification frequency and content to avoid feeling spammy, with an easy way to manage preferences', category: 'preferences' },
+    { aspect: 'thumb-reachability', note: 'Place primary actions within comfortable thumb reach on large-screen devices (bottom navigation/tab bars) rather than relying on top-of-screen taps for one-handed use', category: 'preferences' },
+    { aspect: 'app-switch and interruption recovery', note: 'Design screens to preserve in-progress state (form input, scroll position) when the user is interrupted by a phone call, notification, or app switch', category: 'functionalRequirements' },
+    { aspect: 'empty and first-run states', note: 'Design meaningful empty states and a first-run experience that demonstrates value before requiring account creation or permission grants', category: 'preferences' },
   ],
   securityConsiderations: [
     { aspect: 'secure local storage', note: 'Store sensitive data (tokens, credentials, PII) in platform-secure storage (Keychain/Keystore), never in plain-text local files or shared preferences', category: 'constraints' },
@@ -87,6 +109,9 @@ export const mobileDevelopmentDomain: DomainModule = {
     { aspect: 'API/network security', note: 'Use certificate pinning or at minimum enforced TLS for all backend API traffic, and avoid embedding API secrets directly in the client binary', category: 'constraints' },
     { aspect: 'app store review compliance', note: 'Ensure data collection, tracking, and permission usage comply with App Store/Play Store privacy policies (e.g. App Tracking Transparency, Data Safety section)', category: 'constraints' },
     { aspect: 'jailbreak/root detection', note: 'Consider whether the app needs jailbreak/root detection for sensitive functionality (e.g. payments, health data)', category: 'preferences' },
+    { aspect: 'biometric auth fallback', note: 'If using Face ID/Touch ID/biometric login, define a secure fallback (passcode/PIN) for when biometrics are unavailable or fail repeatedly, and never store the biometric data itself', category: 'constraints' },
+    { aspect: 'deep link validation', note: 'Validate and sanitize deep-link/universal-link parameters server-side before acting on them, since deep links can be crafted by any party and are not a trusted input channel', category: 'constraints' },
+    { aspect: 'third-party SDK data exposure', note: 'Audit analytics/ad/crash-reporting SDKs bundled into the app for what device and user data they transmit off-device, since these are common sources of undisclosed data collection', category: 'constraints' },
   ],
   creativeConsiderations: [
     { aspect: 'app icon and branding', note: 'Design an app icon and splash screen that reads clearly at small sizes across both platforms\' icon shapes/masks', category: 'preferences' },
@@ -100,6 +125,9 @@ export const mobileDevelopmentDomain: DomainModule = {
     { aspect: 'permission denial paths', note: 'Test the app\'s behavior when a requested permission is denied or later revoked in system settings', category: 'functionalRequirements' },
     { aspect: 'app store rejection risk', note: 'Check for common App Store/Play Store rejection triggers (missing privacy disclosures, broken links, placeholder content) before submission', category: 'constraints' },
     { aspect: 'background/lifecycle states', note: 'Test app behavior across backgrounding, force-quit, low-memory termination, and push notification while backgrounded', category: 'preferences' },
+    { aspect: 'deep link and cold-start routing', note: 'Test deep links opened while the app is fully closed (cold start), backgrounded (warm start), and already in foreground, since routing logic often only gets tested in one of those states', category: 'functionalRequirements' },
+    { aspect: 'store review compliance checks', note: 'Verify in-app purchase flows follow Apple/Google purchasing rules (no external payment links for digital goods without required entitlements) before submission to avoid rejection', category: 'constraints' },
+    { aspect: 'OS/device update regression', note: 'Re-test core flows after major OS point releases and on new device form factors (foldables, new screen notches) since platform updates can silently break existing UI assumptions', category: 'constraints' },
   ],
   constraintConsiderations: [
     {
@@ -115,6 +143,13 @@ export const mobileDevelopmentDomain: DomainModule = {
       category: 'constraints',
       triggerA: /\b(fully offline|works offline|no (?:internet|connection) required)\b/i,
       triggerB: /\b(real-time sync|real-time collaboration|live chat|live updates)\b/i,
+    },
+    {
+      aspect: 'in-app purchases vs external payment links',
+      note: 'Selling digital goods/subscriptions via in-app purchase while also wanting to link out to an external website for payment is restricted by App Store/Play Store policy for most digital-goods categories and risks rejection.',
+      category: 'constraints',
+      triggerA: /\b(in-app purchase|in-app purchases|subscription)\b/i,
+      triggerB: /\b(external (?:payment|website|link)|pay (?:on|via) (?:our|the) website|link out to (?:payment|checkout))\b/i,
     },
   ],
 };

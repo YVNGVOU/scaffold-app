@@ -11,7 +11,9 @@ const KEYWORDS = [
   'audio interface', 'soundproofing', 'noise floor', 'rss feed', 'show notes',
   'audiogram', 'spotify for podcasters', 'apple podcasts', 'listenership',
   'audio levels', 'de-essing', 'loudness normalization', 'lufs', 'pop filter',
-  'multi-track recording', 'co-host',
+  'multi-track recording', 'co-host', 'audio post-production', 'podcast script',
+  'ad read', 'dynamic ad insertion', 'podcast transcript', 'chapter markers', 'sound engineer',
+  'podcast trailer', 'explicit tag', 'id3 tags',
 ];
 
 function wordBoundaryRegex(keyword: string): RegExp {
@@ -69,6 +71,16 @@ export const podcastAudioDomain: DomainModule = {
       description: 'Monetization approach (ads, sponsorships, listener support, none) is unspecified',
       isResolved: (input) => /\b(sponsorship|advertis(?:ing|ement)|monetiz|patreon|listener support|paid subscription)\b/i.test(input),
     },
+    {
+      field: 'publishing cadence',
+      description: 'Publishing cadence/frequency (daily, weekly, biweekly, monthly, seasonal) is unspecified',
+      isResolved: (input) => /\b(daily|weekly|bi-?weekly|monthly|seasonal|seasonally|every (?:day|week|month)|per week|per month)\b/i.test(input),
+    },
+    {
+      field: 'navigation/chapters',
+      description: 'Whether episodes need chapter markers/timestamps for in-episode navigation is unspecified',
+      isResolved: (input) => /\b(chapter markers?|chapters|timestamps?|id3 tags?)\b/i.test(input),
+    },
   ],
   architectureTemplate: [
     { component: 'pre-production planning', dependsOn: [], note: 'Episode outline, guest booking, and talking points/script prepared ahead of recording' },
@@ -90,6 +102,9 @@ export const podcastAudioDomain: DomainModule = {
     { aspect: 'file interchange', note: 'Define the export/delivery format (WAV master + MP3 distribution copy) and sample rate/bit depth consistency across the pipeline', category: 'functionalRequirements' },
     { aspect: 'hosting bandwidth', note: 'Choose a podcast host with adequate bandwidth/storage limits and reliable RSS feed generation for the expected episode volume and audience size', category: 'constraints' },
     { aspect: 'remote recording reliability', note: 'For remote interviews, record a local backup track on each participant\'s end in case of internet dropouts, since a compressed VoIP-only recording degrades quality', category: 'preferences' },
+    { aspect: 'chapter markers and ID3 tags', note: 'If chapter navigation is required, embed chapter markers (Podcasting 2.0 chapters.json or ID3v2 chapter frames) at export time rather than relying on the host platform to infer them', category: 'functionalRequirements' },
+    { aspect: 'transcript generation', note: 'Decide whether transcripts are produced via automated speech-to-text (with a manual accuracy pass) or fully manual transcription, since ASR error rates rise sharply with cross-talk, accents, and technical jargon', category: 'functionalRequirements' },
+    { aspect: 'dynamic ad insertion', note: 'If using dynamic ad insertion (DAI), leave clearly marked silence/marker points in the master export for the host platform to inject ads server-side, rather than baking ads permanently into the file', category: 'constraints' },
   ],
   uxConsiderations: [
     { aspect: 'episode pacing', note: 'Define pacing/structure (cold open, intro, segments, outro) so listeners know what to expect and can navigate via chapter markers', category: 'functionalRequirements' },
@@ -98,6 +113,8 @@ export const podcastAudioDomain: DomainModule = {
     { aspect: 'accessibility', note: 'Provide a transcript for each episode so hearing-impaired listeners and search engines can access the content', category: 'preferences' },
     { aspect: 'first-episode experience', note: 'Design a strong first few episodes and a clear show trailer, since most new-listener churn happens in the first minute of the first episode', category: 'preferences' },
     { aspect: 'cross-platform playback', note: 'Verify episode playback and metadata display correctly across major apps (Apple Podcasts, Spotify, Overcast, Pocket Casts), which render feeds differently', category: 'constraints' },
+    { aspect: 'ad placement experience', note: 'Place ad reads at natural segment breaks rather than mid-sentence interruptions, and keep total ad load proportionate to episode length so listeners do not churn mid-episode', category: 'preferences' },
+    { aspect: 'explicit content labeling', note: 'Set the RSS explicit tag accurately and warn listeners up front for strong language or graphic content, since default players surface this before playback', category: 'functionalRequirements' },
   ],
   securityConsiderations: [
     { aspect: 'guest consent', note: 'Obtain explicit recorded or written consent from guests before publishing their voice/likeness, including how the recording may be reused (clips, ads)', category: 'constraints' },
@@ -114,6 +131,7 @@ export const podcastAudioDomain: DomainModule = {
     { aspect: 'guest chemistry', note: 'Consider host/guest or co-host chemistry and interview style (conversational vs. structured Q&A) as a core creative choice, not an afterthought', category: 'preferences' },
     { aspect: 'cover art and branding', note: 'Design cover art that reads clearly at thumbnail size in podcast apps and reflects the show\'s tone and genre at a glance', category: 'functionalRequirements' },
     { aspect: 'episode titling', note: 'Craft titles that balance searchability/SEO with genuine intrigue, avoiding generic "Episode 42" naming that gives potential listeners no reason to click', category: 'preferences' },
+    { aspect: 'ad read delivery', note: 'Decide whether sponsor reads are host-read (personal, higher trust, more production time) or pre-produced spots (consistent, faster to insert) as a deliberate creative/production tradeoff', category: 'preferences' },
   ],
   qaConsiderations: [
     { aspect: 'audio quality check', note: 'Listen to the full mastered episode on multiple playback devices (phone speaker, earbuds, car audio) to catch clipping, sibilance, or inconsistent levels before publishing', category: 'constraints' },
@@ -123,6 +141,7 @@ export const podcastAudioDomain: DomainModule = {
     { aspect: 'failure states', note: 'Plan for failure states: a guest\'s remote connection drops mid-recording, a co-host is unavailable last-minute, or an upload to the host fails before a scheduled release', category: 'constraints' },
     { aspect: 'legal/release checklist', note: 'Confirm guest release forms, sponsor read scripts, and music licenses are all signed off before the episode goes live, not after', category: 'constraints' },
     { aspect: 'break the spec', note: 'Attempt to break the specification: a guest cancels day-of, a copyright claim hits a past episode, or the RSS feed needs to migrate hosts without breaking subscriber counts', category: 'preferences' },
+    { aspect: 'chapter/timestamp accuracy', note: 'Verify chapter markers and show-notes timestamps still line up with the audio after any post-export trim or re-edit, since a stale timestamp list is worse than none', category: 'constraints' },
   ],
   constraintConsiderations: [
     {
@@ -145,6 +164,13 @@ export const podcastAudioDomain: DomainModule = {
       category: 'constraints',
       triggerA: /\b(raw|unedited|one[- ]take|no editing)\b/i,
       triggerB: /\b(sound design|music bed|tightly edited|tight pacing)\b/i,
+    },
+    {
+      aspect: 'solo host vs daily cadence',
+      note: 'A single solo host stated alongside a daily publishing cadence is high-risk — sustaining daily recording, editing, and mastering single-handedly with no team is rarely feasible without burning out or dropping quality.',
+      category: 'constraints',
+      triggerA: /\b(solo host|just (?:me|myself)|one[- ]person show|no team)\b/i,
+      triggerB: /\b(daily|every day)\b/i,
     },
   ],
 };

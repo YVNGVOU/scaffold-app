@@ -12,6 +12,11 @@ const KEYWORDS = [
   'etl', 'bi tool', 'business intelligence', 'kpi', 'metrics dashboard',
   'time series', 'data viz', 'analytics report', 'data cleaning',
   'exploratory data analysis', 'plot', 'histogram', 'scatter plot',
+  'tableau', 'power bi', 'looker', 'data insights', 'cohort analysis',
+  'funnel analysis', 'a/b test', 'ab test', 'data analyst',
+  'descriptive statistics', 'summary statistics', 'trend analysis',
+  'data mining', 'root cause analysis', 'data model', 'crosstab',
+  'cross-tabulation', 'segmentation analysis', 'churn analysis',
 ];
 
 function wordBoundaryRegex(keyword: string): RegExp {
@@ -41,22 +46,32 @@ export const dataAnalysisDomain: DomainModule = {
     {
       field: 'data source',
       description: 'The data source and format (CSV, database, API, spreadsheet, live feed) is unspecified',
-      isResolved: (input) => /(csv|database|sql|api|spreadsheet|excel|data ?set|data source|json file|warehouse|live feed)/i.test(input),
+      isResolved: (input) => /\b(csv|database|sql|api|spreadsheet|excel|data ?set|data source|json file|warehouse|live feed)\b/i.test(input),
     },
     {
       field: 'analysis method',
       description: 'The intended analysis method (descriptive stats, regression, forecasting, clustering, etc.) is unspecified',
-      isResolved: (input) => /(regression|correlation|clustering|forecast|trend|hypothesis test|statistical|descriptive|predictive|classification|anomaly detection)/i.test(input),
+      isResolved: (input) => /\b(regression|correlation|clustering|forecast|trend|hypothesis test|statistical|descriptive|predictive|classification|anomaly detection)\b/i.test(input),
     },
     {
       field: 'visualization needs',
       description: 'Whether visual output is required, and in what form (charts, dashboard, static report), is unspecified',
-      isResolved: (input) => /(chart|graph|dashboard|plot|visuali[sz]ation|report|table|heatmap)/i.test(input),
+      isResolved: (input) => /\b(chart|graph|dashboard|plot|visuali[sz]ation|report|table|heatmap)\b/i.test(input),
     },
     {
       field: 'statistical rigor',
       description: 'The expected level of statistical rigor (exploratory eyeballing vs. significance testing/confidence intervals) is unspecified',
-      isResolved: (input) => /(significance|confidence interval|p-?value|rigorous|exploratory|hypothesis|sample size|statistically)/i.test(input),
+      isResolved: (input) => /\b(significance|confidence interval|p-?value|rigorous|exploratory|hypothesis|sample size|statistically)\b/i.test(input),
+    },
+    {
+      field: 'update cadence',
+      description: 'How often the analysis or dashboard needs to be refreshed (one-off, daily, weekly, real-time) is unspecified',
+      isResolved: (input) => /\b(one-?(?:off|time)|daily|weekly|monthly|quarterly|real-?time|refresh(?:ed)?|update(?:d|s)? (?:daily|weekly|monthly|hourly)|scheduled refresh|ad[ -]?hoc)\b/i.test(input),
+    },
+    {
+      field: 'audience',
+      description: 'The intended audience (technical analysts, executives, external clients) is unspecified, which affects the level of detail and framing',
+      isResolved: (input) => /\b(executive|stakeholder|leadership|non-?technical|technical audience|analysts?|clients?|external audience|internal (?:team|use)|c-?suite)\b/i.test(input),
     },
   ],
   architectureTemplate: [
@@ -72,6 +87,8 @@ export const dataAnalysisDomain: DomainModule = {
     { aspect: 'schema and type validation', note: 'Validate incoming data types/schema before analysis to avoid silent miscalculation from malformed or mistyped fields', category: 'functionalRequirements' },
     { aspect: 'statistical library/tooling choice', note: 'Select tooling (e.g. pandas, SQL, R, a BI tool) appropriate to the analysis complexity and team familiarity', category: 'preferences' },
     { aspect: 'reproducibility', note: 'Ensure the analysis pipeline is reproducible (versioned queries/scripts) rather than one-off manual manipulation', category: 'preferences' },
+    { aspect: 'metric definition consistency', note: 'Lock down a single definition for each recurring metric (e.g. "active user", "revenue") in one place so different charts/reports do not silently diverge on what the same-named number means', category: 'functionalRequirements' },
+    { aspect: 'timezone and date-boundary handling', note: 'Standardize timezone and day/week/month boundary conventions (e.g. UTC vs local, ISO week vs calendar week) so time-series aggregates are consistent across sources', category: 'constraints' },
   ],
   uxConsiderations: [
     { aspect: 'chart legibility', note: 'Choose chart types that match the data relationship being shown (avoid pie charts for trends, avoid 3D effects that distort magnitude)', category: 'functionalRequirements' },
@@ -86,6 +103,7 @@ export const dataAnalysisDomain: DomainModule = {
     { aspect: 'query injection', note: 'Parameterize any user-influenced query construction (SQL/filter inputs) to prevent injection when building dynamic queries', category: 'functionalRequirements' },
     { aspect: 'export/download controls', note: 'Audit whether raw-data export/download is appropriate for all users or should be restricted/logged', category: 'preferences' },
     { aspect: 'credential storage', note: 'Ensure database/API credentials used for data source connections are stored securely, not hardcoded or embedded in client-visible code', category: 'constraints' },
+    { aspect: 'small-cell suppression', note: 'When aggregating by sensitive categories (e.g. demographics, health condition), suppress or bucket small-count cells so individuals cannot be re-identified from an otherwise-anonymized aggregate', category: 'constraints' },
   ],
   creativeConsiderations: [
     { aspect: 'visual clarity over decoration', note: 'Favor clean, minimal chart styling that foregrounds the data pattern over decorative gradients, 3D, or excessive chrome', category: 'preferences' },
@@ -99,6 +117,7 @@ export const dataAnalysisDomain: DomainModule = {
     { aspect: 'edge case: empty or sparse data', note: 'Test behavior when the dataset is empty, has a single row, or has heavy missingness in the key analyzed fields', category: 'preferences' },
     { aspect: 'edge case: outliers and duplicates', note: 'Test behavior with extreme outliers and duplicate records to confirm they do not silently skew aggregate results', category: 'preferences' },
     { aspect: 'acceptance criteria', note: 'Define concrete acceptance criteria for accuracy (e.g. totals must reconcile with source system to within a defined tolerance)', category: 'functionalRequirements' },
+    { aspect: 'correlation vs causation framing', note: 'Check that conclusions and narrative copy do not assert causation from a purely correlational or observational analysis without a controlled/causal design to back it up', category: 'constraints' },
   ],
   constraintConsiderations: [
     {
@@ -114,6 +133,13 @@ export const dataAnalysisDomain: DomainModule = {
       category: 'constraints',
       triggerA: /\b(by tomorrow|today|this afternoon|in (?:a|one) (?:hour|day)|asap)\b/i,
       triggerB: /\b(statistically significant|confidence interval|p-?value|rigorous(?:ly)?|peer-review(?:ed)?)\b/i,
+    },
+    {
+      aspect: 'executive audience vs raw statistical detail',
+      note: 'Requesting a deliverable for executives/non-technical stakeholders alongside raw statistical detail (p-values, confidence intervals, regression coefficients) as the primary output is a mismatch — executive audiences typically need a narrative summary with statistical detail moved to an appendix, not the reverse.',
+      category: 'preferences',
+      triggerA: /\b(executive(?:s)?|c-?suite|non-?technical|leadership)\b/i,
+      triggerB: /\b(p-?value|confidence interval|regression coefficient|statistical(?:ly)? significan\w*)\b/i,
     },
   ],
 };

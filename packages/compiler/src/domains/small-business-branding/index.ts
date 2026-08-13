@@ -25,6 +25,12 @@ const KEYWORDS = [
   'business card and logo', 'quick turnaround logo',
   'budget logo design', 'budget-friendly branding', 'affordable logo',
   'affordable branding', 'startup logo', 'small shop branding',
+  'brand kit for my shop', 'branding for my small business',
+  'logo for my small business', 'new business logo', 'first logo',
+  'diy brand kit', 'starter identity', 'mom and pop branding',
+  'food truck branding', 'salon branding', 'boutique branding',
+  'coffee shop logo', 'small cafe branding', 'new small business',
+  'small business coffee shop', 'custom hand-lettering', 'bespoke illustration',
 ];
 
 function wordBoundaryRegex(keyword: string): RegExp {
@@ -83,6 +89,11 @@ export const smallBusinessBrandingDomain: DomainModule = {
       description: 'Whether the kit needs to support print production (sign, card) versus digital-only use (website, social) is unspecified',
       isResolved: (input) => /\b(print(ed)?|digital(?:-only)?|website|social\s+media|cmyk|rgb)\b/i.test(input),
     },
+    {
+      field: 'logo style direction',
+      description: 'Whether the mark should be a wordmark, a lettermark/monogram, or an icon+wordmark combination is unspecified',
+      isResolved: (input) => /\b(wordmark|lettermark|monogram|icon\s*\+?\s*wordmark|combination\s+mark|text[- ]only\s+logo|icon\s+and\s+text)\b/i.test(input),
+    },
   ],
   architectureTemplate: [
     { component: 'starter logo mark', dependsOn: [], note: 'A single primary logo mark (wordmark or simple icon+wordmark), not a full multi-variant logo system' },
@@ -102,6 +113,7 @@ export const smallBusinessBrandingDomain: DomainModule = {
     { aspect: 'typography licensing', note: 'Confirm the chosen fonts are licensed for the business\'s actual usage (signage production, printed cards, and any web embedding) rather than assuming a free font is unrestricted for commercial signage', category: 'constraints' },
     { aspect: 'scalability across sizes', note: 'Verify the logo mark remains legible from business-card scale up to storefront-sign scale, since a starter kit typically spans that full size range immediately', category: 'constraints' },
     { aspect: 'print vendor handoff format', note: 'Package files in the format the intended local print/sign shop actually accepts (e.g. print-ready PDF with bleed marks) rather than a generic design-tool file they cannot open', category: 'preferences' },
+    { aspect: 'favicon and social profile crop', note: 'Confirm the logo mark still reads correctly when cropped to a square (social profile photo, favicon) since a starter kit\'s icon-free wordmark can become illegible when forced into a tight square crop', category: 'functionalRequirements' },
   ],
   uxConsiderations: [
     { aspect: 'owner self-sufficiency', note: 'Keep the color/type system small and simple enough that the business owner (likely without design staff) can apply it consistently to future ad-hoc materials without a designer on retainer', category: 'preferences' },
@@ -115,6 +127,7 @@ export const smallBusinessBrandingDomain: DomainModule = {
     { aspect: 'font/asset licensing exposure', note: 'Confirm any stock elements or fonts used are licensed for the business\'s actual commercial signage/print use, to avoid licensing liability landing on a small business owner unaware of the restriction', category: 'constraints' },
     { aspect: 'unreleased asset exposure', note: 'Avoid exposing an unreleased logo/sign design (before the storefront opening) via publicly accessible links ahead of the business\'s planned launch', category: 'preferences' },
     { aspect: 'trademark conflict check', note: 'Flag if the requested name/mark has not been checked against existing trademarks or very similar local competitor branding, which the owner should verify before committing to signage production', category: 'preferences' },
+    { aspect: 'source file retention', note: 'Confirm who retains the working design files (designer vs. owner) after handoff, since a starter engagement with no formal contract can leave the owner unable to get future edits if the designer becomes unreachable', category: 'constraints' },
   ],
   creativeConsiderations: [
     { aspect: 'proportional creative scope', note: 'Keep the creative exploration proportional to a starter-kit scope (a small number of directions) rather than the extensive multi-round exploration appropriate to a full brand identity engagement', category: 'preferences' },
@@ -130,6 +143,7 @@ export const smallBusinessBrandingDomain: DomainModule = {
     { aspect: 'print proof review', note: 'Review a physical print/production proof of both the card and the sign before final production, not only an on-screen mockup', category: 'functionalRequirements' },
     { aspect: 'vendor file compatibility test', note: 'Confirm the delivered files actually open correctly in the intended local print/sign vendor\'s workflow before the owner commits to a production run', category: 'preferences' },
     { aspect: 'failure states', note: 'Identify failure states the request does not address: low-resolution reproduction on a large sign, incorrect color mode conversion (RGB to CMYK), or unlicensed font substitution', category: 'constraints' },
+    { aspect: 'cross-application readability check', note: 'Test the logo/palette at both extremes of the kit\'s actual size range (favicon-scale crop and full storefront-sign scale) rather than only reviewing it at a single comfortable mockup size', category: 'functionalRequirements' },
   ],
   constraintConsiderations: [
     {
@@ -152,6 +166,13 @@ export const smallBusinessBrandingDomain: DomainModule = {
       category: 'constraints',
       triggerA: /\b(quick\s+turnaround|fast\s+turnaround|rush(?:ed)?\s+(?:job|delivery|timeline))\b/i,
       triggerB: /\b(multiple\s+rounds?\s+of\s+revisions?|extensive\s+concept\s+exploration|many\s+concept\s+directions)\b/i,
+    },
+    {
+      aspect: 'no-budget vs custom typography/illustration',
+      note: 'A zero/DIY budget stated alongside a request for custom hand-lettering or bespoke illustration work is infeasible for a starter-kit engagement — custom lettering/illustration requires paid specialist time well beyond a template-based starter kit.',
+      category: 'constraints',
+      triggerA: /\b(no|zero|shoestring|diy)\s*[- ]?\s*budget\b/i,
+      triggerB: /\b(custom\s+hand[- ]?lettering|bespoke\s+illustration|custom\s+illustration|hand[- ]?drawn\s+mark)\b/i,
     },
   ],
 };

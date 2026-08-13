@@ -13,6 +13,10 @@ const KEYWORDS = [
   'cel animation', 'stop motion', '2d animation', '3d animation', 'walk cycle',
   'lip sync', 'anticipation', 'timing chart', 'exposure sheet', 'animatic',
   'onion skinning', 'ease in and ease out', 'bone deformation', 'ik rig', 'fk rig',
+  'motion design', 'explainer video', 'sprite animation', 'sprite sheet',
+  'frame by frame', 'loop animation', 'easing curve', 'bezier curve animation',
+  'timeline animation', 'vector animation', 'puppet animation', 'facial animation',
+  'blend shape', 'blendshapes', 'morph target', 'particle effects',
 ];
 
 function wordBoundaryRegex(keyword: string): RegExp {
@@ -43,7 +47,7 @@ export const animationDomain: DomainModule = {
     {
       field: 'style',
       description: 'Animation style (2D, 3D, stop motion, motion graphics, hybrid) is unspecified',
-      isResolved: (input) => /(2d|3d|stop[- ]motion|motion graphics|cel animation|cutout|claymation|hybrid)/i.test(input),
+      isResolved: (input) => /\b(2d|3d|stop[- ]motion|motion graphics|cel animation|cutout|claymation|hybrid)\b/i.test(input),
     },
     {
       field: 'frame rate',
@@ -58,17 +62,22 @@ export const animationDomain: DomainModule = {
     {
       field: 'rigging complexity',
       description: 'Whether characters require custom rigging (skeletal/IK-FK) versus simple motion is unspecified',
-      isResolved: (input) => /(rig|rigging|skeleton|bone|ik|fk|deform)/i.test(input),
+      isResolved: (input) => /\b(rig|rigging|skeleton|bone|ik|fk|deform\w*)\b/i.test(input),
     },
     {
       field: 'software/pipeline',
       description: 'Target animation software or pipeline (e.g. Toon Boom, Maya, Blender, After Effects, Spine) is unspecified',
-      isResolved: (input) => /(toon boom|maya|blender|after effects|spine|harmony|moho|cinema 4d|houdini|adobe animate)/i.test(input),
+      isResolved: (input) => /\b(toon boom|maya|blender|after effects|spine|harmony|moho|cinema 4d|houdini|adobe animate)\b/i.test(input),
     },
     {
       field: 'audience/rating',
       description: 'Intended audience or content rating is unspecified',
-      isResolved: (input) => /(kids?|children|family|all ages|teen|adult|mature|rated|audience)/i.test(input),
+      isResolved: (input) => /\b(kids?|children|family|all ages|teen(?:s|agers?)?|adult(?:s)?|mature|rated|audience)\b/i.test(input),
+    },
+    {
+      field: 'delivery platform',
+      description: 'Target delivery platform (broadcast/streaming, social media, web/game engine, cinema) is unspecified',
+      isResolved: (input) => /\b(broadcast|streaming|netflix|youtube|tiktok|instagram|social media|web(?:site)?|game engine|cinema|theatrical|social)\b/i.test(input),
     },
   ],
   architectureTemplate: [
@@ -92,6 +101,8 @@ export const animationDomain: DomainModule = {
     { aspect: 'resolution and codec', note: 'Specify final delivery resolution and codec (ProRes, H.264, image sequence) matching the distribution platform', category: 'constraints' },
     { aspect: 'asset versioning', note: 'Establish a version-control/asset-management approach for scene files, rigs, and renders to avoid overwritten work across a team', category: 'preferences' },
     { aspect: 'render farm/compute', note: 'Estimate compute/render-farm needs for 3D scenes with heavy simulation, particles, or high sample counts', category: 'preferences' },
+    { aspect: 'facial rig / blend shapes', note: 'For character dialogue-heavy work, decide between joint-based facial rigs and blend-shape/morph-target setups, since this determines how phoneme/viseme sets are authored', category: 'functionalRequirements' },
+    { aspect: 'loop seamlessness', note: 'For sprite-sheet, GIF, or looping motion-graphics assets, verify the first and last frame match precisely so the loop does not visibly pop at the seam', category: 'constraints' },
   ],
   uxConsiderations: [
     { aspect: 'pacing and timing', note: 'Use the animatic to validate pacing and comedic/dramatic timing before committing to full animation', category: 'functionalRequirements' },
@@ -124,6 +135,7 @@ export const animationDomain: DomainModule = {
     { aspect: 'acceptance criteria', note: 'Define concrete review checkpoints (storyboard approval, animatic lock, rough animation pass, final render) with sign-off criteria at each', category: 'functionalRequirements' },
     { aspect: 'audio-visual sync check', note: 'Verify final audio and video remain in sync after every render/export pass, especially after frame-rate conversions', category: 'constraints' },
     { aspect: 'cross-platform playback', note: 'Test final export on all target playback platforms/players for codec compatibility and color-space shifts', category: 'preferences' },
+    { aspect: 'sprite sheet integrity', note: 'For sprite-sheet/game-asset exports, verify pivot points, padding, and frame boundaries are consistent so the animation does not jitter when imported into the target engine', category: 'constraints' },
   ],
   constraintConsiderations: [
     {
@@ -146,6 +158,13 @@ export const animationDomain: DomainModule = {
       category: 'constraints',
       triggerA: /\b(solo|one person|just me|by myself|small team|two[- ]person)\b/i,
       triggerB: /\b(feature[- ]length|full[- ]length film|animated series|episodic series)\b/i,
+    },
+    {
+      aspect: 'engine-agnostic export vs blend shapes',
+      note: 'Targeting a lightweight/mobile game engine while also requiring dense blend-shape facial animation is a high-risk combination — high blend-shape counts bloat mesh data and often exceed mobile GPU/memory budgets.',
+      category: 'constraints',
+      triggerA: /\b(mobile|lightweight|low[- ]end device|low[- ]poly budget)\b/i,
+      triggerB: /\b(blend shapes?|blendshapes|morph targets?|facial animation)\b/i,
     },
   ],
 };

@@ -2,41 +2,59 @@ import { describe, it, expect } from 'vitest';
 import { compileArchitect, runArchitectPipeline } from '../src/index.js';
 
 describe('music domain', () => {
-  it('music domain detected on canonical music example', () => {
+  it('detects music domain on a realistic production request', () => {
     const compiled = compileArchitect(
-      'Compose an upbeat pop song with guitar, drums, and vocals, then mix and master it for streaming release'
+      'Compose an upbeat lo-fi hip-hop instrumental track with vocal chain and mastering for a streaming release, in the style of Nujabes'
     );
     expect(compiled.domain).toBe('music');
   });
 
-  it('negative control: unrelated web request does not misclassify as music', () => {
-    const compiled = compileArchitect('I need a responsive website with a React frontend and an API backend');
+  it('negative control: an unrelated software-development request does not misclassify as music', () => {
+    const compiled = compileArchitect(
+      'Build a CLI tool in Rust that parses log files and outputs aggregated metrics to a local SQLite database'
+    );
     expect(compiled.domain).not.toBe('music');
   });
 
-  it('negative control: bare "mix" substring inside unrelated word does not misclassify as music', () => {
-    // Word-boundary safety check, mirroring TASK-006's 'multiplayer'/'api' regressions.
-    const state = runArchitectPipeline('We need to fix the admixture calculation in our genetics research tool');
+  it('word-boundary regression: unrelated words do not falsely trigger music keywords', () => {
+    const state = runArchitectPipeline(
+      'The multiplayer game had an admixture of settings; commix the config files and check the songwriter credits page footer'
+    );
     expect(state.domain).not.toBe('music');
   });
 
-  it('technical specialist produces music-appropriate output when this domain is detected', () => {
-    const state = runArchitectPipeline(
-      'Compose a cinematic orchestral score for a film trailer with strings and full mixing and mastering'
+  it('new keyword phrasings are detected on realistic prompts', () => {
+    const compiled = compileArchitect(
+      'I need a music producer to write a jingle and theme song for my podcast, with a demo track and stem mastering delivered'
     );
-    expect(state.domain).toBe('music');
-    const technicalItems = state.requirements.filter((r) => r.source === 'technical-specialist');
-    expect(technicalItems.length).toBeGreaterThan(0);
-    const mentionsMusicTech = technicalItems.some((r) => /daw|tempo|bpm|sample rate|loudness|stems|key signature/i.test(r.text));
-    expect(mentionsMusicTech).toBe(true);
+    expect(compiled.domain).toBe('music');
   });
 
-  it('architect stage includes music architecture template components not mentioned in raw input', () => {
-    const state = runArchitectPipeline('Write and produce an indie folk song with acoustic guitar and vocals');
-    expect(state.domain).toBe('music');
-    const architectureItems = state.requirements.filter((r) => r.source === 'architect-specialist');
-    expect(architectureItems.length).toBeGreaterThan(0);
-    const mentionsMastering = architectureItems.some((r) => r.text.toLowerCase().includes('mastering'));
-    expect(mentionsMastering).toBe(true);
+  it('ambiguity checklist recognizes short bare answers for new fields', () => {
+    const compiled = compileArchitect(
+      'Write a song for my wedding video, instrumental, inspired by a reference track, about 90 seconds long'
+    );
+    expect(compiled.domain).toBe('music');
+    const compiledText = JSON.stringify(compiled);
+    // vocals-vs-instrumental, reference-track, and track-length fields should not appear as unresolved
+    expect(compiledText).not.toMatch(/vocals\/lyrics or is purely instrumental is unspecified/);
+  });
+
+  it('surfaces new technical/QA considerations for a music request', () => {
+    const compiled = compileArchitect(
+      'Produce a full orchestral score with mixing and mastering, deliver stems and MIDI, target streaming loudness'
+    );
+    expect(compiled.domain).toBe('music');
+    const compiledText = JSON.stringify(compiled);
+    expect(compiledText).toMatch(/MIDI files\/arrangement data|mono compatibility|clipping/i);
+  });
+
+  it('constraint specialist flags the acoustic-vs-remote infeasibility pair', () => {
+    const compiled = compileArchitect(
+      'I want a fully acoustic live band recording, but we have to work entirely in-the-box remotely with no studio access'
+    );
+    expect(compiled.domain).toBe('music');
+    const compiledText = JSON.stringify(compiled);
+    expect(compiledText).toMatch(/authentic acoustic instrumentation typically requires in-person tracking/i);
   });
 });

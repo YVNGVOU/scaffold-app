@@ -12,6 +12,11 @@ const KEYWORDS = [
   'luma', 'veo', 'storyboard', 'shot list', 'b-roll', 'broll', 'voiceover',
   'video montage', 'video render', 'animated clip', 'frame rate', 'aspect ratio video',
   'scene transition', 'video pacing', 'video duration', 'motion graphics',
+  'camera move', 'camera pan', 'dolly shot', 'tracking shot', 'establishing shot',
+  'talking head video', 'lip sync', 'keyframe animation', 'video ad', 'explainer video',
+  'video loop', 'seamless loop', 'video upscale', 'video generator', 'generate a video',
+  'ai-generated video', 'ai generated video', 'video model', 'first frame last frame',
+  'video-to-video', 'video to video', 'gen-3', 'gen-2', 'hailuo', 'haiper',
 ];
 
 function wordBoundaryRegex(keyword: string): RegExp {
@@ -36,6 +41,7 @@ export const videoGenerationDomain: DomainModule = {
     { text: 'Define aspect ratio / output resolution for the intended platform', category: 'constraint' },
     { text: 'Note that no live AI video generation call occurs — output is a structured prompt/spec for an external video model', category: 'constraint' },
     { text: 'Describe visual style and pacing consistent across shots', category: 'preference' },
+    { text: 'Specify how subject/character consistency is maintained across separately generated shots (reference images, seed reuse, or descriptive locking)', category: 'functional' },
   ],
   ambiguityChecklist: [
     {
@@ -46,17 +52,32 @@ export const videoGenerationDomain: DomainModule = {
     {
       field: 'style/pacing',
       description: 'Visual style and pacing (cinematic, fast-cut, slow/ambient, documentary) is unspecified',
-      isResolved: (input) => /\b(cinematic|fast[- ]cut|slow[- ]paced|ambient|documentary|animated|realistic|stylized)\b/i.test(input),
+      isResolved: (input) => /\b(cinematic|fast[- ]cut|slow[- ]paced|ambient|documentary|animated|realistic|stylized|hyperlapse|timelapse|handheld)\b/i.test(input),
     },
     {
       field: 'audio',
       description: 'Whether the video needs a soundtrack, voiceover, or sync\'d audio is unspecified',
-      isResolved: (input) => /\b(music|soundtrack|voiceover|voice[- ]over|narration|sound effects?|sfx|silent|no audio)\b/i.test(input),
+      isResolved: (input) => /\b(music|soundtrack|voiceover|voice[- ]over|narration|sound effects?|sfx|silent|no audio|dialogue|lip sync)\b/i.test(input),
     },
     {
       field: 'platform/aspect ratio',
       description: 'Target platform or aspect ratio (e.g. vertical for social, widescreen for YouTube) is unspecified',
-      isResolved: (input) => /\b(vertical|horizontal|widescreen|16:9|9:16|1:1|square|tiktok|instagram|youtube|reels)\b/i.test(input),
+      isResolved: (input) => /\b(vertical|horizontal|widescreen|16:9|9:16|1:1|square|tiktok|instagram|youtube|reels|portrait|landscape)\b/i.test(input),
+    },
+    {
+      field: 'camera work',
+      description: 'Camera movement and shot framing (static, pan, dolly, tracking, handheld, drone) is unspecified',
+      isResolved: (input) => /\b(static shot|camera (pan|move|movement)|dolly|tracking shot|handheld|drone shot|close[- ]up|wide shot|zoom in|zoom out|pan|tilt)\b/i.test(input),
+    },
+    {
+      field: 'subject consistency',
+      description: 'Whether a character, product, or subject must stay visually consistent across shots is unspecified',
+      isResolved: (input) => /\b(consistent character|consistent subject|same character|reference image|character consistency|product consistency|recurring character)\b/i.test(input),
+    },
+    {
+      field: 'source model/tool',
+      description: 'Which video generation model or tool the spec targets is unspecified',
+      isResolved: (input) => /\b(runway|sora|pika|kling|luma|veo|hailuo|haiper|gen-3|gen-2|any model|model[- ]agnostic)\b/i.test(input),
     },
   ],
   architectureTemplate: [
@@ -74,6 +95,9 @@ export const videoGenerationDomain: DomainModule = {
     { aspect: 'shot continuity', note: 'Plan how visual consistency (character, style, lighting) is maintained across separately generated shots/clips', category: 'functionalRequirements' },
     { aspect: 'no live generation call', note: 'This is a prompt/spec for an external video generation tool — Scaffold does not call any video AI API itself', category: 'constraints' },
     { aspect: 'render/export pipeline', note: 'Define how generated clips are assembled, trimmed, and exported into a final sequence', category: 'preferences' },
+    { aspect: 'character/subject drift', note: 'Flag that most models regenerate appearance per-clip rather than tracking a persistent identity, so a recurring character or product needs explicit reference-image or seed-locking guidance per shot to avoid visible drift', category: 'constraints' },
+    { aspect: 'prompt-to-model compatibility', note: 'Note that shot descriptions must be adapted to the target model\'s prompt syntax (e.g. camera-motion keywords, negative prompts, motion strength sliders differ between Runway, Pika, Kling, and Sora)', category: 'constraints' },
+    { aspect: 'text-in-video legibility', note: 'Flag that on-screen text, logos, and readable signage are a known weak point for current video models and may render garbled — call out where legible text is required so it is added in post rather than generated', category: 'constraints' },
   ],
   uxConsiderations: [
     { aspect: 'pacing', note: 'Define overall pacing (fast-cut vs. slow/ambient) so shot length and transition rhythm match the intended viewer experience', category: 'functionalRequirements' },
@@ -81,12 +105,16 @@ export const videoGenerationDomain: DomainModule = {
     { aspect: 'accessibility', note: 'Provide captions/subtitles for any dialogue or voiceover so the video is usable without sound', category: 'constraints' },
     { aspect: 'narrative clarity', note: 'Ensure the shot sequence tells a clear, followable story or message without requiring prior context', category: 'functionalRequirements' },
     { aspect: 'platform fit', note: 'Match cut style and length conventions to the target platform (social feed, presentation, ad, film)', category: 'preferences' },
+    { aspect: 'silent-autoplay design', note: 'Design the opening shot to communicate the core idea with visuals alone, since most social feeds autoplay muted by default and captions/on-screen text carry the message before audio is enabled', category: 'functionalRequirements' },
+    { aspect: 'safe zones', note: 'Keep key subjects and text within UI-safe margins for vertical formats, since platform overlays (like buttons, captions, profile info) can cover the outer edges of the frame', category: 'constraints' },
   ],
   securityConsiderations: [
     { aspect: 'likeness/consent', note: 'Flag use of real people\'s likeness, voice, or footage and confirm rights/consent before generation, especially for deepfake-adjacent requests', category: 'constraints' },
     { aspect: 'copyrighted material', note: 'Avoid prompting for direct reproduction of copyrighted footage, characters, music, or branded content without rights', category: 'constraints' },
     { aspect: 'misleading content', note: 'Flag requests that could produce deceptive or fabricated depictions of real events, people, or organizations presented as authentic', category: 'constraints' },
     { aspect: 'unsafe assumptions', note: 'Flag any implicit assumption that generated video will be presented as real/unlabeled AI-generated content', category: 'preferences' },
+    { aspect: 'AI-content disclosure', note: 'Flag whether the platform or context (political, commercial, news-adjacent) legally or ethically requires an AI-generated content label or watermark before publishing', category: 'constraints' },
+    { aspect: 'minors in generated footage', note: 'Flag requests depicting children or minors, real or synthetic, and confirm the use case does not involve real minors\' likeness without guardian consent', category: 'constraints' },
   ],
   creativeConsiderations: [
     { aspect: 'visual style', note: 'Establish a consistent visual style (color grading, lighting, camera language) across all shots before prompt sequencing begins', category: 'preferences' },
@@ -94,6 +122,8 @@ export const videoGenerationDomain: DomainModule = {
     { aspect: 'transitions', note: 'Choose transition types (hard cut, crossfade, match cut) deliberately to reinforce pacing and tone rather than defaulting to one style throughout', category: 'preferences' },
     { aspect: 'audio-visual sync', note: 'Align key visual beats (cuts, reveals) with music or sound cues for a more polished, intentional feel', category: 'functionalRequirements' },
     { aspect: 'originality', note: 'Push toward a distinctive visual concept rather than generic stock-footage-style AI video output', category: 'preferences' },
+    { aspect: 'camera language', note: 'Specify deliberate camera moves (dolly-in for intimacy, wide static for scale, handheld for urgency) per shot rather than leaving motion to the model\'s default interpretation', category: 'preferences' },
+    { aspect: 'first/last frame anchoring', note: 'For models that support first-frame/last-frame conditioning, define the exact start and end compositions per shot to control motion arc instead of relying on text description alone', category: 'functionalRequirements' },
   ],
   qaConsiderations: [
     { aspect: 'contradiction check', note: 'Check for contradictions such as "silent video" alongside "voiceover narration" or mismatched duration vs. shot count', category: 'constraints' },
@@ -101,6 +131,8 @@ export const videoGenerationDomain: DomainModule = {
     { aspect: 'acceptance criteria', note: 'Define concrete acceptance criteria (e.g. "final cut is under 60 seconds and matches the storyboard shot count")', category: 'functionalRequirements' },
     { aspect: 'consistency check', note: 'Verify that style, character, and setting descriptions remain consistent across all per-shot prompts in the sequence', category: 'preferences' },
     { aspect: 'failure states', note: 'Identify failure states the spec does not address: generated shot not matching style, audio drift out of sync, model rejecting a prompt', category: 'constraints' },
+    { aspect: 'temporal artifact check', note: 'Check the spec calls for reviewing common generation artifacts before delivery: flicker, morphing limbs/objects, warped text, and unnatural motion between frames', category: 'functionalRequirements' },
+    { aspect: 'loop seam check', note: 'For any clip intended to loop, verify the acceptance criteria require checking that the last frame matches the first frame closely enough to avoid a visible jump cut', category: 'functionalRequirements' },
   ],
   constraintConsiderations: [
     {
@@ -116,6 +148,20 @@ export const videoGenerationDomain: DomainModule = {
       category: 'constraints',
       triggerA: /\b(no|zero|shoestring|minimal|very tight)\s+budget\b/i,
       triggerB: /\b(cinematic|feature[- ]length|multi[- ]scene|full[- ]length)\s+(production|film|video)\b/i,
+    },
+    {
+      aspect: 'exact dialogue lip sync vs generative model',
+      note: 'Requiring word-for-word accurate lip sync to a specific dialogue script from a generative text/image-to-video model is a known-infeasible combination — current models approximate mouth motion and are unreliable for precise, scripted lip sync without a dedicated lip-sync/dubbing tool layered on top.',
+      category: 'constraints',
+      triggerA: /\b(exact|precise|word[- ]for[- ]word|accurate)\s+lip\s*sync\b/i,
+      triggerB: /\b(text[- ]to[- ]video|image[- ]to[- ]video|ai video generator)\b/i,
+    },
+    {
+      aspect: 'single continuous character consistency vs multi-shot generation',
+      note: 'Demanding pixel-identical character consistency across many independently generated shots is a known-infeasible combination for current per-clip video models, which regenerate appearance each time — true identity lock typically requires a dedicated character/reference-conditioning workflow, not plain prompt repetition.',
+      category: 'constraints',
+      triggerA: /\b(identical|perfectly consistent|exact same)\s+(character|face|subject)\b/i,
+      triggerB: /\b(\d+|multiple|many|dozens? of)\s+(shots|scenes|clips)\b/i,
     },
   ],
 };

@@ -18,6 +18,9 @@ const KEYWORDS = [
   'conference talk', 'board deck', 'sales deck', 'company deck',
   'deck design', 'slide design', 'presentation design', 'powerpoint deck',
   'google slides deck', 'keynote presentation', 'executive summary slide',
+  'pitch slides', 'demo day deck', 'fundraising deck', 'seed deck',
+  'series a deck', 'town hall deck', 'all-hands deck', 'sales pitch deck',
+  'client presentation', 'webinar slides', 'training deck', 'onboarding deck',
 ];
 
 function wordBoundaryRegex(keyword: string): RegExp {
@@ -66,7 +69,7 @@ export const presentationDeckDomain: DomainModule = {
     {
       field: 'audience and purpose',
       description: 'The intended audience/purpose (investor pitch, internal update, sales pitch, conference keynote) is unspecified',
-      isResolved: (input) => /\b(investor|pitch|internal\s+update|sales\s+pitch|keynote|conference|board\s+meeting|all-hands|stakeholder)\b/i.test(input),
+      isResolved: (input) => /\b(investor|pitch|internal\s+update|sales\s+pitch|keynote|conference|board\s+meeting|all-hands|stakeholder|fundrais\w*|demo\s+day|series\s+[a-e]\b|seed\s+round|training|onboarding|webinar|client\s+meeting)\b/i.test(input),
     },
     {
       field: 'slide count / time budget',
@@ -93,6 +96,16 @@ export const presentationDeckDomain: DomainModule = {
       description: 'Whether the deck requires charts/data visualizations sourced from real figures, and where those figures come from, is unspecified',
       isResolved: (input) => /\b(chart|graph|data\s+visuali[sz]ation|metrics|figures|financial\s+projections|kpi)\b/i.test(input),
     },
+    {
+      field: 'visual asset sourcing',
+      description: 'Whether photography, icons, and illustrations will be supplied by the client/stock library or need to be custom-created/licensed is unspecified',
+      isResolved: (input) => /\b(stock\s+photo|stock\s+image|icon\s+set|custom\s+illustration|licensed\s+images?|brand\s+photography|provided\s+images?|our\s+own\s+photos?)\b/i.test(input),
+    },
+    {
+      field: 'presenter identity',
+      description: 'Whether the deck will be presented live by its author, handed off to a different presenter, or run unattended (e.g. as a kiosk/looping deck) is unspecified',
+      isResolved: (input) => /\b(present\w*\s+(myself|it\s+myself)|hand(ed|ing)?\s+off|different\s+presenter|unattended|kiosk|self-?running|looping\s+deck|multiple\s+presenters|co-?present)\b/i.test(input),
+    },
   ],
   architectureTemplate: [
     { component: 'narrative outline', dependsOn: [], note: 'Story arc and section order (problem, solution, market, proof, ask, etc.) mapped before any slide is designed' },
@@ -112,6 +125,8 @@ export const presentationDeckDomain: DomainModule = {
     { aspect: 'file size and media weight', note: 'Keep embedded video/high-resolution images within a reasonable file size so the deck opens reliably on the day, especially on a borrowed or venue-provided laptop', category: 'preferences' },
     { aspect: 'offline reliability', note: 'Ensure the deck runs fully offline (no dependency on live internet, cloud-embedded video, or an active Google Slides connection) unless venue connectivity is confirmed', category: 'constraints' },
     { aspect: 'version control', note: 'Establish a single source of truth for the deck (avoid multiple divergent copies) especially when several contributors are editing simultaneously', category: 'preferences' },
+    { aspect: 'clicker/presenter remote compatibility', note: 'Verify slide transitions and any embedded animation builds respond correctly to a standard presenter remote/clicker, not just keyboard arrow keys on the editing machine', category: 'constraints' },
+    { aspect: 'embedded video/audio playback', note: 'Confirm embedded video/audio is either linked correctly or embedded as a file the target software can actually play, since codec mismatches between PowerPoint/Keynote/Google Slides silently break playback on the day', category: 'constraints' },
   ],
   uxConsiderations: [
     { aspect: 'one-idea-per-slide', note: 'Limit each slide to a single core idea/takeaway so the audience is not reading a paragraph while the presenter is talking', category: 'preferences' },
@@ -120,6 +135,8 @@ export const presentationDeckDomain: DomainModule = {
     { aspect: 'pacing and transitions', note: 'Structure section dividers and transitions so the audience always knows which part of the narrative they are in', category: 'preferences' },
     { aspect: 'accessible color contrast', note: 'Check text-on-background contrast and avoid color as the sole signal (e.g. red/green-only charts) for colorblind audience members', category: 'constraints' },
     { aspect: 'remote/hybrid presentation', note: 'If the deck will be presented over video call, verify screen-share legibility and layout margins that survive video-conferencing UI cropping', category: 'preferences' },
+    { aspect: 'presenter navigation cues', note: 'Give the presenter visual cues (slide numbers, section progress indicator) so they and the audience can track where they are in a long deck without narrating it verbally', category: 'preferences' },
+    { aspect: 'handoff between multiple presenters', note: 'If more than one person presents, design clear visual/verbal handoff points between sections so transitions do not feel disjointed', category: 'functionalRequirements' },
   ],
   securityConsiderations: [
     { aspect: 'confidential data exposure', note: 'Confirm which financial figures, roadmap details, or customer data are safe to show to this specific audience before they land on a slide that could be photographed or leaked', category: 'constraints' },
@@ -127,6 +144,8 @@ export const presentationDeckDomain: DomainModule = {
     { aspect: 'external sharing controls', note: 'If sharing via a cloud link (Google Slides, etc.), set the correct view/edit permissions before sending so external recipients cannot alter the deck', category: 'constraints' },
     { aspect: 'sensitive appendix content', note: 'Keep backup/appendix slides with sensitive detail out of any pre-circulated or public version of the deck', category: 'preferences' },
     { aspect: 'source data provenance', note: 'Verify chart/metric sources are current and attributable in case the audience asks where a figure came from', category: 'preferences' },
+    { aspect: 'stock asset licensing', note: 'Confirm any stock photography, icons, or fonts used carry a license that covers the deck\'s actual use case (internal-only vs. publicly posted, commercial pitch vs. non-commercial), since license scope varies by platform', category: 'constraints' },
+    { aspect: 'shared-drive access scope', note: 'If the working file lives on a shared drive during collaborative editing, confirm access is limited to actual contributors rather than left link-shared broadly while confidential figures are still in draft', category: 'preferences' },
   ],
   creativeConsiderations: [
     { aspect: 'brand/template consistency', note: 'Keep color palette, typography, and logo placement consistent with the organization\'s existing brand or an intentionally chosen new template, not a mix of default software themes', category: 'constraints' },
@@ -142,6 +161,8 @@ export const presentationDeckDomain: DomainModule = {
     { aspect: 'cross-device rendering check', note: 'Open the exported/final file on the actual presenting device (or its OS/software version) before the event, since fonts and layouts can shift between machines', category: 'functionalRequirements' },
     { aspect: 'speaker notes completeness', note: 'Confirm every slide requiring elaboration has corresponding speaker notes, not just the slides that were easy to annotate', category: 'preferences' },
     { aspect: 'anticipated-question coverage', note: 'Verify appendix/backup slides actually cover the questions the audience is likely to ask, based on the stated purpose and audience', category: 'preferences' },
+    { aspect: 'proofreading pass separate from design review', note: 'Run a dedicated spelling/grammar/number-formatting pass distinct from the visual design review, since typos on slides are highly visible and design-focused reviewers often skim past text errors', category: 'preferences' },
+    { aspect: 'file corruption/backup copy', note: 'Keep a backup copy of the final file (separate cloud location or USB) in case the primary file is corrupted or unreachable venue-side on presentation day', category: 'constraints' },
   ],
   constraintConsiderations: [
     {
@@ -164,6 +185,13 @@ export const presentationDeckDomain: DomainModule = {
       category: 'constraints',
       triggerA: /\b(no\s+budget|zero\s+budget|diy|do\s+it\s+myself)\b/i,
       triggerB: /\b(custom\s+illustrations?|animated\s+throughout|motion\s+graphics\s+(for\s+)?every\s+slide)\b/i,
+    },
+    {
+      aspect: 'unattended/self-running deck vs live speaker notes',
+      note: 'A deck meant to run unattended (kiosk/self-running/looping) alongside a requirement for full live speaker notes is contradictory — an unattended deck needs to be fully self-explanatory on-slide since there is no presenter to deliver the notes.',
+      category: 'constraints',
+      triggerA: /\b(unattended|kiosk|self-?running|looping\s+deck)\b/i,
+      triggerB: /\b(speaker\s+notes|presenter\s+notes|full\s+talking\s+points)\b/i,
     },
   ],
 };

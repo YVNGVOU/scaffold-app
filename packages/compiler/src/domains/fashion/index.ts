@@ -11,6 +11,9 @@ const KEYWORDS = [
   'fashion brand', 'streetwear', 'menswear', 'womenswear', 'activewear',
   'swimwear', 'outerwear', 'footwear', 'accessories line', 'trim',
   'fashion illustration', 'mood board', 'lookbook', 'seasonal collection',
+  'clothing brand', 'fashion week', 'capsule wardrobe', 'fit model',
+  'tech pack', 'pattern maker', 'size inclusive', 'fashion label',
+  'apparel brand', 'cut and sew', 'made-to-measure', 'bespoke tailoring',
 ];
 
 function wordBoundaryRegex(keyword: string): RegExp {
@@ -41,32 +44,37 @@ export const fashionDomain: DomainModule = {
     {
       field: 'garment type',
       description: 'The specific garment category or product type is unspecified',
-      isResolved: (input) => /(dress|jacket|coat|top|blouse|shirt|pant|trouser|skirt|jean|denim|footwear|shoe|bag|accessor|swimwear|activewear|outerwear|suit|knitwear|hoodie)/i.test(input),
+      isResolved: (input) => /\b(dress|jacket|coat|top|blouse|shirt|pants?|trousers?|skirt|jeans?|denim|footwear|shoes?|bags?|accessor\w*|swimwear|activewear|outerwear|suits?|knitwear|hoodie)\b/i.test(input),
     },
     {
       field: 'fabric/material',
       description: 'Fabric type, weight, or material composition is unspecified',
-      isResolved: (input) => /(cotton|silk|wool|linen|polyester|denim|leather|fabric|textile|knit|woven|jersey|material|blend|spandex|nylon|cashmere|viscose)/i.test(input),
+      isResolved: (input) => /\b(cotton|silk|wool|linen|polyester|denim|leather|fabric\w*|textile\w*|knit\w*|woven|jersey|material\w*|blends?|spandex|nylon|cashmere|viscose)\b/i.test(input),
     },
     {
       field: 'sizing',
       description: 'Target sizing range or fit standard is unspecified',
-      isResolved: (input) => /(size|sizing|fit|xs|small|medium|large|xl|petite|plus[- ]size|inclusive sizing|grading)/i.test(input),
+      isResolved: (input) => /\b(size|sizing|fit|fitted|xs|small|medium|large|xl|petite|plus[- ]size|inclusive sizing|grading)\b/i.test(input),
     },
     {
       field: 'season/collection',
       description: 'Seasonal collection timing (SS/FW/resort/capsule) is unspecified',
-      isResolved: (input) => /(spring|summer|fall|autumn|winter|resort|capsule collection|season|collection drop)/i.test(input),
+      isResolved: (input) => /\b(spring|summer|fall|autumn|winter|resort|capsule collection|seasons?|collection drop)\b/i.test(input),
     },
     {
       field: 'production scale',
       description: 'Manufacturing/production scale (one-off sample, small-batch, mass production) is unspecified',
-      isResolved: (input) => /(sample|prototype|small[- ]batch|mass production|manufactur|factory|production run|made[- ]to[- ]order)/i.test(input),
+      isResolved: (input) => /\b(sample|prototype|small[- ]batch|mass production|manufactur\w*|factory|production run|made[- ]to[- ]order)\b/i.test(input),
     },
     {
       field: 'price point / market tier',
       description: 'Target price point or market tier (fast fashion, contemporary, luxury) is unspecified',
-      isResolved: (input) => /(luxury|premium|contemporary|fast fashion|budget|price point|affordable|high[- ]end)/i.test(input),
+      isResolved: (input) => /\b(luxury|premium|contemporary|fast fashion|budget|price point|affordable|high[- ]end)\b/i.test(input),
+    },
+    {
+      field: 'sales channel',
+      description: 'Distribution/sales channel (direct-to-consumer, wholesale, retail, marketplace) is unspecified',
+      isResolved: (input) => /\b(direct[- ]to[- ]consumer|DTC|wholesale|retail\w*|marketplace|e-?commerce|department store|boutique|pop-?up shop)\b/i.test(input),
     },
   ],
   architectureTemplate: [
@@ -90,6 +98,8 @@ export const fashionDomain: DomainModule = {
     { aspect: 'sample yardage', note: 'Account for sample yardage and lead time separately from bulk fabric yardage when planning the production timeline', category: 'preferences' },
     { aspect: 'care and compliance labeling', note: 'Include required fiber content, care instructions, and country-of-origin labeling per applicable regulations (e.g. FTC Care Labeling Rule)', category: 'constraints' },
     { aspect: 'quality control', note: 'Define QC checkpoints (in-line, pre-shipment inspection) and acceptable-quality-limit (AQL) standards for defects', category: 'constraints' },
+    { aspect: 'landed cost and duty', note: 'Factor in freight, import duty/tariff classification (HTS code), and customs clearance timelines when sourcing fabric or production overseas', category: 'constraints' },
+    { aspect: 'digital pattern format', note: 'Specify the pattern file format and CAD system (e.g. Gerber AccuMark, Optitex) required for handoff to the pattern maker or factory', category: 'functionalRequirements' },
   ],
   uxConsiderations: [
     { aspect: 'fit and comfort', note: 'Prioritize wearer comfort and range of motion for the intended use case (e.g. ease allowance for activewear vs. tailored fit for outerwear)', category: 'functionalRequirements' },
@@ -145,6 +155,13 @@ export const fashionDomain: DomainModule = {
       category: 'constraints',
       triggerA: /\b(silk|chiffon|delicate|lace|tulle)\b/i,
       triggerB: /\b(activewear|workwear|performance wear|heavy[- ]duty|athletic)\b/i,
+    },
+    {
+      aspect: 'sizing scope vs solo development',
+      note: 'A full inclusive/extended size range (e.g. XS through 4X or a wide numeric size run) combined with a single-designer or solo/independent operation is a high-risk scope mismatch — grading, fit-testing, and sampling across a wide size run multiplies pattern and sample cost well beyond what one person can typically execute alone.',
+      category: 'constraints',
+      triggerA: /\b(inclusive sizing|extended sizing|full size range|size[- ]inclusive|XS[- ]to[- ]4XL?|wide size run)\b/i,
+      triggerB: /\b(solo|one[- ]person|independent designer|by myself|single designer|no team)\b/i,
     },
   ],
 };

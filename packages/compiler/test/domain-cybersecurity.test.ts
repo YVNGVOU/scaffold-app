@@ -39,4 +39,25 @@ describe('cybersecurity domain', () => {
     const compiledText = JSON.stringify(compiled);
     expect(compiledText).toMatch(/authorization boundary|responsible disclosure|defensive vs offensive|CFAA/i);
   });
+
+  it('detects new keyword phrasings (EDR, threat intelligence, SQL injection)', () => {
+    const compiled = compileArchitect(
+      'We want a threat intelligence review and endpoint detection (EDR) rollout assessment, checking our apps for SQL injection and cross-site scripting issues'
+    );
+    expect(compiled.domain).toBe('cybersecurity');
+  });
+
+  it('word-boundary regression: "edr" and "xdr" keywords do not falsely trigger inside unrelated words', () => {
+    const state = runArchitectPipeline('The border collie wandered near the feeder during our garden party planning session');
+    expect(state.domain).not.toBe('cybersecurity');
+  });
+
+  it('surfaces the testing methodology ambiguity field and new default requirements', () => {
+    const compiled = compileArchitect(
+      'Run a penetration test against our internal application, black-box style with no prior access'
+    );
+    expect(compiled.domain).toBe('cybersecurity');
+    const compiledText = JSON.stringify(compiled);
+    expect(compiledText).toMatch(/emergency communication path|testing methodology/i);
+  });
 });

@@ -11,6 +11,11 @@ const KEYWORDS = [
   'information architecture', 'card sort', 'card sorting', 'design critique',
   'figma', 'interaction design', 'ux', 'ui/ux', 'design thinking',
   'user interviews', 'affinity map', 'heuristic evaluation', 'usability study',
+  'user flow', 'user flows', 'design sprint', 'moderated testing', 'unmoderated testing',
+  'a/b test design', 'jobs to be done', 'jtbd', 'empathy map', 'service blueprint',
+  'design ops', 'accessibility audit', 'ux audit', 'onboarding flow', 'ia',
+  'sitemap', 'site map', 'competitive teardown', 'diary study', 'contextual inquiry',
+  'tree testing', 'first-click test', 'product designer', 'ux writer', 'ux writing',
 ];
 
 function wordBoundaryRegex(keyword: string): RegExp {
@@ -57,6 +62,16 @@ export const productDesignDomain: DomainModule = {
       description: 'Whether an existing design system/component library should be reused or a new one created is unspecified',
       isResolved: (input) => /\b(design system|component librar(?:y|ies)|existing (?:design|style) guide|from scratch)\b/i.test(input),
     },
+    {
+      field: 'platform',
+      description: 'Target platform(s) for the design (web, native mobile, tablet, desktop) is unspecified',
+      isResolved: (input) => /\b(web app|webapp|mobile app|native app|ios|android|responsive|desktop app|cross-platform|tablet)\b/i.test(input),
+    },
+    {
+      field: 'success metric',
+      description: 'How design success will be measured (task completion rate, SUS score, conversion lift, adoption) is unspecified',
+      isResolved: (input) => /\b(success metric|task completion|conversion rate|conversion lift|sus score|adoption rate|north star metric|kpi)\b/i.test(input),
+    },
   ],
   architectureTemplate: [
     { component: 'research plan', dependsOn: [], note: 'Define research questions, method, and target participants' },
@@ -72,6 +87,8 @@ export const productDesignDomain: DomainModule = {
     { aspect: 'design system integration', note: 'Determine whether new components extend an existing design system or require net-new tokens/components', category: 'constraints' },
     { aspect: 'prototype fidelity vs effort', note: 'Match prototype fidelity to the decision it needs to support — do not over-invest in visual polish for early concept validation', category: 'preferences' },
     { aspect: 'data for testing', note: 'Decide whether usability testing needs real data/content or placeholder content is acceptable', category: 'functionalRequirements' },
+    { aspect: 'design tokens vs code', note: 'Decide whether design tokens (color/spacing/type) are the single source of truth synced to code, or whether engineering maintains a separate copy that can drift', category: 'constraints' },
+    { aspect: 'responsive breakpoints', note: 'Define the breakpoint set and how layouts reflow between them rather than designing only one fixed screen width', category: 'functionalRequirements' },
   ],
   uxConsiderations: [
     { aspect: 'user flows', note: 'Map the primary end-to-end user flows before detailing individual screens, so structure is validated ahead of visual design', category: 'functionalRequirements' },
@@ -79,12 +96,15 @@ export const productDesignDomain: DomainModule = {
     { aspect: 'accessibility in design', note: 'Design for accessibility from wireframe stage (contrast, tap targets, focus order), not as a late-stage retrofit', category: 'constraints' },
     { aspect: 'edge-case states', note: 'Design empty, loading, error, and zero-data states for each key screen, not just the happy path', category: 'preferences' },
     { aspect: 'consistency', note: 'Reuse established interaction patterns and components rather than inventing one-off variants per screen', category: 'preferences' },
+    { aspect: 'cognitive load', note: 'Limit the number of simultaneous decisions/options on a single screen, especially at first-run and checkout-style flows', category: 'preferences' },
+    { aspect: 'error prevention and recovery', note: 'Design confirmation steps for destructive actions and clear, actionable error messages rather than only styling a generic error state', category: 'functionalRequirements' },
   ],
   securityConsiderations: [
     { aspect: 'sensitive data in mockups', note: 'Avoid using real user PII or production data in prototypes/mockups shared outside the team', category: 'constraints' },
     { aspect: 'research data handling', note: 'Define how interview recordings/transcripts and participant contact info are stored, anonymized, and retained', category: 'constraints' },
     { aspect: 'prototype access control', note: 'Confirm whether shared prototype links are restricted (password/domain-limited) when they contain unreleased features', category: 'preferences' },
     { aspect: 'consent', note: 'Ensure research participants give informed consent for recording and data use before sessions begin', category: 'constraints' },
+    { aspect: 'incentive/payment data', note: 'Handle participant payment details (gift cards, bank info) through a dedicated panel/incentive tool rather than storing them alongside research notes', category: 'constraints' },
   ],
   creativeConsiderations: [
     { aspect: 'visual language', note: 'Establish a consistent visual language (type scale, spacing, color tokens) before scaling designs across many screens', category: 'preferences' },
@@ -98,6 +118,7 @@ export const productDesignDomain: DomainModule = {
     { aspect: 'usability test plan', note: 'Define concrete usability test tasks and success criteria (e.g. "80% of participants complete checkout unassisted")', category: 'functionalRequirements' },
     { aspect: 'contradiction check', note: 'Check for contradictions between stated user needs and proposed flows (e.g. "one-click purchase" alongside a five-step checkout)', category: 'constraints' },
     { aspect: 'accessibility audit', note: 'Verify wireframes/prototypes against basic accessibility heuristics before handoff (contrast, target size, reading order)', category: 'preferences' },
+    { aspect: 'empty and error state coverage', note: 'Confirm every list/data screen has a designed empty state, loading state, and error state, not only the populated happy path', category: 'functionalRequirements' },
   ],
   constraintConsiderations: [
     {
@@ -113,6 +134,13 @@ export const productDesignDomain: DomainModule = {
       category: 'constraints',
       triggerA: /\b(no|zero|shoestring|minimal|very tight)\s+budget\b/i,
       triggerB: /\b(new|comprehensive|full[- ]scale)\s+design system\b/i,
+    },
+    {
+      aspect: 'no research access vs research-driven claims',
+      note: 'A request that rules out access to real users/participants alongside a demand for research-validated or data-driven design decisions is infeasible without substituting a proxy method (heuristic review, expert evaluation, secondary data).',
+      category: 'constraints',
+      triggerA: /\b(no access to users|can'?t (?:reach|talk to) users|no participants available)\b/i,
+      triggerB: /\b(research[- ]driven|data[- ]driven design|validated by research|evidence[- ]based design)\b/i,
     },
   ],
 };

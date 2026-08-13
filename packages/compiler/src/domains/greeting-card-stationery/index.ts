@@ -17,7 +17,14 @@ const KEYWORDS = [
   'notecards', 'note card', 'personalized card', 'card front', 'card insert',
   'greeting card line', 'card verse', 'monogram stationery',
   'personal letterhead', 'folded card', 'flat card', 'card stock design',
-  'card message', 'occasion card',
+  'card message', 'occasion card', 'a2 card', 'a7 card',
+  'bifold card', 'custom greeting cards', 'card verse writing',
+  'return address stationery', 'personal letterhead design',
+  'engraved stationery', 'letterpress card', 'foil stamped card',
+  'diy card template', 'printable greeting card', 'seasonal card line',
+  'new years card', 'valentines card', 'mothers day card',
+  'fathers day card', 'graduation card', 'baby shower card',
+  'condolence card', 'retirement card',
 ];
 
 function wordBoundaryRegex(keyword: string): RegExp {
@@ -76,6 +83,16 @@ export const greetingCardStationeryDomain: DomainModule = {
       description: 'How the finished cards will be distributed (mailed individually, sold in retail/online shop, handed out) is unspecified',
       isResolved: (input) => /\b(mail\w*|retail|online shop|etsy|storefront|hand(ed)? out|distribut\w*)\b/i.test(input),
     },
+    {
+      field: 'finishing technique',
+      description: 'Whether any specialty finishing (foil stamping, letterpress, embossing, die-cutting) is wanted or the card should stay standard digital print is unspecified',
+      isResolved: (input) => /\b(foil stamp\w*|letterpress|emboss\w*|die-?cut\w*|standard print|digital print|no special finish\w*)\b/i.test(input),
+    },
+    {
+      field: 'budget tier',
+      description: 'The budget tier (economy digital print vs premium/specialty production) is unspecified',
+      isResolved: (input) => /\b(budget|low[- ]cost|premium|high[- ]end|affordable|cheap|price point|per[- ]card cost)\b/i.test(input),
+    },
   ],
   architectureTemplate: [
     { component: 'concept and occasion brief', dependsOn: [], note: 'Occasion, tone, target recipient, and sentiment the card needs to convey' },
@@ -97,6 +114,8 @@ export const greetingCardStationeryDomain: DomainModule = {
     { aspect: 'envelope compatibility', note: 'Confirm envelope inner dimensions accommodate the finished card size plus insertion clearance', category: 'constraints' },
     { aspect: 'print vendor selection', note: 'Choose a print vendor appropriate to quantity: short-run digital press for small batches, offset for large runs, or a print-on-demand service for one-off orders', category: 'preferences' },
     { aspect: 'file delivery format', note: 'Deliver print-ready PDF/X or vendor-specified file format alongside an editable source file', category: 'preferences' },
+    { aspect: 'die-line for die-cut shapes', note: 'If the card uses a non-rectangular die-cut shape, supply a separate spot-color die-line layer marking the exact cut path, distinct from the printed artwork', category: 'functionalRequirements' },
+    { aspect: 'foil/emboss registration', note: 'For foil stamping or embossing, create a dedicated registration layer aligned to the foil die and confirm minimum stroke width the foil press can hold', category: 'constraints' },
   ],
   uxConsiderations: [
     { aspect: 'sentiment clarity', note: 'Ensure the visual and written tone reads clearly as the intended sentiment (celebratory vs sympathetic) at a glance', category: 'functionalRequirements' },
@@ -104,6 +123,8 @@ export const greetingCardStationeryDomain: DomainModule = {
     { aspect: 'reading order on fold', note: 'Design folded cards so the reader\'s natural fold-opening sequence matches the intended reveal of front, interior, and back content', category: 'functionalRequirements' },
     { aspect: 'recipient-first design', note: 'Keep the design accessible to the actual recipient audience (e.g. avoid overly small type on a card intended for an older relative)', category: 'preferences' },
     { aspect: 'consistent line identity', note: 'If designing a card line (multiple occasions), keep a consistent visual system so cards read as one cohesive collection', category: 'preferences' },
+    { aspect: 'sympathy/grief-sensitive tone', note: 'For sympathy or condolence cards, avoid overly bright colors, exclamation points, or celebratory iconography that reads as tone-deaf to grief', category: 'functionalRequirements' },
+    { aspect: 'insert vs pre-printed message balance', note: 'Decide up front whether the interior carries a pre-printed verse, stays blank for a handwritten note, or splits the space between both, since this changes layout and copy needs', category: 'preferences' },
   ],
   securityConsiderations: [
     { aspect: 'recipient personal data handling', note: 'Handle recipient names, addresses, and photos used for personalization carefully; do not expose mailing lists or personal photos in shared proof links', category: 'constraints' },
@@ -125,6 +146,7 @@ export const greetingCardStationeryDomain: DomainModule = {
     { aspect: 'envelope fit test', note: 'Test-insert a finished card into the paired envelope to confirm fit and check for excessive gap or a too-tight seal', category: 'functionalRequirements' },
     { aspect: 'contradiction check', note: 'Check stated requirements for contradictions (e.g. "solemn sympathy card" alongside "bright, playful color palette")', category: 'constraints' },
     { aspect: 'boundary case testing', note: 'Test the longest expected personalized name/message against the layout to confirm text does not overflow or get clipped', category: 'preferences' },
+    { aspect: 'holiday/seasonal date accuracy', note: 'For year-specific holiday cards (New Year, seasonal dates), verify any printed year or date is correct before the print run, since a wrong year cannot be corrected post-print', category: 'constraints' },
   ],
   constraintConsiderations: [
     {
@@ -147,6 +169,13 @@ export const greetingCardStationeryDomain: DomainModule = {
       category: 'constraints',
       triggerA: /\b(no|zero|shoestring|minimal|very tight)\s+budget\b/i,
       triggerB: /\b(premium (?:stock|cardstock)|foil stamp\w*|letterpress|large batch|\d{3,}\s*(cards|units))\b/i,
+    },
+    {
+      aspect: 'sympathy occasion vs bright/playful tone',
+      note: 'Requesting a sympathy or condolence card alongside a bright, playful, or humorous visual tone is a contradictory brief — sympathy cards conventionally call for a restrained, muted design language; confirm the intended tone before proceeding.',
+      category: 'constraints',
+      triggerA: /\b(sympathy card|condolence card|sympathy note)\b/i,
+      triggerB: /\b(bright(?:ly)? colou?r\w*|playful|whimsical|humorous|funny|festive)\b/i,
     },
   ],
 };

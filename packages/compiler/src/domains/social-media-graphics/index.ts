@@ -23,6 +23,10 @@ const KEYWORDS = [
   'carousel post', 'content calendar', 'post frequency', 'feed grid',
   'profile picture', 'profile banner', 'highlight cover', 'highlight covers',
   'canva template', 'social media template', 'social template kit',
+  'youtube thumbnail', 'facebook event cover', 'twitter post',
+  'linkedin cover photo', 'story highlight cover', 'quote card',
+  'testimonial graphic', 'announcement graphic template',
+  'social graphics package', 'social asset kit',
 ];
 
 function wordBoundaryRegex(keyword: string): RegExp {
@@ -94,7 +98,12 @@ export const socialMediaGraphicsDomain: DomainModule = {
     {
       field: 'posting cadence',
       description: 'Expected posting frequency (daily, a few times a week, one-off campaign) that the graphics need to sustain is unspecified',
-      isResolved: (input) => /\b(daily|weekly|per\s+week|per\s+day|posting\s+cadence|post\s+frequency|times?\s+a\s+week)\b/i.test(input),
+      isResolved: (input) => /\b(daily|weekly|per\s+week|per\s+day|posting\s+cadence|post\s+frequency|times?\s+a\s+week|one[- ]off|one[- ]time)\b/i.test(input),
+    },
+    {
+      field: 'production tool',
+      description: 'Which design tool the templates need to be built/handed off in (Canva, Figma, Photoshop, Adobe Express) is unspecified',
+      isResolved: (input) => /\b(canva|figma|photoshop|illustrator|adobe\s+express|indesign)\b/i.test(input),
     },
   ],
   architectureTemplate: [
@@ -116,6 +125,8 @@ export const socialMediaGraphicsDomain: DomainModule = {
     { aspect: 'text safe zones', note: 'Keep headline/CTA text inside each platform\'s documented safe area so UI chrome (profile ring, username, reply box, captions) never covers key content', category: 'constraints' },
     { aspect: 'scalable component structure', note: 'Build templates with swappable/component layers (image, headline, logo lockup) rather than flattened one-off files, so future posts can be produced without rebuilding from scratch', category: 'preferences' },
     { aspect: 'batch export efficiency', note: 'Plan for bulk/batch export (naming conventions, consistent artboard sizes) when the deliverable is a full week or month of graphics rather than a single post', category: 'preferences' },
+    { aspect: 'algorithm-driven crop variance', note: 'Account for platforms that auto-crop or re-frame square/vertical uploads differently across surfaces (e.g. Instagram feed grid thumbnail vs full post view) so a centered focal point survives multiple crop ratios of the same asset', category: 'constraints' },
+    { aspect: 'video-first template compatibility', note: 'If Reels/TikTok/Stories are in scope, decide whether cover frames need to work as both a static thumbnail and the first frame of an autoplaying video, since those have different legibility requirements', category: 'functionalRequirements' },
   ],
   uxConsiderations: [
     { aspect: 'mobile-first legibility', note: 'Design assuming a small phone screen at thumb-scroll speed — text and key visuals must read clearly at a glance, not just at full-size review', category: 'constraints' },
@@ -168,6 +179,13 @@ export const socialMediaGraphicsDomain: DomainModule = {
       category: 'constraints',
       triggerA: /\b(no\s+(existing\s+)?(logo|brand\s+(assets|guidelines)|style\s+guide)|brand\s+new\s+business|from\s+scratch)\b/i,
       triggerB: /\b(strict(?:ly)?\s+(on[- ]?brand|brand\s+consistent)|must\s+match\s+brand|consistent\s+brand\s+identity)\b/i,
+    },
+    {
+      aspect: 'single static template vs heavy video/animated requirement',
+      note: 'Requesting fully animated or video-first assets (motion, transitions, autoplay-ready Reels/TikTok content) while scoping the work as a simple static template kit is a tooling mismatch — animated deliverables need a motion-capable tool (e.g. After Effects, CapCut) and a different production/QA path than flat image templates.',
+      category: 'constraints',
+      triggerA: /\b(static\s+(template|graphics?)|flat\s+images?|image\s+only|just\s+images?)\b/i,
+      triggerB: /\b(animated|animation|motion\s+graphics?|video\s+cover|autoplay|transitions?)\b/i,
     },
   ],
 };

@@ -17,7 +17,12 @@ const KEYWORDS = [
   'patent', 'gdpr', 'ccpa', 'hipaa', 'arbitration', 'severability',
   'force majeure', 'power of attorney', 'legal counsel', 'attorney',
   'law firm', 'statute', 'regulatory compliance', 'liability waiver',
-  'terms of use', 'settlement agreement',
+  'terms of use', 'settlement agreement', 'cease and desist', 'demand letter',
+  'shareholder agreement', 'operating agreement', 'purchase agreement',
+  'independent contractor agreement', 'confidentiality agreement',
+  'legal notice', 'legal disclaimer', 'eula', 'end user license agreement',
+  'due diligence', 'legal brief', 'court filing', 'discovery request',
+  'mediation', 'legal opinion', 'compliance policy', 'data processing agreement',
 ];
 
 function wordBoundaryRegex(keyword: string): RegExp {
@@ -76,6 +81,16 @@ export const legalDomain: DomainModule = {
       description: 'Applicable regulatory regime (data privacy, employment law, industry-specific compliance) is unspecified',
       isResolved: (input) => /\b(gdpr|ccpa|hipaa|regulatory|compliance|industry[- ]specific\s+regulation)\b/i.test(input),
     },
+    {
+      field: 'term and termination',
+      description: 'The document\'s duration, renewal terms, and termination conditions (notice period, for-cause vs. for-convenience) are unspecified',
+      isResolved: (input) => /\b(term\s+of\s+\d|terminat\w*|renewal|auto-?renew|expir\w*|notice\s+period|evergreen\s+clause|fixed[- ]term|month-to-month|at-will)\b/i.test(input),
+    },
+    {
+      field: 'dispute resolution mechanism',
+      description: 'How disputes will be resolved (litigation, arbitration, mediation) and where, is unspecified',
+      isResolved: (input) => /\b(arbitrat\w*|mediat\w*|litigat\w*|dispute\s+resolution|small\s+claims|jury\s+trial\s+waiver|class\s+action\s+waiver)\b/i.test(input),
+    },
   ],
   architectureTemplate: [
     { component: 'intake and fact-gathering', dependsOn: [], note: 'Collect parties, jurisdiction, transaction facts, and objectives before drafting begins' },
@@ -97,6 +112,9 @@ export const legalDomain: DomainModule = {
     { aspect: 'template vs. bespoke drafting', note: 'Determine whether a standard template/clause library is sufficient or whether the transaction\'s complexity requires bespoke drafting by counsel', category: 'functionalRequirements' },
     { aspect: 'regulatory currency', note: 'Confirm cited statutes, regulations, or standard clauses (e.g. GDPR Article references, standard contractual clauses) reflect current law, since legal requirements change over time', category: 'constraints' },
     { aspect: 'accessibility of legal text', note: 'Where the document is consumer-facing (terms of service, privacy policy), balance legal precision with plain-language readability requirements some jurisdictions mandate', category: 'preferences' },
+    { aspect: 'boilerplate clause completeness', note: 'Include standard "miscellaneous" clauses (entire agreement/integration, no-waiver, assignment restrictions, notices mechanism, counterparts) that are easy to omit but routinely litigated when absent', category: 'functionalRequirements' },
+    { aspect: 'defined-term scope creep', note: 'Watch for a defined term whose scope silently drifts across sections (e.g. "Confidential Information" broadened by an unqualified later reference) — this is a common source of unintended obligation', category: 'constraints' },
+    { aspect: 'signature-block execution formalities', note: 'Match execution formalities to entity type and jurisdiction (corporate seal, notarization, witness requirements, e-signature statute compliance like ESIGN/UETA) rather than a generic signature line', category: 'constraints' },
   ],
   uxConsiderations: [
     { aspect: 'plain-language summaries', note: 'Provide a plain-language summary alongside dense legal text for consumer-facing documents (terms of service, privacy policy) to support genuine informed consent', category: 'preferences' },
@@ -105,6 +123,7 @@ export const legalDomain: DomainModule = {
     { aspect: 'signature and execution flow', note: 'Design an unambiguous, low-friction execution flow (e-signature fields, counterpart handling) so parties can complete signing without confusion', category: 'functionalRequirements' },
     { aspect: 'consent clarity', note: 'Present consent/opt-in mechanisms (e.g. data processing consent, arbitration opt-out) clearly and separately from bundled boilerplate acceptance', category: 'constraints' },
     { aspect: 'accessibility of disclosures', note: 'Ensure mandatory disclosures (cancellation rights, cooling-off periods, data rights) are prominent, not buried in dense fine print', category: 'preferences' },
+    { aspect: 'change-notification experience', note: 'When terms/policies are amended, define how affected parties are notified (email, in-app banner, redline diff) and whether continued use constitutes acceptance, rather than silent updates', category: 'functionalRequirements' },
   ],
   securityConsiderations: [
     { aspect: 'not a substitute for legal advice', note: 'Any generated legal document or analysis must be explicitly flagged as not constituting legal advice and requiring review by a licensed attorney before reliance or execution', category: 'constraints' },
@@ -113,6 +132,7 @@ export const legalDomain: DomainModule = {
     { aspect: 'unauthorized practice of law', note: 'Avoid presenting outputs in a way that could be construed as unauthorized practice of law; clearly scope outputs as drafting assistance, not legal representation', category: 'constraints' },
     { aspect: 'document authenticity and tamper-evidence', note: 'For executed documents, ensure signature/authentication mechanisms (e-signature audit trail, notarization) provide tamper-evidence appropriate to the document\'s stakes', category: 'functionalRequirements' },
     { aspect: 'privileged communication handling', note: 'Distinguish attorney-client privileged communications from general drafting work product, since the two have different confidentiality and disclosure protections', category: 'preferences' },
+    { aspect: 'PII minimization in drafts', note: 'Avoid embedding real SSNs, account numbers, or unredacted personal identifiers in circulated drafts; use placeholders until the document is in a controlled, access-limited execution environment', category: 'constraints' },
   ],
   creativeConsiderations: [
     { aspect: 'clarity over ornamentation', note: 'Legal drafting prioritizes precision and enforceability over stylistic flourish; avoid ambiguous or flowery language that could be construed multiple ways in a dispute', category: 'preferences' },
@@ -127,6 +147,7 @@ export const legalDomain: DomainModule = {
     { aspect: 'jurisdiction/venue alignment', note: 'Verify the governing-law clause and venue/forum-selection clause are internally consistent and both explicitly stated', category: 'constraints' },
     { aspect: 'attorney-review disclaimer presence', note: 'Confirm the output carries a clear, unmissable "not legal advice, consult a licensed attorney" disclaimer before delivery', category: 'constraints' },
     { aspect: 'edge-case scenario testing', note: 'Test the document\'s language against edge cases: early termination, breach by either party, force majeure event, or a party becoming insolvent', category: 'preferences' },
+    { aspect: 'defined-term singular/plural consistency', note: 'Check numbers, dates, and defined-term singular/plural usage are consistent (e.g. "the Parties" vs. a single-party reference elsewhere) — small grammatical slips can create genuine interpretive ambiguity in a contract', category: 'constraints' },
   ],
   constraintConsiderations: [
     {
@@ -149,6 +170,13 @@ export const legalDomain: DomainModule = {
       category: 'constraints',
       triggerA: /\b(no\s+budget\s+for\s+(?:a\s+)?lawyer|can'?t\s+afford\s+(?:a\s+)?(?:lawyer|attorney)|without\s+(?:a\s+)?lawyer)\b/i,
       triggerB: /\b(multi-?party|complex\s+transaction|merger|acquisition|joint\s+venture|large\s+sum|significant\s+liability)\b/i,
+    },
+    {
+      aspect: 'perpetual term vs. unilateral termination right',
+      note: 'A perpetual/non-expiring term combined with a one-sided (single-party-only) termination right is an unusual and often unenforceable-as-intended combination — a perpetual obligation typically needs a mutual or for-cause exit mechanism for both sides.',
+      category: 'constraints',
+      triggerA: /\b(perpetual|no\s+expiration|never\s+expires?|indefinite\s+term)\b/i,
+      triggerB: /\b(only\s+(?:we|i|the\s+company)\s+can\s+terminate|unilateral\s+termination|terminate\s+at\s+our\s+sole\s+discretion)\b/i,
     },
   ],
 };

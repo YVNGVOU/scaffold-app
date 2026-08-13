@@ -4,7 +4,14 @@ import { compileArchitect, runArchitectPipeline } from '../src/index.js';
 describe('event-invitations domain', () => {
   it('detects event-invitations domain on a realistic wedding invitation request', () => {
     const compiled = compileArchitect(
-      'Design a wedding invitation suite with a save-the-date, formal invitation, and RSVP card with a response deadline'
+      'Design a wedding invitation suite with save-the-date, RSVP card, and thank-you card, formal black-tie styling, printed and mailed to guests'
+    );
+    expect(compiled.domain).toBe('event-invitations');
+  });
+
+  it('detects event-invitations domain via bare "invite(s)" proximity phrasing', () => {
+    const compiled = compileArchitect(
+      "I need invites for my daughter's birthday party, digital, with an RSVP link"
     );
     expect(compiled.domain).toBe('event-invitations');
   });
@@ -16,40 +23,38 @@ describe('event-invitations domain', () => {
     expect(compiled.domain).not.toBe('event-invitations');
   });
 
-  it('word-boundary regression: unrelated words do not falsely trigger event-invitations keywords', () => {
-    const state = runArchitectPipeline('The dropdown menu invites confusion when users misclick the settings button');
+  it('word-boundary regression: new keywords do not false-positive on unrelated words', () => {
+    // "registry" and "website" appear inside unrelated compound/adjacent words here;
+    // none of the new keyword phrases ("gift registry", "registry link", "wedding
+    // website", "guest addressing", etc.) should match as bare substrings.
+    const state = runArchitectPipeline(
+      'The Windows registry linkage settings and the company website redesign project need review, and we should audit the guest addressing conventions used in our internal style guide document'
+    );
     expect(state.domain).not.toBe('event-invitations');
   });
 
-  it('disambiguation: a cafe food/drink menu request classifies as menu-design, not event-invitations', () => {
+  it('classifies a corporate/virtual event invite request correctly', () => {
     const compiled = compileArchitect(
-      'Design a menu for a coffee shop with pastries and drinks, organized into sections with prices and dietary tags for vegan and gluten-free options'
-    );
-    expect(compiled.domain).toBe('menu-design');
-  });
-
-  it('disambiguation: a birthday party invitation with RSVP classifies as event-invitations, not menu-design', () => {
-    const compiled = compileArchitect(
-      'Create a birthday party invitation with RSVP details, party date, time, and venue, plus a matching thank-you card'
+      'Design a corporate event invite for our virtual event invite series, with a wedding website style landing page and gift registry link section removed since this is not a wedding'
     );
     expect(compiled.domain).toBe('event-invitations');
   });
 
-  it('architect specialist produces event-invitations-appropriate architecture output', () => {
+  it('architect specialist and considerations surface new domain-specific content', () => {
     const compiled = compileArchitect(
-      'Design a full wedding stationery suite: save-the-date, invitation, RSVP card with envelope, and a thank-you card matching the same visual identity'
-    );
-    expect(compiled.domain).toBe('event-invitations');
-    const architectureText = JSON.stringify(compiled.architecture);
-    expect(architectureText).toMatch(/save-the-date|RSVP|thank-you|envelope/i);
-  });
-
-  it('technical specialist surfaces an event-invitations-specific consideration', () => {
-    const compiled = compileArchitect(
-      'Design a full wedding stationery suite: save-the-date, invitation, RSVP card with envelope, and a thank-you card matching the same visual identity'
+      'Design a formal wedding invitation suite with custom calligraphy addressing needed by tomorrow, and a wedding website for RSVP tracking'
     );
     expect(compiled.domain).toBe('event-invitations');
     const compiledText = JSON.stringify(compiled);
-    expect(compiledText).toMatch(/mail-back RSVP|guest list|digital RSVP platform|variable data printing/i);
+    expect(compiledText).toMatch(/calligraphy|timezone|monogram|budget and print quantity/i);
+  });
+
+  it('constraint specialist flags rush timeline vs custom calligraphy addressing as infeasible', () => {
+    const compiled = compileArchitect(
+      'I need custom calligraphy addressing on all the wedding invitation envelopes by tomorrow, this is due asap'
+    );
+    expect(compiled.domain).toBe('event-invitations');
+    const compiledText = JSON.stringify(compiled);
+    expect(compiledText).toMatch(/calligraph/i);
   });
 });

@@ -11,7 +11,11 @@ import type { DomainModule } from '../types.js';
 const KEYWORDS = [
   'game', 'gameplay', 'level design', 'unity', 'unreal', 'godot', 'roblox',
   'player', 'npc', 'boss fight', 'rpg', 'fps', 'platformer', 'horror game',
-  'game engine', 'sprite', 'game jam',
+  'game engine', 'sprite', 'game jam', 'game design document', 'gdd',
+  'tilemap', 'hitbox', 'game loop', 'inventory system', 'skill tree',
+  'procedural generation', 'roguelike', 'battle royale', 'coop campaign',
+  'leaderboard', 'matchmaking', 'in-game economy', 'loot drop', 'boss mechanic',
+  'speedrun',
 ];
 
 // 'multiplayer' alone is not a reliable game signal — plenty of non-game
@@ -56,17 +60,32 @@ export const gameDomain: DomainModule = {
     {
       field: 'platform',
       description: 'Target platform (PC, console, mobile, web) is unspecified',
-      isResolved: (input) => /(pc|console|mobile|web|steam|playstation|xbox|switch|ios|android)/i.test(input),
+      isResolved: (input) => /\b(pc|console|mobile|web|steam|playstation|xbox|switch|ios|android)\b/i.test(input),
     },
     {
       field: 'genre',
       description: 'Game genre is unspecified',
-      isResolved: (input) => /(horror|platformer|rpg|fps|puzzle|strategy|racing|shooter|adventure|sandbox|simulation|roguelike)/i.test(input),
+      isResolved: (input) => /\b(horror|platformer|rpg|fps|puzzle|strategy|racing|shooter|adventure|sandbox|simulation|roguelike)\b/i.test(input),
     },
     {
       field: 'engine',
       description: 'Game engine is unspecified',
-      isResolved: (input) => /(unity|unreal|godot|roblox|gamemaker|custom engine)/i.test(input),
+      isResolved: (input) => /\b(unity|unreal|godot|roblox|gamemaker|custom engine)\b/i.test(input),
+    },
+    {
+      field: 'monetization',
+      description: 'Monetization model (free, premium, F2P with IAP, subscription, ad-supported) is unspecified',
+      isResolved: (input) => /\b(free[- ]to[- ]play|f2p|premium|paid|one[- ]time purchase|subscription|ads?[- ]supported|in[- ]app purchase|iap|cosmetic microtransaction)\b/i.test(input),
+    },
+    {
+      field: 'multiplayer mode',
+      description: 'Whether the game is single-player, local co-op, or online multiplayer (and player count) is unspecified',
+      isResolved: (input) => /\b(single[- ]player|solo|local co[- ]?op|split[- ]screen|online multiplayer|\d+[- ]player|pvp|pve)\b/i.test(input),
+    },
+    {
+      field: 'art style',
+      description: 'Visual art style (pixel art, low-poly, realistic, cartoon, voxel) is unspecified',
+      isResolved: (input) => /\b(pixel art|low[- ]poly|realistic|photorealistic|cartoon|voxel|hand[- ]drawn|stylized)\b/i.test(input),
     },
   ],
   architectureTemplate: [
@@ -82,6 +101,8 @@ export const gameDomain: DomainModule = {
     { aspect: 'asset pipeline', note: 'Establish an asset pipeline for art/audio/animation import and optimization', category: 'functionalRequirements' },
     { aspect: 'save system', note: 'Consider save/checkpoint system requirements if the game has persistent progress', category: 'preferences' },
     { aspect: 'multiplayer networking', note: 'If multiplayer, define networking model (peer-to-peer vs. dedicated server) and latency tolerance', category: 'constraints' },
+    { aspect: 'physics determinism', note: 'For networked or replay-dependent games, decide whether physics/simulation must be deterministic (fixed timestep, lockstep) or is purely client-side cosmetic', category: 'constraints' },
+    { aspect: 'platform store requirements', note: 'Account for platform-specific certification/submission requirements (Steamworks, console TRC/XR, app store review) that can gate release timing', category: 'constraints' },
   ],
   uxConsiderations: [
     { aspect: 'control scheme', note: 'Define the control scheme/input mapping and ensure it is remappable or clearly onboarded to the player', category: 'functionalRequirements' },
@@ -136,6 +157,13 @@ export const gameDomain: DomainModule = {
       category: 'constraints',
       triggerA: /\bmobile\b/i,
       triggerB: /\b(4k|ray[- ]tracing|photorealistic|100\+?\s*player)\b/i,
+    },
+    {
+      aspect: 'solo dev vs scope',
+      note: 'A solo developer or one-person team stated alongside MMO, open-world, or AAA scope is a known-infeasible combination — those genres require sustained multi-discipline production (art, netcode, content pipelines) beyond one person\'s throughput.',
+      category: 'constraints',
+      triggerA: /\b(solo dev(?:eloper)?|one[- ]person team|just me|by myself)\b/i,
+      triggerB: /\b(mmo|open[- ]world|aaa)\b/i,
     },
   ],
 };

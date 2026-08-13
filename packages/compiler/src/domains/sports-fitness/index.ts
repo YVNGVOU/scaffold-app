@@ -15,6 +15,12 @@ const KEYWORDS = [
   'heart rate zone', 'vo2 max', 'macros', 'calorie tracker',
   'wearable', 'fitbit', 'garmin', 'strava', 'running app', 'marathon training',
   'injury prevention', 'rehab program', 'physical therapy', 'nutrition plan',
+  'gym app', 'gym membership', 'workout tracker', 'set tracker', 'training log',
+  'training block', 'periodization', 'deload week', 'mesocycle', 'macrocycle',
+  'rpe', 'rate of perceived exertion', 'interval training', 'sprint training',
+  'yoga class', 'pilates class', 'spin class', 'cycling app', 'triathlon training',
+  'strava segment', 'leaderboard', 'personal record', 'pr tracker', 'race day',
+  'team roster', 'league standings', 'scoreboard', 'match schedule', 'tournament bracket',
 ];
 
 function wordBoundaryRegex(keyword: string): RegExp {
@@ -73,6 +79,11 @@ export const sportsFitnessDomain: DomainModule = {
       description: 'Whether a human coach/trainer assigns and reviews programs, or the app is fully self-directed, is unspecified',
       isResolved: (input) => /\b(personal\s+trainer|coach\w*|trainer[- ]?assigned|self[- ]?directed|self[- ]?guided)\b/i.test(input),
     },
+    {
+      field: 'individual vs team/league scope',
+      description: 'Whether the product tracks a single individual\'s training or manages team rosters, league standings, and match/tournament scheduling is unspecified',
+      isResolved: (input) => /\b(team\s+roster|league\s+standings?|scoreboard|match\s+schedule|tournament\s+bracket|individual\s+athlete|solo\s+training)\b/i.test(input),
+    },
   ],
   architectureTemplate: [
     { component: 'workout/program builder', dependsOn: [], note: 'Structured data model for exercises, sets, reps, weight/intensity, rest intervals, and progression rules across a multi-week program' },
@@ -95,6 +106,8 @@ export const sportsFitnessDomain: DomainModule = {
     { aspect: 'progression algorithm design', note: 'Define the periodization/progressive-overload logic (linear, undulating, autoregulated) explicitly rather than leaving auto-progression as an unspecified black box', category: 'functionalRequirements' },
     { aspect: 'exercise database licensing', note: 'Clarify whether exercise demo media/data comes from a licensed third-party library or must be produced in-house', category: 'constraints' },
     { aspect: 'device sync conflict resolution', note: 'Define how conflicting data from multiple sources (manual entry vs wearable sync) is reconciled to avoid duplicate or contradictory logged sessions', category: 'functionalRequirements' },
+    { aspect: 'RPE and autoregulation data model', note: 'If RPE (rate of perceived exertion) or velocity-based training inputs drive autoregulated progression, define how subjective/sensor inputs are captured and weighted against planned load, not just fixed percentages of 1RM', category: 'functionalRequirements' },
+    { aspect: 'season/tournament scheduling engine', note: 'For team/league features, model round-robin or bracket scheduling, bye weeks, and rescheduled matches as first-class data rather than a flat list of fixed dates', category: 'functionalRequirements' },
   ],
   uxConsiderations: [
     { aspect: 'in-workout logging speed', note: 'Minimize taps/screens needed to log a set mid-workout — users are often sweaty, out of breath, or between sets on a timer', category: 'constraints' },
@@ -104,6 +117,8 @@ export const sportsFitnessDomain: DomainModule = {
     { aspect: 'onboarding fitness assessment', note: 'Collect baseline fitness level, goals, and available equipment during onboarding to tailor the initial program rather than assuming a generic starting point', category: 'functionalRequirements' },
     { aspect: 'motivational feedback loops', note: 'Use streaks, PRs (personal records), and milestone celebrations to reinforce adherence without becoming guilt-inducing when a session is missed', category: 'preferences' },
     { aspect: 'accessible exercise demonstrations', note: 'Pair video demonstrations with text-based form cues and captions so the guidance is usable without sound and accessible to users with visual/hearing impairments', category: 'constraints' },
+    { aspect: 'deload/recovery week framing', note: 'Present deload or reduced-volume weeks as an intentional part of the program rather than a skipped/failed workout, so adherence-focused users don\'t feel penalized by the streak or progress view', category: 'preferences' },
+    { aspect: 'sweat/glove-friendly touch targets', note: 'Size buttons and tap zones for use with sweaty fingers, gloves, or a locked/dimmed screen during a workout, not just standard mobile touch-target guidelines', category: 'constraints' },
   ],
   securityConsiderations: [
     { aspect: 'health data sensitivity', note: 'Treat heart rate, body composition, and injury/medical fields as sensitive personal data requiring encryption at rest and in transit, and minimal third-party sharing', category: 'constraints' },
@@ -112,6 +127,7 @@ export const sportsFitnessDomain: DomainModule = {
     { aspect: 'coach access to athlete data', note: 'Scope coach/trainer visibility into athlete data explicitly (which metrics, which time range) rather than granting blanket access, and let athletes revoke coach access', category: 'functionalRequirements' },
     { aspect: 'regulatory data classification', note: 'Determine whether health/fitness data collected falls under HIPAA (if paired with clinical/rehab features) or general consumer privacy law, since obligations differ materially', category: 'constraints' },
     { aspect: 'public profile leakage', note: 'Default social/leaderboard features to private or friends-only, since public workout logs can reveal daily routine, home gym location, or injury status', category: 'constraints' },
+    { aspect: 'minor athlete data handling', note: 'If youth/team-sport rosters include minors, apply stricter data-collection and guardian-consent rules (e.g. COPPA-style constraints) rather than the same consent flow used for adult users', category: 'constraints' },
   ],
   creativeConsiderations: [
     { aspect: 'motivational tone', note: 'Set a tone (aggressive/competitive vs supportive/encouraging) consistent with the target audience — competitive athletes and casual beginners respond to very different voice and visual energy', category: 'preferences' },
@@ -128,6 +144,7 @@ export const sportsFitnessDomain: DomainModule = {
     { aspect: 'injury flag enforcement', note: 'Test that reported injuries/contraindications actually suppress or flag conflicting exercise prescriptions rather than being cosmetic-only fields', category: 'constraints' },
     { aspect: 'edge-case metric values', note: 'Test extreme/invalid inputs (zero reps, negative weight, implausible heart rate) are rejected or flagged rather than silently accepted and corrupting trend data', category: 'functionalRequirements' },
     { aspect: 'cross-device consistency', note: 'Verify logged data and progress views stay consistent when a user logs a session on mobile and reviews it on web/desktop', category: 'preferences' },
+    { aspect: 'tournament bracket integrity', note: 'Test bracket/standings recalculation when a match is rescheduled, forfeited, or a bye occurs, ensuring standings never show an inconsistent or duplicated result', category: 'functionalRequirements' },
   ],
   constraintConsiderations: [
     {
@@ -150,6 +167,13 @@ export const sportsFitnessDomain: DomainModule = {
       category: 'constraints',
       triggerA: /\b(no\s+budget|minimal\s+budget|shoestring\s+budget|casual\s+app)\b/i,
       triggerB: /\b(elite[- ]?athlete|lab[- ]?accurate|competition[- ]?grade|professional[- ]?grade\s+vo2)\b/i,
+    },
+    {
+      aspect: 'public leaderboard/social features vs strict health-data privacy',
+      note: 'Requesting a public leaderboard or social activity feed alongside strict health-data privacy (e.g. HIPAA-level confidentiality) is contradictory — publicly visible workout stats, routes, or PRs inherently expose the kind of health/location data the privacy requirement is meant to protect.',
+      category: 'constraints',
+      triggerA: /\b(public\s+leaderboard|social\s+feed|public\s+profile|share\s+publicly)\b/i,
+      triggerB: /\b(hipaa|strict\s+privacy|confidential\s+health\s+data|medical[- ]?grade\s+privacy)\b/i,
     },
   ],
 };

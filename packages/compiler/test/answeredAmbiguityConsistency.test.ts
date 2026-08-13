@@ -44,6 +44,7 @@ describe('answered-ambiguity consistency across recompiles', () => {
       'How often the menu changes (static, seasonal rotation, daily specials) is unspecified': 'static',
       'Whether dietary/allergen labeling is required, and to what standard, is unspecified': 'yes',
       'Whether the menu includes food photography or is text-only is unspecified': 'will get photos',
+      'Whether the menu is compact/limited or full/extensive, and roughly how many items or sections it covers, is unspecified': 'full menu, about 40 items',
     });
 
     const recompiled = resumeAndRecompile(answered, 'design a menu for my new cafe', 'architect').compiled;

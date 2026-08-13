@@ -17,7 +17,10 @@ const KEYWORDS = [
   'gettext', 'po file', 'xliff', 'icu message format', 'pluralization',
   'cultural adaptation', 'transliteration', 'back-translation',
   'machine translation', 'post-editing', 'mtpe', 'subtitle translation',
-  'dubbing', 'language pair',
+  'dubbing', 'language pair', 'localize', 'localizing',
+  'in-country review', 'linguistic qa', 'lqa', 'string freeze',
+  'pseudo-localization', 'source string', 'target locale', 'language coverage',
+  'transcreator', 'translation vendor', 'localization vendor', 'language service provider',
 ];
 
 function wordBoundaryRegex(keyword: string): RegExp {
@@ -49,7 +52,7 @@ export const localizationTranslationDomain: DomainModule = {
     {
       field: 'target languages/locales',
       description: 'The specific target languages or locales (e.g. es-MX vs es-ES) are unspecified',
-      isResolved: (input) => /\b(spanish|french|german|japanese|chinese|mandarin|korean|arabic|portuguese|italian|russian|hindi|target\s+languages?|locales?|language\s+pair)\b/i.test(input),
+      isResolved: (input) => /\b(spanish|french|german|japanese|chinese|mandarin|korean|arabic|portuguese|italian|russian|hindi|dutch|polish|vietnamese|thai|swedish|target\s+languages?|locales?|language\s+pair|es-mx|es-es|pt-br|zh-cn|zh-tw)\b/i.test(input),
     },
     {
       field: 'translation method',
@@ -69,12 +72,17 @@ export const localizationTranslationDomain: DomainModule = {
     {
       field: 'content type and format',
       description: 'The content type/file format to localize (UI strings, marketing copy, legal docs, subtitles, audio for dubbing) is unspecified',
-      isResolved: (input) => /\b(ui\s+strings?|marketing\s+copy|legal\s+document\w*|subtitle\w*|dubbing|voice-?over|documentation|app\s+store\s+listing)\b/i.test(input),
+      isResolved: (input) => /\b(ui\s+strings?|marketing\s+copy|legal\s+document\w*|subtitle\w*|dubbing|voice-?over|documentation|app\s+store\s+listing|website\s+copy|email\s+campaign\w*|help\s+center|knowledge\s+base|in-game\s+text)\b/i.test(input),
     },
     {
       field: 'review/QA workflow',
       description: 'Whether an in-country linguistic review or QA/back-translation step is required before publishing is unspecified',
       isResolved: (input) => /\b(in-country\s+review|linguistic\s+review|back-translation|lqa|linguistic\s+qa|native\s+reviewer)\b/i.test(input),
+    },
+    {
+      field: 'update cadence / continuous localization',
+      description: 'Whether this is a one-time translation project or an ongoing/continuous localization workflow tied to content updates is unspecified',
+      isResolved: (input) => /\b(one-?time\s+translation|ongoing\s+localization|continuous\s+localization|string\s+freeze|weekly\s+release|per\s+release|nightly\s+build|sprint\s+cadence)\b/i.test(input),
     },
   ],
   architectureTemplate: [
@@ -99,6 +107,9 @@ export const localizationTranslationDomain: DomainModule = {
     { aspect: 'file format compatibility', note: 'Confirm the exchange format (XLIFF, PO, JSON, RESX, ARB) is compatible with both the source codebase and the chosen TMS', category: 'functionalRequirements' },
     { aspect: 'translation memory leverage', note: 'Configure fuzzy-match thresholds against the translation memory to reduce cost/turnaround on repeated or near-duplicate segments', category: 'preferences' },
     { aspect: 'continuous localization', note: 'Automate string push/pull between the codebase and the TMS on every content change to avoid manual export/import bottlenecks', category: 'preferences' },
+    { aspect: 'string context metadata', note: 'Attach developer comments, screenshots, or character-limit metadata to each source string so translators are not guessing at meaning from an isolated key like "submit_btn_02"', category: 'functionalRequirements' },
+    { aspect: 'string ID stability', note: 'Keep string/resource keys stable across releases — renaming or regenerating keys breaks TM matching and forces re-translation of unchanged content', category: 'constraints' },
+    { aspect: 'concatenated string handling', note: 'Flag and refactor concatenated strings built from multiple fragments (e.g. "You have " + count + " items"), since word order and grammar rules make fragment-level translation unreliable across languages', category: 'constraints' },
   ],
   uxConsiderations: [
     { aspect: 'text expansion tolerance', note: 'Design layouts to tolerate 30-200% text expansion (e.g. German, Finnish) without truncation or overflow', category: 'constraints' },
@@ -133,6 +144,8 @@ export const localizationTranslationDomain: DomainModule = {
     { aspect: 'placeholder/variable integrity testing', note: 'Verify no placeholders, HTML tags, or format specifiers were dropped, duplicated, or corrupted during translation', category: 'constraints' },
     { aspect: 'missing/untranslated string detection', note: 'Automate detection of strings that fell back to source language or were never sent for translation', category: 'functionalRequirements' },
     { aspect: 'consistency check against TM/glossary', note: 'Validate final translations against the translation memory and glossary to catch terminology drift between translators or sessions', category: 'preferences' },
+    { aspect: 'string freeze compliance', note: 'Verify no new or changed source strings were introduced after string freeze, since late changes silently reintroduce untranslated content into an already-signed-off locale build', category: 'constraints' },
+    { aspect: 'character-limit overflow testing', note: 'Test hard character-limit fields (SMS, push notification titles, button labels) in every target locale, since translated strings can exceed the original limit even when the UI itself would tolerate expansion', category: 'functionalRequirements' },
   ],
   constraintConsiderations: [
     {
@@ -155,6 +168,13 @@ export const localizationTranslationDomain: DomainModule = {
       category: 'constraints',
       triggerA: /\b(no|zero|shoestring|minimal|very tight)\s+budget\b/i,
       triggerB: /\b(professional\s+translat\w*|human\s+translat\w*|in-country\s+review|linguistic\s+review)\b/i,
+    },
+    {
+      aspect: 'no source-string refactor time vs continuous localization',
+      note: 'Continuous/automated localization pipelines assume externalized, ID-stable source strings — if there is no time budgeted to refactor hardcoded or concatenated strings first, automated string push/pull will surface broken or untranslatable content on every sync.',
+      category: 'constraints',
+      triggerA: /\b(no\s+time\s+for\s+refactor\w*|skip\s+refactor\w*|can'?t\s+touch\s+the\s+code|freeze\s+the\s+codebase)\b/i,
+      triggerB: /\b(continuous\s+localization|automated\s+string\s+sync|every\s+content\s+change)\b/i,
     },
   ],
 };

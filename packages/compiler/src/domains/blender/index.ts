@@ -10,7 +10,13 @@ const KEYWORDS = [
   'rig', 'rigging', 'texture', 'texturing', 'material', 'uv unwrap', 'uv map',
   'shader', 'render engine', 'cycles', 'eevee', 'mesh', 'sculpt', 'sculpting',
   'low poly', 'high poly', 'polycount', 'render', 'animation', 'keyframe',
-  'armature', 'blend file', 'glTF', 'fbx export',
+  'armature', 'blend file', 'glTF', 'fbx export', 'poly count', 'triangle count',
+  'boolean modifier', 'geometry nodes', 'subdivision surface', 'subsurf',
+  'hard surface', 'normal map', 'bake texture', 'baking normals', 'hdri',
+  'photorealistic render', 'weight paint', 'weight painting', 'skinning',
+  'particle system', 'displacement map', 'node editor', 'compositing nodes',
+  'python script for blender', 'bpy script', 'blender addon', 'blender add-on',
+  '3d asset', '3d character model', 'environment art', 'hero prop', 'game-ready asset',
 ];
 
 function wordBoundaryRegex(keyword: string): RegExp {
@@ -40,22 +46,32 @@ export const blenderDomain: DomainModule = {
     {
       field: 'purpose',
       description: 'Whether the model is for a still render, animation, or real-time game engine (each implies very different poly budgets and topology rules) is unspecified',
-      isResolved: (input) => /(still render|animation|game engine|real-?time|cinematic|game-ready|film|vfx)/i.test(input),
+      isResolved: (input) => /\b(still render|animation|game engine|real-?time|cinematic|game-ready|film|vfx|still image|for a game|for animation)\b/i.test(input),
     },
     {
       field: 'topology target',
       description: 'Poly count / topology budget (low-poly game asset vs. high-poly cinematic sculpt) is unspecified',
-      isResolved: (input) => /(low[- ]poly|high[- ]poly|poly ?count|triangle budget|topology|subdivision)/i.test(input),
+      isResolved: (input) => /\b(low[- ]poly|high[- ]poly|poly ?count|triangle budget|triangle count|topology|subdivision|poly budget)\b/i.test(input),
     },
     {
       field: 'rigging needs',
       description: 'Whether the asset needs to be rigged/animated (armature, weight painting, IK) or is a static prop is unspecified',
-      isResolved: (input) => /(rig|rigging|armature|skeleton|weight paint|animat|static prop|no animation)/i.test(input),
+      isResolved: (input) => /\b(rig|rigging|armature|skeleton|weight paint|animat|static prop|no animation|needs to be rigged|unrigged)\b/i.test(input),
     },
     {
       field: 'render engine',
       description: 'Target render engine (Cycles for realism, Eevee for real-time preview) is unspecified',
-      isResolved: (input) => /(cycles|eevee|render engine|path trac|real-?time render)/i.test(input),
+      isResolved: (input) => /\b(cycles|eevee|render engine|path trac|real-?time render)\b/i.test(input),
+    },
+    {
+      field: 'texture resolution',
+      description: 'Target texture resolution and map set (base color/normal/roughness/AO, and at what pixel resolution) is unspecified',
+      isResolved: (input) => /\b(\d+k texture|\d+x\d+ texture|texture resolution|2k|4k|8k|pbr texture|texture set|normal map|roughness map|ao map)\b/i.test(input),
+    },
+    {
+      field: 'delivery format',
+      description: 'How the finished asset will be delivered (rendered image/video, .blend file, or exported glTF/FBX/OBJ for another engine) is unspecified',
+      isResolved: (input) => /\b(deliver as|export (?:as|to)|\.blend|gltf|glb|fbx|obj file|rendered (?:image|video|frames)|hand off to|import into unity|import into unreal)\b/i.test(input),
     },
   ],
   architectureTemplate: [
@@ -73,6 +89,9 @@ export const blenderDomain: DomainModule = {
     { aspect: 'rigging', note: 'Define rig complexity (simple prop, IK/FK character rig, facial rig) and whether it must be game-engine compatible', category: 'functionalRequirements' },
     { aspect: 'export format', note: 'Select an export pipeline (glTF, FBX, OBJ) matched to the destination engine or DCC tool, including scale/axis conventions', category: 'constraints' },
     { aspect: 'file organization', note: 'Establish a naming/collection convention for objects, materials, and .blend file structure to keep the scene maintainable', category: 'preferences' },
+    { aspect: 'texel density', note: 'Set a consistent texel density (pixels per world unit) across UV islands so texture sharpness matches between adjacent parts of the model', category: 'constraints' },
+    { aspect: 'modifier stack order', note: 'Define whether a non-destructive modifier stack (Boolean, Mirror, Subdivision, Bevel) must be preserved for later edits or can be applied/baked down before export', category: 'functionalRequirements' },
+    { aspect: 'origin and pivot placement', note: 'Set object origin/pivot points appropriately for the target use (e.g. door hinge at the edge, wheel center at the hub) since exported pivots drive in-engine rotation behavior', category: 'constraints' },
   ],
   uxConsiderations: [
     { aspect: 'viewport ergonomics', note: 'Organize collections, hide helper geometry, and set sensible clipping/navigation defaults so the scene is easy to work in', category: 'preferences' },
@@ -84,6 +103,7 @@ export const blenderDomain: DomainModule = {
     { aspect: 'linked file paths', note: 'Avoid absolute/external file paths for linked textures and libraries so the .blend is portable across machines', category: 'constraints' },
     { aspect: 'embedded scripts', note: 'Treat any embedded Python scripts or drivers in shared .blend files as untrusted before enabling auto-run', category: 'constraints' },
     { aspect: 'asset provenance', note: 'Confirm licensing/usage rights for any downloaded assets, HDRIs, or textures brought into the project', category: 'preferences' },
+    { aspect: 'render farm data exposure', note: 'If rendering on a third-party cloud render farm, confirm the service\'s data retention/deletion policy for scene files that may contain proprietary or unreleased character/product designs', category: 'constraints' },
   ],
   creativeConsiderations: [
     { aspect: 'silhouette read', note: 'Ensure the model reads clearly as a recognizable shape/silhouette before investing in fine detail', category: 'preferences' },
@@ -97,6 +117,8 @@ export const blenderDomain: DomainModule = {
     { aspect: 'scale and units', note: 'Confirm the model is built to real-world scale/units consistent with the target engine or render setup', category: 'functionalRequirements' },
     { aspect: 'export validation', note: 'Test the exported file (glTF/FBX) actually imports correctly with expected materials, scale, and rig into the destination tool', category: 'functionalRequirements' },
     { aspect: 'poly budget compliance', note: 'Verify final poly/vertex count stays within the agreed budget for the target platform', category: 'constraints' },
+    { aspect: 'applied transforms', note: 'Confirm object scale/rotation is applied before export so the destination engine does not inherit non-uniform transforms that break physics or normals', category: 'functionalRequirements' },
+    { aspect: 'texture map linkage', note: 'Verify baked/exported texture maps (normal, AO, roughness) are correctly reassigned in the destination engine\'s material, not left pointing at the original .blend-relative paths', category: 'constraints' },
   ],
   constraintConsiderations: [
     {
@@ -112,6 +134,13 @@ export const blenderDomain: DomainModule = {
       category: 'constraints',
       triggerA: /\b(by tomorrow|tonight|in (?:a|one) hour|overnight|asap)\b/i,
       triggerB: /\b(cycles|path trac(?:e|ing)|photorealistic|ray trac(?:e|ing))\b/i,
+    },
+    {
+      aspect: 'mobile platform vs. 4K/8K texture set',
+      note: 'A mobile-game target stated alongside 4K/8K PBR texture sets is infeasible on typical mobile GPU memory/bandwidth budgets — mobile texture sets should be downscaled (often 512-1024px) and texture-atlased, not shipped at desktop/cinematic resolution.',
+      category: 'constraints',
+      triggerA: /\b(mobile game|mobile app|mobile platform|for (?:ios|android))\b/i,
+      triggerB: /\b(4k texture|8k texture|4k pbr|8k pbr|4096x4096|8192x8192)\b/i,
     },
   ],
 };
