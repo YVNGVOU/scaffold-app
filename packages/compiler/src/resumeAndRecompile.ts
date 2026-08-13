@@ -1,6 +1,7 @@
 import type { CompiledPrompt, RequirementItem } from '@lucid/schema';
 import type { PipelineState, RequirementCategory, TaskType } from './pipeline/state.js';
 import { isAnswered } from './isAnswered.js';
+import { annotateProposalsAgainstCanonicalState } from './canonicalResolver.js';
 import { architectSpecialistPass } from './pipeline/stages/architectSpecialistPass.js';
 import { technicalSpecialistPass } from './pipeline/stages/technicalSpecialistPass.js';
 import { uxSpecialistPass } from './pipeline/stages/uxSpecialistPass.js';
@@ -272,6 +273,15 @@ export function resumeAndRecompile(
     }
     state = { ...state, architectureNotes: dedupedNotes };
   }
+
+  // Specialist-resolver bridge: annotate this round's fresh specialist
+  // proposals against whatever canonical facts are now locked (including
+  // one the user just answered in THIS recompile — reconstructStateFromCompiled
+  // already carried it into state.canonicalState before the specialist
+  // stages above ran). See canonicalResolver.ts for what this does and
+  // doesn't attempt. Runs before critique so critique's own skip-if-linked
+  // check (Rule 1) sees the annotation.
+  state = { ...state, requirements: annotateProposalsAgainstCanonicalState(state.requirements, state.canonicalState) };
 
   if (mode === 'master') {
     const maxRounds = options?.maxRounds ?? DEFAULT_MASTER_MAX_ROUNDS;

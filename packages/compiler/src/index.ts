@@ -4,6 +4,7 @@ import { runArchitectPipeline, runQuickPipeline, runMasterPipeline, type RunMast
 export { mergeAnswer } from './mergeAnswer.js';
 export { isAnswered, unresolvedUnanswered } from './isAnswered.js';
 export { parseCanonicalFieldKey, lockCanonicalFact } from './canonicalState.js';
+export { annotateProposalsAgainstCanonicalState } from './canonicalResolver.js';
 // TASK-031: `buildAugmentedInput` (TASK-030) was removed — its only caller,
 // `App.tsx`'s `handleConfirmRecompile`, was the buggy augmented-text-into-a-
 // fresh-pipeline-run path this task replaces with `resumeAndRecompile`.

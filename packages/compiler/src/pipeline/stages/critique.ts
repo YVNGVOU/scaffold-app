@@ -1,5 +1,6 @@
 import type { PipelineState, RequirementCategory } from '../state.js';
 import type { RequirementItem } from '@lucid/schema';
+import { wordOverlapRatio } from '../../textOverlap.js';
 
 /**
  * Stage 8 (formerly the `critiquePassthrough` no-op): real, deterministic
@@ -61,28 +62,6 @@ const LOOP_STAGE_SOURCES = new Set(['critique-engine', 'conflict-engine', 'alter
  */
 const DUPLICATE_WORD_OVERLAP_THRESHOLD = 0.75;
 
-function significantWords(text: string): Set<string> {
-  return new Set(
-    text
-      .toLowerCase()
-      .replace(/[^a-z0-9\s]/g, ' ')
-      .split(/\s+/)
-      .filter((w) => w.length > 2)
-  );
-}
-
-function wordOverlapRatio(a: string, b: string): number {
-  const wordsA = significantWords(a);
-  const wordsB = significantWords(b);
-  if (wordsA.size === 0 || wordsB.size === 0) return 0;
-  let shared = 0;
-  for (const w of wordsA) {
-    if (wordsB.has(w)) shared++;
-  }
-  const smaller = Math.min(wordsA.size, wordsB.size);
-  return shared / smaller;
-}
-
 export function critique(state: PipelineState): PipelineState {
   const findings: RequirementItem[] = [];
   const findingCategories: RequirementCategory[] = [];
@@ -93,6 +72,12 @@ export function critique(state: PipelineState): PipelineState {
   // specialist found strong evidence for it and it was never confirmed.
   for (const item of state.requirements) {
     if (LOOP_STAGE_SOURCES.has(item.source)) continue; // never critique the deliberation loop's own prior output
+    // Specialist-resolver bridge: a recommendation the resolver already
+    // linked to a locked canonical fact (see canonicalResolver.ts) isn't a
+    // genuinely open question anymore — the user already decided that field.
+    // Flagging it for review would just be the same "why is this still
+    // asking about something I answered" noise the resolver exists to stop.
+    if (item.evidence.some((e) => e.startsWith('relates-to-locked-fact:'))) continue;
     if (item.kind === 'recommendation' && item.confidence < LOW_CONFIDENCE_THRESHOLD && item.status !== 'accepted') {
       findings.push({
         text: `Low-confidence recommendation flagged for review: "${item.text}" (confidence ${item.confidence.toFixed(2)}, source: ${item.source})`,
