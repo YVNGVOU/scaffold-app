@@ -124,6 +124,20 @@ export function formatAsMarkdown(
       }
     },
     requirements: () => {
+      // Priority 1 in the canonical-state precedence model: locked, explicit
+      // user decisions, rendered first and distinctly from everything else
+      // (specialist recommendations, inferred defaults) below. See schema's
+      // CanonicalFact doc comment — this is the ONLY place these facts come
+      // from (mergeAnswer), and nothing here ever overwrites one silently.
+      const canonicalEntries = Object.entries(compiled.canonicalState ?? {});
+      if (canonicalEntries.length > 0) {
+        lines.push('## Locked Requirements', '');
+        for (const [key, fact] of canonicalEntries) {
+          const field = key.includes('::') ? key.split('::')[1] : key;
+          lines.push(`- **${field}**: ${fact.value}`);
+        }
+        lines.push('');
+      }
       section('User Requirements', compiled.userRequirements);
       section('Functional Requirements', compiled.functionalRequirements);
       section('Preferences', compiled.preferences);

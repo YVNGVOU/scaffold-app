@@ -1,4 +1,4 @@
-import type { CompiledPrompt, DomainId, RequirementItem, ArchitectureNote } from '@lucid/schema';
+import type { CompiledPrompt, DomainId, RequirementItem, ArchitectureNote, CanonicalState } from '@lucid/schema';
 import { createEmptyCompiledPrompt } from '@lucid/schema';
 
 export type TaskType = 'build' | 'research' | 'write' | 'design' | 'fix' | 'unknown';
@@ -53,6 +53,12 @@ export interface PipelineState {
   ambiguities: RequirementItem[];
   /** Accumulated specialist decisions, in the order specialists ran. */
   decisions: Decision[];
+  /** Locked user-decided facts, keyed by `domainId::field` — see schema's
+   * CanonicalFact doc comment. Carried forward from `compiled.canonicalState`
+   * on a resume (reconstructStateFromCompiled) and written back out by
+   * synthesis. Nothing else in the pipeline writes to this — only
+   * `mergeAnswer` ever locks a fact. */
+  canonicalState: CanonicalState;
   /** The in-progress / final compiled prompt, populated by synthesis. */
   compiled: CompiledPrompt;
   /** Names of stages that have run, in order — useful for the UI pipeline stepper and tests. */
@@ -72,6 +78,7 @@ export function createInitialState(rawInput: string, forceDomain?: DomainId): Pi
     architectureNotes: [],
     ambiguities: [],
     decisions: [],
+    canonicalState: {},
     compiled: createEmptyCompiledPrompt('unknown'),
     stagesRun: [],
   };

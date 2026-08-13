@@ -385,6 +385,27 @@ export function CompiledOutput({
       ),
     requirements: () => (
       <div key="requirements">
+        {compiled.canonicalState && Object.keys(compiled.canonicalState).length > 0 && (
+          <div style={{ marginBottom: 'var(--sv-space-5)' }}>
+            <div className="sv-label" style={{ marginBottom: 'var(--sv-space-2)' }}>
+              Locked Requirements ({Object.keys(compiled.canonicalState).length})
+            </div>
+            <ul style={{ margin: 0, padding: 0 }}>
+              {Object.entries(compiled.canonicalState).map(([key, fact]) => {
+                const field = key.includes('::') ? key.split('::')[1] : key;
+                return (
+                  <li key={key} style={{ marginBottom: 'var(--sv-space-2)', listStyle: 'none', display: 'flex', gap: 6, alignItems: 'baseline' }}>
+                    <span title="Locked — set by your explicit answer, never overridden automatically" style={{ fontSize: 11 }}>
+                      🔒
+                    </span>
+                    <span style={{ fontFamily: 'var(--sv-font-mono)', fontSize: 11, color: 'var(--sv-ink-soft)' }}>{field}:</span>
+                    <span>{fact.value}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
         <Section title="User Requirements" items={compiled.userRequirements} />
         <Section title="Unresolved — needs your input" items={unresolved} accentColor="var(--sv-burgundy)" />
         <Section title="Functional Requirements" items={compiled.functionalRequirements} />

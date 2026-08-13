@@ -1,4 +1,5 @@
 import type { CompiledPrompt, RequirementItem } from '@lucid/schema';
+import { lockCanonicalFact } from './canonicalState.js';
 
 /**
  * TASK-017: merges a user-supplied free-text answer to an unresolved
@@ -11,6 +12,12 @@ import type { CompiledPrompt, RequirementItem } from '@lucid/schema';
  * new item. Returns a NEW CompiledPrompt object (existing category arrays
  * are shallow-copied, not mutated in place) so callers can safely diff/rely
  * on reference identity.
+ *
+ * Canonical state (see schema's CanonicalFact doc comment): every answer
+ * also locks a `canonicalState` entry for the field it answers, in addition
+ * to (not instead of) the `userRequirements` append above — this is the
+ * ONLY place a canonical fact is ever written, and it always uses the
+ * literal answer text verbatim.
  */
 export function mergeAnswer(
   compiled: CompiledPrompt,
@@ -31,5 +38,6 @@ export function mergeAnswer(
   return {
     ...compiled,
     userRequirements: [...compiled.userRequirements, answerItem],
+    canonicalState: lockCanonicalFact(compiled.canonicalState ?? {}, unresolvedItem, trimmedAnswer),
   };
 }

@@ -9,6 +9,11 @@ import { createEmptyCompiledPrompt } from '@lucid/schema';
  */
 export function synthesis(state: PipelineState): PipelineState {
   const compiled = createEmptyCompiledPrompt(state.domain);
+  // createEmptyCompiledPrompt defaults canonicalState to {} — overwrite
+  // with whatever this run's state actually carries (locked facts from a
+  // prior compile, reconstructed by reconstructStateFromCompiled, or {} on
+  // a genuinely first-ever compile).
+  compiled.canonicalState = { ...state.canonicalState };
 
   // Carry domain-detection reasoning through to the final output (additive
   // schema fields) so the UI can show *why* this domain was chosen instead

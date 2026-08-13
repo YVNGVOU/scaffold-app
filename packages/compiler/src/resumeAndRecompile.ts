@@ -137,6 +137,7 @@ export function reconstructStateFromCompiled(compiled: CompiledPrompt, rawInput:
     architectureNotes: compiled.architecture ? [...compiled.architecture] : [],
     ambiguities,
     decisions: [],
+    canonicalState: { ...(compiled.canonicalState ?? {}) },
     compiled,
     stagesRun: [],
   };
