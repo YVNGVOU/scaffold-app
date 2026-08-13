@@ -7,7 +7,7 @@ import { AUTH_LAST_VERIFIED_KEY } from './AuthGate';
 import { UpdateChecker } from './UpdateChecker';
 import type { AppearanceSettings, ThemeChoice, AccentChoice, DensityChoice } from '../lib/appearance';
 import type { NotificationCategory, NotificationSettings } from '../lib/notifications';
-import { getEntitlement, startCheckout, type Entitlement, type PaidTier } from '../lib/cloud';
+import { getEntitlement, startCheckout, PaymentRequiredError, type Entitlement, type PaidTier } from '../lib/cloud';
 import { runSync, LAST_SYNC_KEY } from '../lib/sync';
 
 export type CompileMode = 'architect' | 'quick' | 'master';
@@ -144,7 +144,11 @@ export function SettingsPanel({
       setLastSync(summary.serverTime);
       setSyncStatus(`Synced — ${summary.pushed} pushed, ${summary.pulled} pulled.`);
     } catch (e) {
-      setSyncStatus('Sync failed: ' + (e instanceof Error ? e.message : String(e)));
+      if (e instanceof PaymentRequiredError) {
+        setSyncStatus('Cloud sync is a Plus+ feature — upgrade above to turn it on.');
+      } else {
+        setSyncStatus('Sync failed: ' + (e instanceof Error ? e.message : String(e)));
+      }
     } finally {
       setSyncing(false);
     }
@@ -497,26 +501,35 @@ export function SettingsPanel({
                 ))}
               </div>
               <div style={{ fontSize: 10, color: 'var(--sv-ink-soft)', marginBottom: 'var(--sv-space-4)' }}>
-                Opens checkout in your browser. If no live payment is configured yet, the order activates instantly for testing —
-                nothing is ever charged from inside the app itself.
+                Opens checkout in your browser. This is a real purchase — nothing is charged from inside the app itself, but a
+                completed checkout does charge your card.
               </div>
 
               <hr className="sv-hairline" style={{ margin: 'var(--sv-space-4) 0' }} />
 
               <div className="sv-label" style={{ marginBottom: 'var(--sv-space-2)' }}>
-                Cloud sync
+                Cloud sync — Plus and above
               </div>
-              <div style={{ fontSize: 11, color: 'var(--sv-ink-soft)', marginBottom: 'var(--sv-space-2)' }}>
-                {lastSync ? `Last synced ${new Date(lastSync).toLocaleString()}` : 'Never synced.'}
-              </div>
-              <button type="button" onClick={handleSyncNow} disabled={syncing}>
+              {entitlement?.tier === 'Free' ? (
+                <div style={{ fontSize: 11, color: 'var(--sv-ink-soft)', marginBottom: 'var(--sv-space-2)' }}>
+                  Syncing prompts, projects, and templates across devices requires Plus, Pro, or Max. Upgrade above to turn it on —
+                  everything else in Scaffold stays fully local and free.
+                </div>
+              ) : (
+                <div style={{ fontSize: 11, color: 'var(--sv-ink-soft)', marginBottom: 'var(--sv-space-2)' }}>
+                  {lastSync ? `Last synced ${new Date(lastSync).toLocaleString()}` : 'Never synced.'}
+                </div>
+              )}
+              <button type="button" onClick={handleSyncNow} disabled={syncing || entitlement?.tier === 'Free'}>
                 {syncing ? 'Syncing…' : 'Sync Now'}
               </button>
               {syncStatus && <div style={{ fontSize: 11, color: 'var(--sv-ink-soft)', marginTop: 'var(--sv-space-2)' }}>{syncStatus}</div>}
-              <div style={{ fontSize: 10, color: 'var(--sv-ink-soft)', marginTop: 'var(--sv-space-2)' }}>
-                Pushes your prompts, projects, and templates to your account and pulls anything newer from other devices, including
-                deletions — deleting something here removes it everywhere else on your next sync.
-              </div>
+              {entitlement?.tier !== 'Free' && (
+                <div style={{ fontSize: 10, color: 'var(--sv-ink-soft)', marginTop: 'var(--sv-space-2)' }}>
+                  Pushes your prompts, projects, and templates to your account and pulls anything newer from other devices, including
+                  deletions — deleting something here removes it everywhere else on your next sync.
+                </div>
+              )}
             </div>
           )}
 

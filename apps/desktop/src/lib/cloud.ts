@@ -13,6 +13,18 @@ async function getAccessToken(): Promise<string | null> {
   return data.session?.access_token ?? null;
 }
 
+/** Thrown when the server's requirePaidTier gate rejects a Free-tier call
+ * (402) — the REAL enforcement lives server-side (scaffold-api.js); this is
+ * just so the UI can show "Upgrade to sync" instead of a raw error string. */
+export class PaymentRequiredError extends Error {
+  tier: string;
+  constructor(message: string, tier: string) {
+    super(message);
+    this.name = 'PaymentRequiredError';
+    this.tier = tier;
+  }
+}
+
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const token = await getAccessToken();
   if (!token) throw new Error('Not signed in.');
@@ -26,6 +38,7 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
+    if (res.status === 402) throw new PaymentRequiredError(body.error || 'This feature requires a paid plan.', body.tier ?? 'Free');
     throw new Error(body.error || `Request failed (${res.status})`);
   }
   return res.json();
