@@ -954,6 +954,7 @@ export default function App() {
           onOpenPrompt={handleOpenPromptFromNav}
           onOpenSettings={() => setSettingsOpen(true)}
           onOpenImport={() => setImportOpen(true)}
+          onUseTemplate={handleUseTemplate}
         />
       )}
 

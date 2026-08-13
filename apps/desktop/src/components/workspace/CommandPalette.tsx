@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { Prompt } from '../../lib/api';
+import { listProjects, listTemplates, type Prompt, type Project, type Template } from '../../lib/api';
 import type { WorkspaceId } from './WorkspaceShell';
 
 interface Command {
@@ -18,13 +18,21 @@ interface CommandPaletteProps {
   onOpenPrompt: (p: Prompt) => void;
   onOpenSettings: () => void;
   onOpenImport: () => void;
+  onUseTemplate: (body: string) => void;
 }
 
 /** Real Ctrl/Cmd+K command palette: static app commands + fuzzy-ish substring
  * match over prompt titles, one flat keyboard-navigable list. */
-export function CommandPalette({ prompts, onClose, onNavigate, onNewPrompt, onCompile, onOpenPrompt, onOpenSettings, onOpenImport }: CommandPaletteProps) {
+export function CommandPalette({ prompts, onClose, onNavigate, onNewPrompt, onCompile, onOpenPrompt, onOpenSettings, onOpenImport, onUseTemplate }: CommandPaletteProps) {
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState(0);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [templates, setTemplates] = useState<Template[]>([]);
+
+  useEffect(() => {
+    listProjects().then(setProjects).catch(() => {});
+    listTemplates().then(setTemplates).catch(() => {});
+  }, []);
 
   const staticCommands: Command[] = useMemo(
     () => [
@@ -53,7 +61,32 @@ export function CommandPalette({ prompts, onClose, onNavigate, onNewPrompt, onCo
     [prompts, onOpenPrompt],
   );
 
-  const allCommands = useMemo(() => [...staticCommands, ...promptCommands], [staticCommands, promptCommands]);
+  const projectCommands: Command[] = useMemo(
+    () =>
+      projects.slice(0, 20).map((p) => ({
+        id: `project-${p.id}`,
+        label: p.name,
+        hint: 'Project',
+        run: () => onNavigate('projects'),
+      })),
+    [projects, onNavigate],
+  );
+
+  const templateCommands: Command[] = useMemo(
+    () =>
+      templates.slice(0, 20).map((t) => ({
+        id: `template-${t.id}`,
+        label: t.title,
+        hint: 'Template',
+        run: () => onUseTemplate(t.body),
+      })),
+    [templates, onUseTemplate],
+  );
+
+  const allCommands = useMemo(
+    () => [...staticCommands, ...promptCommands, ...projectCommands, ...templateCommands],
+    [staticCommands, promptCommands, projectCommands, templateCommands],
+  );
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
