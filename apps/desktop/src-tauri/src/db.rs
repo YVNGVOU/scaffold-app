@@ -21,6 +21,11 @@ pub struct Prompt {
     /// used by cloud sync (scaffold-api.js's /sync route) for last-write-wins
     /// merge. Never read by anything else locally.
     pub updated_at: String,
+    /// Tombstone flag — "deleted" is a soft delete (UPDATE, not DELETE) so
+    /// the deletion itself is a fact that can sync to other devices. The
+    /// UI-facing list_* commands always filter this out; only the *_for_sync
+    /// commands (used by cloud sync's push) return deleted rows.
+    pub deleted: bool,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -30,6 +35,7 @@ pub struct Project {
     pub description: String,
     pub created_at: String,
     pub updated_at: String,
+    pub deleted: bool,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -41,6 +47,7 @@ pub struct Template {
     pub is_favorite: bool,
     pub created_at: String,
     pub updated_at: String,
+    pub deleted: bool,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -143,6 +150,23 @@ pub fn init_db(db_path: PathBuf) -> Connection {
                 .expect("failed to run updated_at migration");
             conn.execute_batch(&format!("UPDATE {table} SET updated_at = {default_col} WHERE updated_at = '';"))
                 .expect("failed to backfill updated_at");
+        }
+    }
+
+    // Soft-delete tombstones (fixes: local deletes weren't propagating to
+    // cloud sync) — same additive-migration pattern as updated_at above.
+    // Existing rows default to deleted = 0 (nothing already-deleted to
+    // backfill: prior to this migration, delete_prompt/delete_project/
+    // delete_template did a real SQL DELETE, so no row could already be in
+    // a "deleted but still present" state).
+    for table in ["prompts", "projects", "templates"] {
+        let has_deleted: bool = conn
+            .prepare(&format!("SELECT 1 FROM pragma_table_info('{table}') WHERE name = 'deleted'"))
+            .and_then(|mut stmt| stmt.exists([]))
+            .unwrap_or(false);
+        if !has_deleted {
+            conn.execute_batch(&format!("ALTER TABLE {table} ADD COLUMN deleted INTEGER NOT NULL DEFAULT 0;"))
+                .expect("failed to run deleted migration");
         }
     }
 

@@ -5,13 +5,14 @@
 // — simpler and correct, at the cost of some extra bandwidth on large
 // libraries, an acceptable tradeoff for now.
 //
-// Known limitation, stated honestly rather than silently: local deletes are
-// real SQL deletes (see delete_prompt/delete_project/delete_template in
-// commands.rs), not tombstones, so a prompt/project/template deleted on one
-// device does NOT currently propagate as a deletion to other devices —
-// deleting it locally on each device is still required. The server's
-// `deleted` column exists for this but nothing writes it yet.
-import { listProjects, listTemplates, listPrompts, listCompiles, getSetting, setSetting, upsertProjectFromSync, upsertTemplateFromSync, upsertPromptFromSync, insertCompileFromSync } from './api';
+// Deletes propagate as tombstones, not real deletes: delete_prompt/
+// delete_project/delete_template (commands.rs) now set a `deleted` flag
+// instead of removing the row, push uses the *_for_sync list variants
+// (which, unlike the UI-facing list_*, include soft-deleted rows) so the
+// tombstone reaches the server, and pull applies every row it gets back —
+// including deleted ones — via the same last-write-wins upsert as any other
+// field, so a delete on one device now does reach other devices next sync.
+import { listProjectsForSync, listTemplatesForSync, listPromptsForSync, listCompiles, getSetting, setSetting, upsertProjectFromSync, upsertTemplateFromSync, upsertPromptFromSync, insertCompileFromSync } from './api';
 import { pullSync, pushSync } from './cloud';
 
 export const LAST_SYNC_KEY = 'cloud_last_sync';
@@ -25,7 +26,9 @@ export interface SyncSummary {
 export async function runSync(): Promise<SyncSummary> {
   const lastSync = await getSetting(LAST_SYNC_KEY);
 
-  const [projects, templates, prompts] = await Promise.all([listProjects(), listTemplates(), listPrompts()]);
+  const [projects, templates, prompts] = await Promise.all([listProjectsForSync(), listTemplatesForSync(), listPromptsForSync()]);
+  // Soft-deleted prompts have no compiles left locally (delete_prompt still
+  // hard-deletes those), so listCompiles on one just returns [] — harmless.
   const compileLists = await Promise.all(prompts.map((p) => listCompiles(p.id)));
   const compiles = compileLists.flat();
 
@@ -34,13 +37,13 @@ export async function runSync(): Promise<SyncSummary> {
 
   const pulled = await pullSync(lastSync ?? undefined);
   for (const p of pulled.projects) {
-    if (!p.deleted) await upsertProjectFromSync(p);
+    await upsertProjectFromSync({ ...p, deleted: !!p.deleted });
   }
   for (const t of pulled.templates) {
-    if (!t.deleted) await upsertTemplateFromSync(t);
+    await upsertTemplateFromSync({ ...t, deleted: !!t.deleted });
   }
   for (const pr of pulled.prompts) {
-    if (!pr.deleted) await upsertPromptFromSync(pr);
+    await upsertPromptFromSync({ ...pr, deleted: !!pr.deleted });
   }
   for (const c of pulled.compiles) {
     await insertCompileFromSync(c);

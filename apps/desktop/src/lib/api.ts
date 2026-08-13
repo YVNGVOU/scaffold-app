@@ -9,6 +9,7 @@ export interface Prompt {
   is_favorite: boolean;
   project_id: string | null;
   updated_at: string;
+  deleted: boolean;
 }
 
 export interface Compile {
@@ -25,6 +26,7 @@ export interface Project {
   description: string;
   created_at: string;
   updated_at: string;
+  deleted: boolean;
 }
 
 export interface Template {
@@ -35,6 +37,7 @@ export interface Template {
   is_favorite: boolean;
   created_at: string;
   updated_at: string;
+  deleted: boolean;
 }
 
 export function createPrompt(title: string, rawInput: string): Promise<Prompt> {
@@ -146,4 +149,20 @@ export function upsertPromptFromSync(prompt: Prompt): Promise<void> {
 
 export function insertCompileFromSync(compile: Compile): Promise<void> {
   return invoke('insert_compile_from_sync', { compile });
+}
+
+/** Same data as listProjects/listTemplates/listPrompts but INCLUDING
+ * soft-deleted rows — used only by cloud sync's push step, so a local
+ * delete actually reaches the server as a tombstone instead of just
+ * vanishing from every list this device would otherwise send. */
+export function listProjectsForSync(): Promise<Project[]> {
+  return invoke('list_projects_for_sync');
+}
+
+export function listTemplatesForSync(): Promise<Template[]> {
+  return invoke('list_templates_for_sync');
+}
+
+export function listPromptsForSync(): Promise<Prompt[]> {
+  return invoke('list_prompts_for_sync');
 }

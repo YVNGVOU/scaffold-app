@@ -58,6 +58,9 @@ pub fn run() {
             commands::upsert_template_from_sync,
             commands::upsert_prompt_from_sync,
             commands::insert_compile_from_sync,
+            commands::list_projects_for_sync,
+            commands::list_templates_for_sync,
+            commands::list_prompts_for_sync,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

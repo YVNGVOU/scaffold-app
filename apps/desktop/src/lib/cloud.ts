@@ -51,11 +51,16 @@ export function startCheckout(tier: PaidTier): Promise<CheckoutResult> {
   return apiFetch('/checkout', { method: 'POST', body: JSON.stringify({ tier }) });
 }
 
+// The server's SQLite-backed API serializes `deleted` as a raw 0/1 JSON
+// number (not a real boolean) — sync.ts converts it with `!!` before
+// handing rows to the local (real-bool) upsert_*_from_sync commands.
+type Wire<T> = Omit<T, 'deleted'> & { deleted: number };
+
 export interface SyncPullResult {
   serverTime: string;
-  projects: (Project & { deleted: number })[];
-  templates: (Template & { deleted: number })[];
-  prompts: (Prompt & { deleted: number })[];
+  projects: Wire<Project>[];
+  templates: Wire<Template>[];
+  prompts: Wire<Prompt>[];
   compiles: Compile[];
 }
 
@@ -65,9 +70,9 @@ export function pullSync(since?: string): Promise<SyncPullResult> {
 }
 
 export interface SyncPushPayload {
-  projects?: (Project & { deleted?: number })[];
-  templates?: (Template & { deleted?: number })[];
-  prompts?: (Prompt & { deleted?: number })[];
+  projects?: Project[];
+  templates?: Template[];
+  prompts?: Prompt[];
   compiles?: Compile[];
 }
 

@@ -22,13 +22,20 @@ pub fn get_storage_info(state: State<DbState>, db_path: State<DbPath>) -> Result
         conn.query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |row| row.get(0))
             .map_err(|e| e.to_string())
     };
+    // prompts/projects/templates use `deleted = 0` — a soft-deleted row is
+    // still physically in the table (see the `deleted` tombstone column)
+    // but shouldn't count as content the user still has.
+    let count_visible = |table: &str| -> Result<i64, String> {
+        conn.query_row(&format!("SELECT COUNT(*) FROM {table} WHERE deleted = 0"), [], |row| row.get(0))
+            .map_err(|e| e.to_string())
+    };
     let db_size_bytes = std::fs::metadata(&db_path.0).map(|m| m.len()).unwrap_or(0);
     Ok(StorageInfo {
         db_size_bytes,
-        prompt_count: count("prompts")?,
+        prompt_count: count_visible("prompts")?,
         compile_count: count("compiles")?,
-        project_count: count("projects")?,
-        template_count: count("templates")?,
+        project_count: count_visible("projects")?,
+        template_count: count_visible("templates")?,
     })
 }
 
@@ -58,14 +65,14 @@ pub fn create_prompt(state: State<DbState>, title: String, raw_input: String) ->
         params![id, title, raw_input, created_at],
     )
     .map_err(|e| e.to_string())?;
-    Ok(Prompt { id, title, raw_input, updated_at: created_at.clone(), created_at, is_favorite: false, project_id: None })
+    Ok(Prompt { id, title, raw_input, updated_at: created_at.clone(), created_at, is_favorite: false, project_id: None, deleted: false })
 }
 
 #[tauri::command]
 pub fn list_prompts(state: State<DbState>) -> Result<Vec<Prompt>, String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
     let mut stmt = conn
-        .prepare("SELECT id, title, raw_input, created_at, is_favorite, project_id, updated_at FROM prompts ORDER BY created_at DESC")
+        .prepare("SELECT id, title, raw_input, created_at, is_favorite, project_id, updated_at, deleted FROM prompts WHERE deleted = 0 ORDER BY created_at DESC")
         .map_err(|e| e.to_string())?;
     let rows = stmt
         .query_map([], |row| {
@@ -77,6 +84,37 @@ pub fn list_prompts(state: State<DbState>) -> Result<Vec<Prompt>, String> {
                 is_favorite: row.get::<_, i64>(4)? != 0,
                 project_id: row.get(5)?,
                 updated_at: row.get(6)?,
+                deleted: row.get::<_, i64>(7)? != 0,
+            })
+        })
+        .map_err(|e| e.to_string())?;
+    let mut out = Vec::new();
+    for r in rows {
+        out.push(r.map_err(|e| e.to_string())?);
+    }
+    Ok(out)
+}
+
+/// Same as `list_prompts` but includes soft-deleted rows — used ONLY by
+/// cloud sync's push step, so a delete tombstone actually reaches the
+/// server instead of silently vanishing from every list this device sends.
+#[tauri::command]
+pub fn list_prompts_for_sync(state: State<DbState>) -> Result<Vec<Prompt>, String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    let mut stmt = conn
+        .prepare("SELECT id, title, raw_input, created_at, is_favorite, project_id, updated_at, deleted FROM prompts ORDER BY created_at DESC")
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map([], |row| {
+            Ok(Prompt {
+                id: row.get(0)?,
+                title: row.get(1)?,
+                raw_input: row.get(2)?,
+                created_at: row.get(3)?,
+                is_favorite: row.get::<_, i64>(4)? != 0,
+                project_id: row.get(5)?,
+                updated_at: row.get(6)?,
+                deleted: row.get::<_, i64>(7)? != 0,
             })
         })
         .map_err(|e| e.to_string())?;
@@ -111,14 +149,14 @@ pub fn create_project(state: State<DbState>, name: String, description: String) 
         params![id, name, description, created_at],
     )
     .map_err(|e| e.to_string())?;
-    Ok(Project { id, name, description, updated_at: created_at.clone(), created_at })
+    Ok(Project { id, name, description, updated_at: created_at.clone(), created_at, deleted: false })
 }
 
 #[tauri::command]
 pub fn list_projects(state: State<DbState>) -> Result<Vec<Project>, String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
     let mut stmt = conn
-        .prepare("SELECT id, name, description, created_at, updated_at FROM projects ORDER BY created_at DESC")
+        .prepare("SELECT id, name, description, created_at, updated_at, deleted FROM projects WHERE deleted = 0 ORDER BY created_at DESC")
         .map_err(|e| e.to_string())?;
     let rows = stmt
         .query_map([], |row| {
@@ -128,6 +166,34 @@ pub fn list_projects(state: State<DbState>) -> Result<Vec<Project>, String> {
                 description: row.get(2)?,
                 created_at: row.get(3)?,
                 updated_at: row.get(4)?,
+                deleted: row.get::<_, i64>(5)? != 0,
+            })
+        })
+        .map_err(|e| e.to_string())?;
+    let mut out = Vec::new();
+    for r in rows {
+        out.push(r.map_err(|e| e.to_string())?);
+    }
+    Ok(out)
+}
+
+/// Same as `list_projects` but includes soft-deleted rows — used ONLY by
+/// cloud sync's push step (see list_prompts_for_sync's comment).
+#[tauri::command]
+pub fn list_projects_for_sync(state: State<DbState>) -> Result<Vec<Project>, String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    let mut stmt = conn
+        .prepare("SELECT id, name, description, created_at, updated_at, deleted FROM projects ORDER BY created_at DESC")
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map([], |row| {
+            Ok(Project {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                description: row.get(2)?,
+                created_at: row.get(3)?,
+                updated_at: row.get(4)?,
+                deleted: row.get::<_, i64>(5)? != 0,
             })
         })
         .map_err(|e| e.to_string())?;
@@ -149,9 +215,12 @@ pub fn rename_project(state: State<DbState>, id: String, name: String, descripti
     Ok(())
 }
 
-/// Deletes a project. Prompts that belonged to it are NOT deleted — their
-/// `project_id` is cleared back to unassigned, same "detach, don't cascade"
-/// choice as leaving a folder without deleting its contents.
+/// Soft-deletes a project (tombstone, not a real DELETE — see the `deleted`
+/// column) so cloud sync can propagate the deletion to other devices
+/// instead of it silently only happening on this one. Prompts that belonged
+/// to it are NOT deleted — their `project_id` is cleared back to
+/// unassigned, same "detach, don't cascade" choice as leaving a folder
+/// without deleting its contents.
 #[tauri::command]
 pub fn delete_project(state: State<DbState>, id: String) -> Result<(), String> {
     let mut conn = state.0.lock().map_err(|e| e.to_string())?;
@@ -161,8 +230,11 @@ pub fn delete_project(state: State<DbState>, id: String) -> Result<(), String> {
         params![id],
     )
     .map_err(|e| e.to_string())?;
-    tx.execute("DELETE FROM projects WHERE id = ?1", params![id])
-        .map_err(|e| e.to_string())?;
+    tx.execute(
+        "UPDATE projects SET deleted = 1, updated_at = ?1 WHERE id = ?2",
+        params![Utc::now().to_rfc3339(), id],
+    )
+    .map_err(|e| e.to_string())?;
     tx.commit().map_err(|e| e.to_string())?;
     Ok(())
 }
@@ -177,14 +249,14 @@ pub fn create_template(state: State<DbState>, title: String, category: String, b
         params![id, title, category, body, created_at],
     )
     .map_err(|e| e.to_string())?;
-    Ok(Template { id, title, category, body, is_favorite: false, updated_at: created_at.clone(), created_at })
+    Ok(Template { id, title, category, body, is_favorite: false, updated_at: created_at.clone(), created_at, deleted: false })
 }
 
 #[tauri::command]
 pub fn list_templates(state: State<DbState>) -> Result<Vec<Template>, String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
     let mut stmt = conn
-        .prepare("SELECT id, title, category, body, is_favorite, created_at, updated_at FROM templates ORDER BY created_at DESC")
+        .prepare("SELECT id, title, category, body, is_favorite, created_at, updated_at, deleted FROM templates WHERE deleted = 0 ORDER BY created_at DESC")
         .map_err(|e| e.to_string())?;
     let rows = stmt
         .query_map([], |row| {
@@ -196,6 +268,36 @@ pub fn list_templates(state: State<DbState>) -> Result<Vec<Template>, String> {
                 is_favorite: row.get::<_, i64>(4)? != 0,
                 created_at: row.get(5)?,
                 updated_at: row.get(6)?,
+                deleted: row.get::<_, i64>(7)? != 0,
+            })
+        })
+        .map_err(|e| e.to_string())?;
+    let mut out = Vec::new();
+    for r in rows {
+        out.push(r.map_err(|e| e.to_string())?);
+    }
+    Ok(out)
+}
+
+/// Same as `list_templates` but includes soft-deleted rows — used ONLY by
+/// cloud sync's push step (see list_prompts_for_sync's comment).
+#[tauri::command]
+pub fn list_templates_for_sync(state: State<DbState>) -> Result<Vec<Template>, String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    let mut stmt = conn
+        .prepare("SELECT id, title, category, body, is_favorite, created_at, updated_at, deleted FROM templates ORDER BY created_at DESC")
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map([], |row| {
+            Ok(Template {
+                id: row.get(0)?,
+                title: row.get(1)?,
+                category: row.get(2)?,
+                body: row.get(3)?,
+                is_favorite: row.get::<_, i64>(4)? != 0,
+                created_at: row.get(5)?,
+                updated_at: row.get(6)?,
+                deleted: row.get::<_, i64>(7)? != 0,
             })
         })
         .map_err(|e| e.to_string())?;
@@ -217,11 +319,16 @@ pub fn set_template_favorite(state: State<DbState>, id: String, is_favorite: boo
     Ok(())
 }
 
+/// Soft-deletes a template — see delete_project's comment on why this is an
+/// UPDATE (tombstone), not a real DELETE.
 #[tauri::command]
 pub fn delete_template(state: State<DbState>, id: String) -> Result<(), String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
-    conn.execute("DELETE FROM templates WHERE id = ?1", params![id])
-        .map_err(|e| e.to_string())?;
+    conn.execute(
+        "UPDATE templates SET deleted = 1, updated_at = ?1 WHERE id = ?2",
+        params![Utc::now().to_rfc3339(), id],
+    )
+    .map_err(|e| e.to_string())?;
     Ok(())
 }
 
@@ -299,16 +406,22 @@ pub fn set_favorite(state: State<DbState>, id: String, is_favorite: bool) -> Res
     Ok(())
 }
 
-/// Deletes a prompt and all of its associated `compiles` rows (children first,
-/// no `ON DELETE CASCADE` on the schema, so we clean up explicitly here).
+/// Soft-deletes a prompt (tombstone — see delete_project's comment) so the
+/// deletion propagates via cloud sync instead of only happening locally.
+/// Its `compiles` rows are still hard-deleted (compiles have no `deleted`
+/// column of their own — they're append-only history, not something sync
+/// needs to tombstone; a compile without its prompt is meaningless anyway).
 #[tauri::command]
 pub fn delete_prompt(state: State<DbState>, id: String) -> Result<(), String> {
     let mut conn = state.0.lock().map_err(|e| e.to_string())?;
     let tx = conn.transaction().map_err(|e| e.to_string())?;
     tx.execute("DELETE FROM compiles WHERE prompt_id = ?1", params![id])
         .map_err(|e| e.to_string())?;
-    tx.execute("DELETE FROM prompts WHERE id = ?1", params![id])
-        .map_err(|e| e.to_string())?;
+    tx.execute(
+        "UPDATE prompts SET deleted = 1, updated_at = ?1 WHERE id = ?2",
+        params![Utc::now().to_rfc3339(), id],
+    )
+    .map_err(|e| e.to_string())?;
     tx.commit().map_err(|e| e.to_string())?;
     Ok(())
 }
@@ -353,10 +466,11 @@ pub fn set_setting(state: State<DbState>, key: String, value: String) -> Result<
 pub fn upsert_project_from_sync(state: State<DbState>, project: Project) -> Result<(), String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
     conn.execute(
-        "INSERT INTO projects (id, name, description, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5)
-         ON CONFLICT(id) DO UPDATE SET name = excluded.name, description = excluded.description, updated_at = excluded.updated_at
+        "INSERT INTO projects (id, name, description, created_at, updated_at, deleted) VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+         ON CONFLICT(id) DO UPDATE SET name = excluded.name, description = excluded.description,
+           updated_at = excluded.updated_at, deleted = excluded.deleted
          WHERE excluded.updated_at > projects.updated_at",
-        params![project.id, project.name, project.description, project.created_at, project.updated_at],
+        params![project.id, project.name, project.description, project.created_at, project.updated_at, project.deleted as i64],
     )
     .map_err(|e| e.to_string())?;
     Ok(())
@@ -366,11 +480,11 @@ pub fn upsert_project_from_sync(state: State<DbState>, project: Project) -> Resu
 pub fn upsert_template_from_sync(state: State<DbState>, template: Template) -> Result<(), String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
     conn.execute(
-        "INSERT INTO templates (id, title, category, body, is_favorite, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+        "INSERT INTO templates (id, title, category, body, is_favorite, created_at, updated_at, deleted) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
          ON CONFLICT(id) DO UPDATE SET title = excluded.title, category = excluded.category, body = excluded.body,
-           is_favorite = excluded.is_favorite, updated_at = excluded.updated_at
+           is_favorite = excluded.is_favorite, updated_at = excluded.updated_at, deleted = excluded.deleted
          WHERE excluded.updated_at > templates.updated_at",
-        params![template.id, template.title, template.category, template.body, template.is_favorite as i64, template.created_at, template.updated_at],
+        params![template.id, template.title, template.category, template.body, template.is_favorite as i64, template.created_at, template.updated_at, template.deleted as i64],
     )
     .map_err(|e| e.to_string())?;
     Ok(())
@@ -380,11 +494,11 @@ pub fn upsert_template_from_sync(state: State<DbState>, template: Template) -> R
 pub fn upsert_prompt_from_sync(state: State<DbState>, prompt: Prompt) -> Result<(), String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
     conn.execute(
-        "INSERT INTO prompts (id, title, raw_input, is_favorite, project_id, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+        "INSERT INTO prompts (id, title, raw_input, is_favorite, project_id, created_at, updated_at, deleted) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
          ON CONFLICT(id) DO UPDATE SET title = excluded.title, raw_input = excluded.raw_input,
-           is_favorite = excluded.is_favorite, project_id = excluded.project_id, updated_at = excluded.updated_at
+           is_favorite = excluded.is_favorite, project_id = excluded.project_id, updated_at = excluded.updated_at, deleted = excluded.deleted
          WHERE excluded.updated_at > prompts.updated_at",
-        params![prompt.id, prompt.title, prompt.raw_input, prompt.is_favorite as i64, prompt.project_id, prompt.created_at, prompt.updated_at],
+        params![prompt.id, prompt.title, prompt.raw_input, prompt.is_favorite as i64, prompt.project_id, prompt.created_at, prompt.updated_at, prompt.deleted as i64],
     )
     .map_err(|e| e.to_string())?;
     Ok(())

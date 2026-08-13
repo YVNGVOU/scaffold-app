@@ -514,8 +514,8 @@ export function SettingsPanel({
               </button>
               {syncStatus && <div style={{ fontSize: 11, color: 'var(--sv-ink-soft)', marginTop: 'var(--sv-space-2)' }}>{syncStatus}</div>}
               <div style={{ fontSize: 10, color: 'var(--sv-ink-soft)', marginTop: 'var(--sv-space-2)' }}>
-                Pushes your prompts, projects, and templates to your account and pulls anything newer from other devices.
-                Deleting something locally doesn't yet delete it on other devices — delete it on each device separately for now.
+                Pushes your prompts, projects, and templates to your account and pulls anything newer from other devices, including
+                deletions — deleting something here removes it everywhere else on your next sync.
               </div>
             </div>
           )}
