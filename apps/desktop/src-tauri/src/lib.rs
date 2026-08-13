@@ -54,6 +54,10 @@ pub fn run() {
             commands::delete_template,
             commands::get_storage_info,
             commands::clear_local_data,
+            commands::upsert_project_from_sync,
+            commands::upsert_template_from_sync,
+            commands::upsert_prompt_from_sync,
+            commands::insert_compile_from_sync,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

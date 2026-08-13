@@ -54,18 +54,18 @@ pub fn create_prompt(state: State<DbState>, title: String, raw_input: String) ->
     let id = Uuid::new_v4().to_string();
     let created_at = Utc::now().to_rfc3339();
     conn.execute(
-        "INSERT INTO prompts (id, title, raw_input, created_at) VALUES (?1, ?2, ?3, ?4)",
+        "INSERT INTO prompts (id, title, raw_input, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?4)",
         params![id, title, raw_input, created_at],
     )
     .map_err(|e| e.to_string())?;
-    Ok(Prompt { id, title, raw_input, created_at, is_favorite: false, project_id: None })
+    Ok(Prompt { id, title, raw_input, updated_at: created_at.clone(), created_at, is_favorite: false, project_id: None })
 }
 
 #[tauri::command]
 pub fn list_prompts(state: State<DbState>) -> Result<Vec<Prompt>, String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
     let mut stmt = conn
-        .prepare("SELECT id, title, raw_input, created_at, is_favorite, project_id FROM prompts ORDER BY created_at DESC")
+        .prepare("SELECT id, title, raw_input, created_at, is_favorite, project_id, updated_at FROM prompts ORDER BY created_at DESC")
         .map_err(|e| e.to_string())?;
     let rows = stmt
         .query_map([], |row| {
@@ -76,6 +76,7 @@ pub fn list_prompts(state: State<DbState>) -> Result<Vec<Prompt>, String> {
                 created_at: row.get(3)?,
                 is_favorite: row.get::<_, i64>(4)? != 0,
                 project_id: row.get(5)?,
+                updated_at: row.get(6)?,
             })
         })
         .map_err(|e| e.to_string())?;
@@ -88,13 +89,13 @@ pub fn list_prompts(state: State<DbState>) -> Result<Vec<Prompt>, String> {
 
 /// Assigns (or clears, when `project_id` is None) a prompt's project. Like
 /// `rename_prompt`/`set_favorite`, `prompts` is not append-only, so an UPDATE
-/// here is correct.
+/// here is correct. Bumps `updated_at` for cloud sync's last-write-wins merge.
 #[tauri::command]
 pub fn set_prompt_project(state: State<DbState>, id: String, project_id: Option<String>) -> Result<(), String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
     conn.execute(
-        "UPDATE prompts SET project_id = ?1 WHERE id = ?2",
-        params![project_id, id],
+        "UPDATE prompts SET project_id = ?1, updated_at = ?2 WHERE id = ?3",
+        params![project_id, Utc::now().to_rfc3339(), id],
     )
     .map_err(|e| e.to_string())?;
     Ok(())
@@ -106,18 +107,18 @@ pub fn create_project(state: State<DbState>, name: String, description: String) 
     let id = Uuid::new_v4().to_string();
     let created_at = Utc::now().to_rfc3339();
     conn.execute(
-        "INSERT INTO projects (id, name, description, created_at) VALUES (?1, ?2, ?3, ?4)",
+        "INSERT INTO projects (id, name, description, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?4)",
         params![id, name, description, created_at],
     )
     .map_err(|e| e.to_string())?;
-    Ok(Project { id, name, description, created_at })
+    Ok(Project { id, name, description, updated_at: created_at.clone(), created_at })
 }
 
 #[tauri::command]
 pub fn list_projects(state: State<DbState>) -> Result<Vec<Project>, String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
     let mut stmt = conn
-        .prepare("SELECT id, name, description, created_at FROM projects ORDER BY created_at DESC")
+        .prepare("SELECT id, name, description, created_at, updated_at FROM projects ORDER BY created_at DESC")
         .map_err(|e| e.to_string())?;
     let rows = stmt
         .query_map([], |row| {
@@ -126,6 +127,7 @@ pub fn list_projects(state: State<DbState>) -> Result<Vec<Project>, String> {
                 name: row.get(1)?,
                 description: row.get(2)?,
                 created_at: row.get(3)?,
+                updated_at: row.get(4)?,
             })
         })
         .map_err(|e| e.to_string())?;
@@ -140,8 +142,8 @@ pub fn list_projects(state: State<DbState>) -> Result<Vec<Project>, String> {
 pub fn rename_project(state: State<DbState>, id: String, name: String, description: String) -> Result<(), String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
     conn.execute(
-        "UPDATE projects SET name = ?1, description = ?2 WHERE id = ?3",
-        params![name, description, id],
+        "UPDATE projects SET name = ?1, description = ?2, updated_at = ?3 WHERE id = ?4",
+        params![name, description, Utc::now().to_rfc3339(), id],
     )
     .map_err(|e| e.to_string())?;
     Ok(())
@@ -171,18 +173,18 @@ pub fn create_template(state: State<DbState>, title: String, category: String, b
     let id = Uuid::new_v4().to_string();
     let created_at = Utc::now().to_rfc3339();
     conn.execute(
-        "INSERT INTO templates (id, title, category, body, created_at) VALUES (?1, ?2, ?3, ?4, ?5)",
+        "INSERT INTO templates (id, title, category, body, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?5)",
         params![id, title, category, body, created_at],
     )
     .map_err(|e| e.to_string())?;
-    Ok(Template { id, title, category, body, is_favorite: false, created_at })
+    Ok(Template { id, title, category, body, is_favorite: false, updated_at: created_at.clone(), created_at })
 }
 
 #[tauri::command]
 pub fn list_templates(state: State<DbState>) -> Result<Vec<Template>, String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
     let mut stmt = conn
-        .prepare("SELECT id, title, category, body, is_favorite, created_at FROM templates ORDER BY created_at DESC")
+        .prepare("SELECT id, title, category, body, is_favorite, created_at, updated_at FROM templates ORDER BY created_at DESC")
         .map_err(|e| e.to_string())?;
     let rows = stmt
         .query_map([], |row| {
@@ -193,6 +195,7 @@ pub fn list_templates(state: State<DbState>) -> Result<Vec<Template>, String> {
                 body: row.get(3)?,
                 is_favorite: row.get::<_, i64>(4)? != 0,
                 created_at: row.get(5)?,
+                updated_at: row.get(6)?,
             })
         })
         .map_err(|e| e.to_string())?;
@@ -207,8 +210,8 @@ pub fn list_templates(state: State<DbState>) -> Result<Vec<Template>, String> {
 pub fn set_template_favorite(state: State<DbState>, id: String, is_favorite: bool) -> Result<(), String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
     conn.execute(
-        "UPDATE templates SET is_favorite = ?1 WHERE id = ?2",
-        params![is_favorite as i64, id],
+        "UPDATE templates SET is_favorite = ?1, updated_at = ?2 WHERE id = ?3",
+        params![is_favorite as i64, Utc::now().to_rfc3339(), id],
     )
     .map_err(|e| e.to_string())?;
     Ok(())
@@ -273,8 +276,8 @@ pub fn list_compiles(state: State<DbState>, prompt_id: String) -> Result<Vec<Com
 pub fn rename_prompt(state: State<DbState>, id: String, new_title: String) -> Result<(), String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
     conn.execute(
-        "UPDATE prompts SET title = ?1 WHERE id = ?2",
-        params![new_title, id],
+        "UPDATE prompts SET title = ?1, updated_at = ?2 WHERE id = ?3",
+        params![new_title, Utc::now().to_rfc3339(), id],
     )
     .map_err(|e| e.to_string())?;
     Ok(())
@@ -289,8 +292,8 @@ pub fn rename_prompt(state: State<DbState>, id: String, new_title: String) -> Re
 pub fn set_favorite(state: State<DbState>, id: String, is_favorite: bool) -> Result<(), String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
     conn.execute(
-        "UPDATE prompts SET is_favorite = ?1 WHERE id = ?2",
-        params![is_favorite as i64, id],
+        "UPDATE prompts SET is_favorite = ?1, updated_at = ?2 WHERE id = ?3",
+        params![is_favorite as i64, Utc::now().to_rfc3339(), id],
     )
     .map_err(|e| e.to_string())?;
     Ok(())
@@ -334,6 +337,68 @@ pub fn set_setting(state: State<DbState>, key: String, value: String) -> Result<
         "INSERT INTO settings (key, value) VALUES (?1, ?2)
          ON CONFLICT(key) DO UPDATE SET value = excluded.value",
         params![key, value],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+// ---------- Cloud sync (pull side) ----------
+// These accept a full row (including its id) from the cloud API
+// (scaffold-api.js's GET /sync) and upsert it locally, last-write-wins on
+// `updated_at` — the mirror image of that same endpoint's own upsertRow.
+// The regular create_* commands above always mint a fresh id, so they can't
+// be reused for this: sync needs to write the CLOUD's id verbatim.
+
+#[tauri::command]
+pub fn upsert_project_from_sync(state: State<DbState>, project: Project) -> Result<(), String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    conn.execute(
+        "INSERT INTO projects (id, name, description, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5)
+         ON CONFLICT(id) DO UPDATE SET name = excluded.name, description = excluded.description, updated_at = excluded.updated_at
+         WHERE excluded.updated_at > projects.updated_at",
+        params![project.id, project.name, project.description, project.created_at, project.updated_at],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn upsert_template_from_sync(state: State<DbState>, template: Template) -> Result<(), String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    conn.execute(
+        "INSERT INTO templates (id, title, category, body, is_favorite, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+         ON CONFLICT(id) DO UPDATE SET title = excluded.title, category = excluded.category, body = excluded.body,
+           is_favorite = excluded.is_favorite, updated_at = excluded.updated_at
+         WHERE excluded.updated_at > templates.updated_at",
+        params![template.id, template.title, template.category, template.body, template.is_favorite as i64, template.created_at, template.updated_at],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn upsert_prompt_from_sync(state: State<DbState>, prompt: Prompt) -> Result<(), String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    conn.execute(
+        "INSERT INTO prompts (id, title, raw_input, is_favorite, project_id, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+         ON CONFLICT(id) DO UPDATE SET title = excluded.title, raw_input = excluded.raw_input,
+           is_favorite = excluded.is_favorite, project_id = excluded.project_id, updated_at = excluded.updated_at
+         WHERE excluded.updated_at > prompts.updated_at",
+        params![prompt.id, prompt.title, prompt.raw_input, prompt.is_favorite as i64, prompt.project_id, prompt.created_at, prompt.updated_at],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+/// Compiles are append-only everywhere (local and cloud) — ON CONFLICT DO
+/// NOTHING rather than an update, since a compile row never changes once written.
+#[tauri::command]
+pub fn insert_compile_from_sync(state: State<DbState>, compile: Compile) -> Result<(), String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    conn.execute(
+        "INSERT INTO compiles (id, prompt_id, mode, compiled_json, created_at) VALUES (?1, ?2, ?3, ?4, ?5)
+         ON CONFLICT(id) DO NOTHING",
+        params![compile.id, compile.prompt_id, compile.mode, compile.compiled_json, compile.created_at],
     )
     .map_err(|e| e.to_string())?;
     Ok(())

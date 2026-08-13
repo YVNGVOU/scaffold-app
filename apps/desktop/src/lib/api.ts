@@ -8,6 +8,7 @@ export interface Prompt {
   created_at: string;
   is_favorite: boolean;
   project_id: string | null;
+  updated_at: string;
 }
 
 export interface Compile {
@@ -23,6 +24,7 @@ export interface Project {
   name: string;
   description: string;
   created_at: string;
+  updated_at: string;
 }
 
 export interface Template {
@@ -32,6 +34,7 @@ export interface Template {
   body: string;
   is_favorite: boolean;
   created_at: string;
+  updated_at: string;
 }
 
 export function createPrompt(title: string, rawInput: string): Promise<Prompt> {
@@ -127,4 +130,20 @@ export function getStorageInfo(): Promise<StorageInfo> {
 
 export function clearLocalData(): Promise<void> {
   return invoke('clear_local_data');
+}
+
+export function upsertProjectFromSync(project: Project): Promise<void> {
+  return invoke('upsert_project_from_sync', { project });
+}
+
+export function upsertTemplateFromSync(template: Template): Promise<void> {
+  return invoke('upsert_template_from_sync', { template });
+}
+
+export function upsertPromptFromSync(prompt: Prompt): Promise<void> {
+  return invoke('upsert_prompt_from_sync', { prompt });
+}
+
+export function insertCompileFromSync(compile: Compile): Promise<void> {
+  return invoke('insert_compile_from_sync', { compile });
 }

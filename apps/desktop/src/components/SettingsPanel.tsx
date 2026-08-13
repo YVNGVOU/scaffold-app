@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import { getVersion } from '@tauri-apps/api/app';
 import { openUrl } from '@tauri-apps/plugin-opener';
-import { setSetting, getStorageInfo, type StorageInfo } from '../lib/api';
+import { setSetting, getSetting, getStorageInfo, type StorageInfo } from '../lib/api';
 import { supabase } from '../lib/supabase';
 import { AUTH_LAST_VERIFIED_KEY } from './AuthGate';
 import { UpdateChecker } from './UpdateChecker';
 import type { AppearanceSettings, ThemeChoice, AccentChoice, DensityChoice } from '../lib/appearance';
 import type { NotificationCategory, NotificationSettings } from '../lib/notifications';
+import { getEntitlement, startCheckout, type Entitlement, type PaidTier } from '../lib/cloud';
+import { runSync, LAST_SYNC_KEY } from '../lib/sync';
 
 export type CompileMode = 'architect' | 'quick' | 'master';
 
@@ -80,6 +82,12 @@ export function SettingsPanel({
   const [clearing, setClearing] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [entitlement, setEntitlement] = useState<Entitlement | null>(null);
+  const [entitlementError, setEntitlementError] = useState<string | null>(null);
+  const [checkingOutTier, setCheckingOutTier] = useState<PaidTier | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<string | null>(null);
+  const [lastSync, setLastSync] = useState<string | null>(null);
 
   useEffect(() => {
     getVersion()
@@ -97,7 +105,50 @@ export function SettingsPanel({
         .then(setStorage)
         .catch(() => setStorage(null));
     }
+    if (category === 'account') {
+      setEntitlementError(null);
+      getEntitlement()
+        .then(setEntitlement)
+        .catch((e) => setEntitlementError(e instanceof Error ? e.message : String(e)));
+      getSetting(LAST_SYNC_KEY).then(setLastSync).catch(() => {});
+    }
   }, [category]);
+
+  async function handleUpgrade(tier: PaidTier) {
+    setCheckingOutTier(tier);
+    try {
+      const result = await startCheckout(tier);
+      try {
+        await openUrl(result.redirectUrl);
+      } catch {
+        window.open(result.redirectUrl, '_blank');
+      }
+      if (result.devMode) {
+        // Dev-mode checkout activates instantly server-side — re-read
+        // entitlement now rather than waiting for the user to come back.
+        const fresh = await getEntitlement();
+        setEntitlement(fresh);
+      }
+    } catch (e) {
+      setEntitlementError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setCheckingOutTier(null);
+    }
+  }
+
+  async function handleSyncNow() {
+    setSyncing(true);
+    setSyncStatus(null);
+    try {
+      const summary = await runSync();
+      setLastSync(summary.serverTime);
+      setSyncStatus(`Synced — ${summary.pushed} pushed, ${summary.pulled} pulled.`);
+    } catch (e) {
+      setSyncStatus('Sync failed: ' + (e instanceof Error ? e.message : String(e)));
+    } finally {
+      setSyncing(false);
+    }
+  }
 
   async function handleModeChange(mode: CompileMode) {
     onDefaultModeChange(mode);
@@ -413,6 +464,59 @@ export function SettingsPanel({
               <button type="button" onClick={handleSignOut} disabled={signingOut}>
                 {signingOut ? 'Signing Out…' : 'Sign Out'}
               </button>
+
+              <hr className="sv-hairline" style={{ margin: 'var(--sv-space-4) 0' }} />
+
+              <div className="sv-label" style={{ marginBottom: 'var(--sv-space-2)' }}>
+                Plan
+              </div>
+              {entitlementError && <div style={{ fontSize: 11, color: 'var(--sv-burgundy)', marginBottom: 'var(--sv-space-3)' }}>{entitlementError}</div>}
+              {!entitlementError && !entitlement && <div style={{ fontSize: 11, color: 'var(--sv-ink-soft)' }}>Loading…</div>}
+              {entitlement && (
+                <div style={{ fontSize: 13, marginBottom: 'var(--sv-space-3)' }}>
+                  <strong>{entitlement.tier}</strong>
+                  {entitlement.tier !== 'Free' && (
+                    <span style={{ fontSize: 11, color: 'var(--sv-ink-soft)' }}>
+                      {' '}
+                      · renews/expires {new Date(entitlement.expires_at).toLocaleDateString()}
+                    </span>
+                  )}
+                </div>
+              )}
+              <div style={{ display: 'flex', gap: 4, marginBottom: 'var(--sv-space-4)' }}>
+                {(['Plus', 'Pro', 'Max'] as PaidTier[]).map((tier) => (
+                  <button
+                    key={tier}
+                    type="button"
+                    className={entitlement?.tier === tier ? 'sv-primary' : ''}
+                    onClick={() => handleUpgrade(tier)}
+                    disabled={checkingOutTier !== null}
+                  >
+                    {checkingOutTier === tier ? 'Opening checkout…' : `Upgrade to ${tier}`}
+                  </button>
+                ))}
+              </div>
+              <div style={{ fontSize: 10, color: 'var(--sv-ink-soft)', marginBottom: 'var(--sv-space-4)' }}>
+                Opens checkout in your browser. If no live payment is configured yet, the order activates instantly for testing —
+                nothing is ever charged from inside the app itself.
+              </div>
+
+              <hr className="sv-hairline" style={{ margin: 'var(--sv-space-4) 0' }} />
+
+              <div className="sv-label" style={{ marginBottom: 'var(--sv-space-2)' }}>
+                Cloud sync
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--sv-ink-soft)', marginBottom: 'var(--sv-space-2)' }}>
+                {lastSync ? `Last synced ${new Date(lastSync).toLocaleString()}` : 'Never synced.'}
+              </div>
+              <button type="button" onClick={handleSyncNow} disabled={syncing}>
+                {syncing ? 'Syncing…' : 'Sync Now'}
+              </button>
+              {syncStatus && <div style={{ fontSize: 11, color: 'var(--sv-ink-soft)', marginTop: 'var(--sv-space-2)' }}>{syncStatus}</div>}
+              <div style={{ fontSize: 10, color: 'var(--sv-ink-soft)', marginTop: 'var(--sv-space-2)' }}>
+                Pushes your prompts, projects, and templates to your account and pulls anything newer from other devices.
+                Deleting something locally doesn't yet delete it on other devices — delete it on each device separately for now.
+              </div>
             </div>
           )}
 

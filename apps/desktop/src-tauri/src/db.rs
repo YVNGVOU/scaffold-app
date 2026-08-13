@@ -17,6 +17,10 @@ pub struct Prompt {
     pub created_at: String,
     pub is_favorite: bool,
     pub project_id: Option<String>,
+    /// Bumped on every mutation (rename, favorite, project reassignment) —
+    /// used by cloud sync (scaffold-api.js's /sync route) for last-write-wins
+    /// merge. Never read by anything else locally.
+    pub updated_at: String,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -25,6 +29,7 @@ pub struct Project {
     pub name: String,
     pub description: String,
     pub created_at: String,
+    pub updated_at: String,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -35,6 +40,7 @@ pub struct Template {
     pub body: String,
     pub is_favorite: bool,
     pub created_at: String,
+    pub updated_at: String,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -120,6 +126,24 @@ pub fn init_db(db_path: PathBuf) -> Connection {
     if !has_project_id {
         conn.execute_batch("ALTER TABLE prompts ADD COLUMN project_id TEXT;")
             .expect("failed to run project_id migration");
+    }
+
+    // Cloud sync (TASK: Friday backend) — `updated_at` added to every
+    // syncable table, same additive-migration pattern as is_favorite/
+    // project_id above. Backfilled from created_at for existing rows so a
+    // pre-existing local database still has a sane initial sync timestamp
+    // rather than an empty string.
+    for (table, default_col) in [("prompts", "created_at"), ("projects", "created_at"), ("templates", "created_at")] {
+        let has_updated_at: bool = conn
+            .prepare(&format!("SELECT 1 FROM pragma_table_info('{table}') WHERE name = 'updated_at'"))
+            .and_then(|mut stmt| stmt.exists([]))
+            .unwrap_or(false);
+        if !has_updated_at {
+            conn.execute_batch(&format!("ALTER TABLE {table} ADD COLUMN updated_at TEXT NOT NULL DEFAULT '';"))
+                .expect("failed to run updated_at migration");
+            conn.execute_batch(&format!("UPDATE {table} SET updated_at = {default_col} WHERE updated_at = '';"))
+                .expect("failed to backfill updated_at");
+        }
     }
 
     conn
