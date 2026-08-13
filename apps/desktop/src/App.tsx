@@ -37,9 +37,25 @@ import { ArchitecturePanel } from './components/ArchitecturePanel';
 import { MultiPassView } from './components/compiler/MultiPassView';
 import { StageInspector } from './components/compiler/StageInspector';
 import type { BucketKey } from './components/compiler/stageBuckets';
+import { NotificationCenter } from './components/NotificationCenter';
+import { loadAppearance, saveAppearance, applyAppearance, DEFAULT_APPEARANCE, type AppearanceSettings } from './lib/appearance';
+import {
+  loadNotifications,
+  saveNotifications,
+  loadNotificationSettings,
+  saveNotificationSettings,
+  newNotificationId,
+  DEFAULT_NOTIFICATION_SETTINGS,
+  type AppNotification,
+  type NotificationCategory,
+  type NotificationSettings,
+} from './lib/notifications';
+import { clearLocalData } from './lib/api';
 import './theme.css';
 
 const GROUP_ORDER_KEY = 'architecture_group_order';
+const START_WORKSPACE_KEY = 'start_workspace';
+const CONFIRM_DESTRUCTIVE_KEY = 'confirm_destructive';
 
 const STAGE_DELAY_MS = 90;
 const DRAFT_DEBOUNCE_MS = 500;
@@ -131,6 +147,78 @@ export default function App() {
     setSetting(GROUP_ORDER_KEY, JSON.stringify(next)).catch(() => {});
   }
 
+  // Appearance settings: applied to <html> as real CSS attributes/vars (see
+  // lib/appearance.ts), not just stored preferences.
+  const [appearance, setAppearance] = useState<AppearanceSettings>(DEFAULT_APPEARANCE);
+  const [startWorkspace, setStartWorkspace] = useState('home');
+  const [confirmDestructive, setConfirmDestructive] = useState(true);
+
+  async function handleAppearanceChange(next: AppearanceSettings) {
+    setAppearance(next);
+    applyAppearance(next);
+    saveAppearance(next).catch(() => {});
+  }
+
+  async function handleStartWorkspaceChange(w: string) {
+    setStartWorkspace(w);
+    setSetting(START_WORKSPACE_KEY, w).catch(() => {});
+  }
+
+  async function handleConfirmDestructiveChange(v: boolean) {
+    setConfirmDestructive(v);
+    setSetting(CONFIRM_DESTRUCTIVE_KEY, v ? '1' : '0').catch(() => {});
+  }
+
+  // Notification center: real persisted notifications, gated per-category by
+  // notificationSettings — a disabled category is never appended, not just
+  // hidden from view.
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>(DEFAULT_NOTIFICATION_SETTINGS);
+  const [notificationCenterOpen, setNotificationCenterOpen] = useState(false);
+
+  async function pushNotification(category: NotificationCategory, message: string) {
+    if (!notificationSettings[category]) return;
+    setNotifications((prev) => {
+      const next = [{ id: newNotificationId(), category, message, createdAt: new Date().toISOString(), read: false }, ...prev].slice(0, 50);
+      saveNotifications(next).catch(() => {});
+      return next;
+    });
+  }
+
+  async function handleNotificationSettingsChange(next: NotificationSettings) {
+    setNotificationSettings(next);
+    saveNotificationSettings(next).catch(() => {});
+  }
+
+  function handleMarkNotificationRead(id: string) {
+    setNotifications((prev) => {
+      const next = prev.map((n) => (n.id === id ? { ...n, read: true } : n));
+      saveNotifications(next).catch(() => {});
+      return next;
+    });
+  }
+
+  function handleMarkAllNotificationsRead() {
+    setNotifications((prev) => {
+      const next = prev.map((n) => ({ ...n, read: true }));
+      saveNotifications(next).catch(() => {});
+      return next;
+    });
+  }
+
+  function handleClearNotifications() {
+    setNotifications([]);
+    saveNotifications([]).catch(() => {});
+  }
+
+  async function handleClearLocalData() {
+    await clearLocalData();
+    await refreshPrompts();
+    await refreshTemplates();
+    setActivePrompt(null);
+    setCompiled(null);
+  }
+
   async function refreshTemplates() {
     try {
       setTemplates(await listTemplates());
@@ -201,6 +289,25 @@ export default function App() {
         } catch {
           // malformed persisted value — keep the default order rather than crash
         }
+      })
+      .catch(() => {});
+    loadAppearance().then((a) => {
+      setAppearance(a);
+      applyAppearance(a);
+    });
+    loadNotificationSettings().then(setNotificationSettings);
+    loadNotifications().then(setNotifications);
+    getSetting(START_WORKSPACE_KEY)
+      .then((v) => {
+        if (v) {
+          setStartWorkspace(v);
+          setWorkspace(v as WorkspaceId);
+        }
+      })
+      .catch(() => {});
+    getSetting(CONFIRM_DESTRUCTIVE_KEY)
+      .then((v) => {
+        if (v !== null) setConfirmDestructive(v === '1');
       })
       .catch(() => {});
   }, []);
@@ -363,7 +470,7 @@ export default function App() {
       for (const idx of stageQueue) {
         if (cancelRef.current) break;
         setStageIndex(idx);
-        await sleep(STAGE_DELAY_MS);
+        await sleep(appearance.reduceMotion ? 0 : STAGE_DELAY_MS);
       }
       setStageIndex(stageNames.length);
 
@@ -384,8 +491,10 @@ export default function App() {
       // shadowing future edits. Best-effort; a leftover draft is harmless.
       setSetting(draftKey(prompt.id), '').catch(() => {});
       if (wasNewPrompt) setSetting(NEW_DRAFT_KEY, '').catch(() => {});
+      pushNotification('compilation', `Compiled "${prompt.title}" (${mode.toUpperCase()})`);
     } catch (e) {
       setError(toFriendlyError(e));
+      pushNotification('errors', 'Compile failed — see the error note in Prompt Studio.');
     } finally {
       setRunning(false);
     }
@@ -437,7 +546,7 @@ export default function App() {
       for (const idx of stageQueue) {
         if (cancelRef.current) break;
         setStageIndex(idx);
-        await sleep(STAGE_DELAY_MS);
+        await sleep(appearance.reduceMotion ? 0 : STAGE_DELAY_MS);
       }
       setStageIndex(stageNamesRun.length);
 
@@ -447,8 +556,10 @@ export default function App() {
         await saveCompile(activePrompt.id, mode, JSON.stringify(finalCompiled));
         await refreshPrompts();
       }
+      pushNotification('compilation', 'Recompiled with your answers applied.');
     } catch (e) {
       setError(toFriendlyError(e));
+      pushNotification('errors', 'Recompile failed — see the error note in Prompt Studio.');
     } finally {
       setRunning(false);
       setIsRecompiling(false);
@@ -533,39 +644,6 @@ export default function App() {
           onOpenBatchCompile={() => setBatchCompileOpen(true)}
         />
       </div>
-
-      {batchCompileOpen && (
-        <BatchCompile
-          mode={mode}
-          maxRounds={maxRounds}
-          onClose={() => setBatchCompileOpen(false)}
-          onDone={refreshPrompts}
-        />
-      )}
-
-      {compareModesOpen && (
-        <CompareModes
-          rawInput={rawInput}
-          maxRounds={maxRounds}
-          activePrompt={activePrompt}
-          onUseResult={handleUseComparisonResult}
-          onClose={() => setCompareModesOpen(false)}
-        />
-      )}
-
-      {historyOpen && activePrompt && (
-        <VersionHistory promptId={activePrompt.id} onClose={() => setHistoryOpen(false)} />
-      )}
-
-      {settingsOpen && (
-        <SettingsPanel
-          onClose={() => setSettingsOpen(false)}
-          defaultMode={mode}
-          onDefaultModeChange={setMode}
-          maxRounds={maxRounds}
-          onMaxRoundsChange={setMaxRounds}
-        />
-      )}
 
       <div style={{ gridColumn: '2', gridRow: '1', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
         <div style={{ padding: 'var(--sv-space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--sv-space-2)' }}>
@@ -804,6 +882,25 @@ export default function App() {
           onDefaultModeChange={setMode}
           maxRounds={maxRounds}
           onMaxRoundsChange={setMaxRounds}
+          appearance={appearance}
+          onAppearanceChange={handleAppearanceChange}
+          notificationSettings={notificationSettings}
+          onNotificationSettingsChange={handleNotificationSettingsChange}
+          onClearLocalData={handleClearLocalData}
+          startWorkspace={startWorkspace}
+          onStartWorkspaceChange={handleStartWorkspaceChange}
+          confirmDestructive={confirmDestructive}
+          onConfirmDestructiveChange={handleConfirmDestructiveChange}
+        />
+      )}
+
+      {notificationCenterOpen && (
+        <NotificationCenter
+          notifications={notifications}
+          onMarkRead={handleMarkNotificationRead}
+          onMarkAllRead={handleMarkAllNotificationsRead}
+          onClear={handleClearNotifications}
+          onClose={() => setNotificationCenterOpen(false)}
         />
       )}
 
@@ -830,6 +927,8 @@ export default function App() {
         onNavigate={setWorkspace}
         onOpenPalette={() => setPaletteOpen(true)}
         onOpenSettings={() => setSettingsOpen(true)}
+        onOpenNotifications={() => setNotificationCenterOpen(true)}
+        unreadCount={notifications.filter((n) => !n.read).length}
       >
         {workspace === 'home' && (
           <HomeWorkspace

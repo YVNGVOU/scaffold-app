@@ -3,8 +3,14 @@ mod commands;
 mod db;
 
 use db::DbState;
+use std::path::PathBuf;
 use std::sync::Mutex;
 use tauri::Manager;
+
+/// Absolute path to the SQLite database file, managed separately from
+/// `DbState` (which holds the open `Connection`) so `get_storage_info` can
+/// `std::fs::metadata` it without needing a second open handle.
+pub struct DbPath(pub PathBuf);
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -21,6 +27,7 @@ pub fn run() {
                 .app_data_dir()
                 .expect("failed to resolve app data dir");
             let db_path = app_data_dir.join("sinvaux.sqlite3");
+            app.manage(DbPath(db_path.clone()));
             let conn = db::init_db(db_path);
             app.manage(DbState(Mutex::new(conn)));
             Ok(())
@@ -45,6 +52,8 @@ pub fn run() {
             commands::list_templates,
             commands::set_template_favorite,
             commands::delete_template,
+            commands::get_storage_info,
+            commands::clear_local_data,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

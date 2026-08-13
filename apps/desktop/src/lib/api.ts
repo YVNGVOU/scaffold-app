@@ -112,3 +112,19 @@ export function setTemplateFavorite(id: string, isFavorite: boolean): Promise<vo
 export function deleteTemplate(id: string): Promise<void> {
   return invoke('delete_template', { id });
 }
+
+export interface StorageInfo {
+  db_size_bytes: number;
+  prompt_count: number;
+  compile_count: number;
+  project_count: number;
+  template_count: number;
+}
+
+export function getStorageInfo(): Promise<StorageInfo> {
+  return invoke('get_storage_info');
+}
+
+export function clearLocalData(): Promise<void> {
+  return invoke('clear_local_data');
+}

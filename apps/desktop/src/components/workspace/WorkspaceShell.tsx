@@ -16,13 +16,15 @@ interface WorkspaceShellProps {
   onNavigate: (w: WorkspaceId) => void;
   onOpenPalette: () => void;
   onOpenSettings: () => void;
+  onOpenNotifications: () => void;
+  unreadCount: number;
   children: ReactNode;
 }
 
 /** Top-level app chrome: left workspace rail + top bar. Individual
  * workspaces render inside `children`; this component owns only navigation
  * chrome, never workspace-specific state. */
-export function WorkspaceShell({ active, onNavigate, onOpenPalette, onOpenSettings, children }: WorkspaceShellProps) {
+export function WorkspaceShell({ active, onNavigate, onOpenPalette, onOpenSettings, onOpenNotifications, unreadCount, children }: WorkspaceShellProps) {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '176px 1fr', height: '100vh', minHeight: 0 }}>
       <nav
@@ -67,6 +69,14 @@ export function WorkspaceShell({ active, onNavigate, onOpenPalette, onOpenSettin
             style={{ textAlign: 'left', fontSize: 10, padding: 'var(--sv-space-2) var(--sv-space-3)', justifyContent: 'flex-start' }}
           >
             Search · ⌘K
+          </button>
+          <button
+            type="button"
+            onClick={onOpenNotifications}
+            style={{ textAlign: 'left', fontSize: 10, padding: 'var(--sv-space-2) var(--sv-space-3)', display: 'flex', justifyContent: 'space-between' }}
+          >
+            <span>Notifications</span>
+            {unreadCount > 0 && <span style={{ color: 'var(--sv-burgundy)' }}>{unreadCount}</span>}
           </button>
           <button
             type="button"

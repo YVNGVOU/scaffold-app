@@ -1,8 +1,52 @@
 use crate::db::{Compile, DbState, Project, Prompt, Template};
+use crate::DbPath;
 use chrono::Utc;
 use rusqlite::params;
+use serde::Serialize;
 use tauri::State;
 use uuid::Uuid;
+
+#[derive(Serialize)]
+pub struct StorageInfo {
+    pub db_size_bytes: u64,
+    pub prompt_count: i64,
+    pub compile_count: i64,
+    pub project_count: i64,
+    pub template_count: i64,
+}
+
+#[tauri::command]
+pub fn get_storage_info(state: State<DbState>, db_path: State<DbPath>) -> Result<StorageInfo, String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    let count = |table: &str| -> Result<i64, String> {
+        conn.query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |row| row.get(0))
+            .map_err(|e| e.to_string())
+    };
+    let db_size_bytes = std::fs::metadata(&db_path.0).map(|m| m.len()).unwrap_or(0);
+    Ok(StorageInfo {
+        db_size_bytes,
+        prompt_count: count("prompts")?,
+        compile_count: count("compiles")?,
+        project_count: count("projects")?,
+        template_count: count("templates")?,
+    })
+}
+
+/// Wipes every user-content table (prompts, compiles, projects, templates,
+/// settings) for a genuine fresh start. Destructive and irreversible — the
+/// frontend must confirm with the user before calling this.
+#[tauri::command]
+pub fn clear_local_data(state: State<DbState>) -> Result<(), String> {
+    let mut conn = state.0.lock().map_err(|e| e.to_string())?;
+    let tx = conn.transaction().map_err(|e| e.to_string())?;
+    tx.execute("DELETE FROM compiles", []).map_err(|e| e.to_string())?;
+    tx.execute("DELETE FROM prompts", []).map_err(|e| e.to_string())?;
+    tx.execute("DELETE FROM projects", []).map_err(|e| e.to_string())?;
+    tx.execute("DELETE FROM templates", []).map_err(|e| e.to_string())?;
+    tx.execute("DELETE FROM settings", []).map_err(|e| e.to_string())?;
+    tx.commit().map_err(|e| e.to_string())?;
+    Ok(())
+}
 
 #[tauri::command]
 pub fn create_prompt(state: State<DbState>, title: String, raw_input: String) -> Result<Prompt, String> {

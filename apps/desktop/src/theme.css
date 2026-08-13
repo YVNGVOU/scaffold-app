@@ -19,14 +19,43 @@
   --sv-font-head: 'Fraunces', Georgia, 'Times New Roman', serif;
   --sv-font-body: 'IBM Plex Sans', -apple-system, Segoe UI, sans-serif;
   --sv-font-mono: 'IBM Plex Mono', 'Courier New', monospace;
+  --sv-font-scale: 1;
 
-  --sv-space-1: 4px;
-  --sv-space-2: 8px;
-  --sv-space-3: 12px;
-  --sv-space-4: 16px;
-  --sv-space-5: 24px;
-  --sv-space-6: 32px;
-  --sv-space-7: 48px;
+  --sv-space-scale: 1;
+  --sv-space-1: calc(4px * var(--sv-space-scale));
+  --sv-space-2: calc(8px * var(--sv-space-scale));
+  --sv-space-3: calc(12px * var(--sv-space-scale));
+  --sv-space-4: calc(16px * var(--sv-space-scale));
+  --sv-space-5: calc(24px * var(--sv-space-scale));
+  --sv-space-6: calc(32px * var(--sv-space-scale));
+  --sv-space-7: calc(48px * var(--sv-space-scale));
+}
+
+/* Appearance settings (SettingsPanel > Appearance) apply via attributes on
+   <html>, set by App.tsx from persisted settings at startup and on change —
+   real token swaps, not decorative. */
+:root[data-theme='light'] {
+  --sv-ivory: #f6f3ec;
+  --sv-ivory-dim: #ece7db;
+  --sv-ink: #201d17;
+  --sv-ink-soft: #6b6355;
+  --sv-hairline: #ddd6c4;
+  --sv-hairline-strong: #c3b9a1;
+  --sv-alert: #b6551f;
+}
+
+:root[data-accent='teal'] {
+  --sv-burgundy: #3e7c7a;
+  --sv-burgundy-dim: #56a09d;
+}
+
+:root[data-density='compact'] {
+  --sv-space-scale: 0.7;
+}
+
+:root[data-motion='reduced'] * {
+  animation-duration: 0.001ms !important;
+  transition-duration: 0.001ms !important;
 }
 
 * {
@@ -44,7 +73,7 @@ body {
   background: var(--sv-ivory);
   color: var(--sv-ink);
   font-family: var(--sv-font-body);
-  font-size: 14px;
+  font-size: calc(14px * var(--sv-font-scale));
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
